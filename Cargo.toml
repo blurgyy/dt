@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "dt-core",
+    "dt-cli",
+]
+
+# Author: Blurgy <gy@blurgy.xyz>
+# Date:   Sep 17 2021, 21:19 [CST]
