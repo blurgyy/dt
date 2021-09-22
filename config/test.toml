@@ -1,0 +1,6 @@
+[[local]]
+sources = ["/home/gy/repos/FORFUN/dt/config/test.toml"]
+target = "/home/gy/repos/FORFUN/dt/config"
+
+# Author: Blurgy <gy@blurgy.xyz>
+# Date:   Sep 21 2021, 10:46 [CST]

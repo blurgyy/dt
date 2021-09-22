@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use color_eyre::Report;
 use structopt::StructOpt;
 
+use dt_core::config::DTConfig;
+
 #[derive(StructOpt, Debug)]
 #[structopt(
     global_settings(&[structopt::clap::AppSettings::ColoredHelp])
@@ -17,6 +19,9 @@ fn main() -> Result<(), Report> {
     println!("Hello, world!");
 
     let opt = Args::from_args();
+    let config: DTConfig = DTConfig::from_pathbuf(opt.config_path)?;
+
+    dbg!(config);
 
     Ok(())
 }
