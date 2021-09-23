@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use color_eyre::Report;
 use structopt::StructOpt;
 
-use dt_core::config::DTConfig;
+use dt_core::{config::DTConfig, syncing};
 
 #[derive(StructOpt, Debug)]
 #[structopt(
@@ -16,12 +16,10 @@ struct Args {
 
 fn main() -> Result<(), Report> {
     setup()?;
-    println!("Hello, world!");
 
     let opt = Args::from_args();
     let config: DTConfig = DTConfig::from_pathbuf(opt.config_path)?;
-
-    dbg!(config);
+    syncing::sync(&config)?;
 
     Ok(())
 }

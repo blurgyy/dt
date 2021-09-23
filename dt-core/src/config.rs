@@ -9,9 +9,13 @@ pub struct DTConfig {
 }
 
 /// This struct configures how local items (files/directories) are synced.
+///
+/// Each path should satisfy one of the following:
+///     - is relative to the path from which the executable is being run
+///     - is an absolute path
 #[derive(Default, Clone, Deserialize, Debug)]
 pub struct LocalSyncConfig {
-    /// The items to be syned.
+    /// Paths to the items to be synced.
     pub sources: Vec<PathBuf>,
 
     /// The parent dir of the final synced items.
