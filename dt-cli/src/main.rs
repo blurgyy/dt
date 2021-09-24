@@ -36,6 +36,10 @@ fn main() -> Result<(), Report> {
 }
 
 fn setup() -> Result<(), Report> {
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "info");
+    }
+
     pretty_env_logger::init();
     color_eyre::install()?;
 
