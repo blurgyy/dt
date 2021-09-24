@@ -16,6 +16,12 @@ pub fn sync(config: &DTConfig) -> Result<(), Report> {
     Ok(())
 }
 
+/// Show changes to be made according to configuration, without actually syncing items.
+pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
+    todo!();
+    Ok(())
+}
+
 /// Recursively syncs `spath` to a directory `tparent`.
 ///
 /// Args:

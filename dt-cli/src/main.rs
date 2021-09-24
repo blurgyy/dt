@@ -12,6 +12,13 @@ use dt_core::{config::DTConfig, syncing};
 struct Args {
     #[structopt(help = "Path to config file", parse(from_os_str))]
     config_path: PathBuf,
+
+    #[structopt(
+        help = "Show changes to be made without actually syncing files",
+        short,
+        long
+    )]
+    dry_run: bool,
 }
 
 fn main() -> Result<(), Report> {
@@ -19,7 +26,11 @@ fn main() -> Result<(), Report> {
 
     let opt = Args::from_args();
     let config: DTConfig = DTConfig::from_pathbuf(opt.config_path)?;
-    syncing::sync(&config)?;
+    if opt.dry_run {
+        syncing::dry_sync(&config)?;
+    } else {
+        syncing::sync(&config)?;
+    }
 
     Ok(())
 }
