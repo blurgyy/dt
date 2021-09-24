@@ -62,16 +62,17 @@ impl DTConfig {
 }
 
 #[cfg(test)]
-mod tests {
+mod config_validating {
     use color_eyre::{eyre::eyre, Report};
 
     use crate::config;
 
     #[test]
     fn target_not_directory() -> Result<(), Report> {
+        // Paths are relative to directory `dt-core`.
         let confstr = r#"[[local]]
-sources = ["/home/gy/repos/FORFUN/dt/config/test.toml"]
-target = "/home/gy/repos/FORFUN/dt/config/test.toml"
+sources = ["../testroot/configs/test.toml"]
+target = "../testroot/configs/test.toml"
         "#;
         if let Ok(config) = config::DTConfig::from_str(&confstr) {
             Err(eyre!(
