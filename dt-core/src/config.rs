@@ -8,9 +8,9 @@ pub struct DTConfig {
     pub local: Option<Vec<LocalSyncConfig>>,
 }
 
-/// This struct configures how local items (files/directories) are synced.
+/// Configures how local items (files/directories) are synced.
 ///
-/// Each path should satisfy one of the following:
+/// Each item should satisfy one of the following:
 ///     - is relative to the path from which the executable is being run
 ///     - is an absolute path
 #[derive(Default, Clone, Deserialize, Debug)]
@@ -20,9 +20,9 @@ pub struct LocalSyncConfig {
 
     /// The parent dir of the final synced items.
     ///
-    /// For example, if a file `/source/a` is to be synced to `/tar/get/a`, then `target` should be
-    /// `/tar/get`; if a directory `source/dir` is to be synced to `targ/et/dir`, then `target` should
-    /// be `targ/et`.
+    /// For example, if a file `/source/file` is to be synced to `/tar/get/file`, then `target`
+    /// should be `/tar/get`; if a directory `source/dir` is to be synced to `targ/et/dir`, then
+    /// `target` should be `targ/et`.
     pub target: PathBuf,
     // // The pattern specified in `match_begin` is matched against all
     // match_begin: String,
@@ -32,6 +32,7 @@ pub struct LocalSyncConfig {
 }
 
 impl DTConfig {
+    /// Loads configuration from a file.
     pub fn from_pathbuf(path: PathBuf) -> Result<DTConfig, Report> {
         let confstr = std::fs::read_to_string(path)?;
         let ret: DTConfig = DTConfig::from_str(&confstr)?;
@@ -39,6 +40,7 @@ impl DTConfig {
         Ok(ret)
     }
 
+    /// Loads configuration from string.
     pub fn from_str(s: &str) -> Result<DTConfig, Report> {
         let ret: DTConfig = toml::from_str(s)?;
         ret.validate()?;
