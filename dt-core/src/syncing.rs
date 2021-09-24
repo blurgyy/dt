@@ -33,6 +33,7 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
 /// Args:
 ///   - `spath`: Path to source item.
 ///   - `tparent`: Path to the parent dir of the disired sync destination.
+///   - `dry`: Whether to issue a dry run.
 fn sync_recursive(
     spath: &PathBuf,
     tparent: &PathBuf,
