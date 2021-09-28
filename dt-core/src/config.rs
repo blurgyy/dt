@@ -62,7 +62,7 @@ impl DTConfig {
 }
 
 #[cfg(test)]
-mod config_validating {
+mod validating {
     use std::{path::PathBuf, str::FromStr};
 
     use color_eyre::{eyre::eyre, Report};
