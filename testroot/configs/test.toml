@@ -1,6 +1,0 @@
-[[local]]
-sources = ["config/"]
-target = "./t/e/s/t"
-
-# Author: Blurgy <gy@blurgy.xyz>
-# Date:   Sep 21 2021, 10:46 [CST]

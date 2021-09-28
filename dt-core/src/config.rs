@@ -63,18 +63,74 @@ impl DTConfig {
 
 #[cfg(test)]
 mod config_validating {
+    use std::{path::PathBuf, str::FromStr};
+
     use color_eyre::{eyre::eyre, Report};
 
     use crate::config;
 
     #[test]
-    fn target_not_directory() -> Result<(), Report> {
+    fn s_file_t_file_from_str() -> Result<(), Report> {
         // Paths are relative to directory `dt-core`.
         let confstr = r#"[[local]]
-sources = ["../testroot/configs/test.toml"]
-target = "../testroot/configs/test.toml"
+sources = ["../testroot/README.md"]
+target = "../testroot/README.md"
         "#;
         if let Ok(config) = config::DTConfig::from_str(&confstr) {
+            Err(eyre!(
+                "This config should not be loaded because target is not a directory: {:#?}",
+                config
+            ))
+        } else {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn s_file_t_file() -> Result<(), Report> {
+        if let Ok(config) = config::DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/s_file_t_file.toml",
+        )?) {
+            Err(eyre!(
+                "This config should not be loaded because target is not a directory: {:#?}",
+                config
+            ))
+        } else {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn s_file_t_dir() -> Result<(), Report> {
+        if let Ok(_config) = config::DTConfig::from_pathbuf(
+            PathBuf::from_str("../testroot/configs/s_file_t_dir.toml")?,
+        ) {
+            Ok(())
+        } else {
+            Err(eyre!(
+                "This config should be loaded because target is a directory"
+            ))
+        }
+    }
+
+    #[test]
+    fn s_dir_t_dir() -> Result<(), Report> {
+        if let Ok(_config) = config::DTConfig::from_pathbuf(
+            PathBuf::from_str("../testroot/configs/s_dir_t_dir.toml")?,
+        ) {
+            Ok(())
+        } else {
+            Err(eyre!(
+                "This config should be loaded because target is a directory"
+            ))
+        }
+    }
+
+    #[test]
+    fn s_dir_t_file() -> Result<(), Report> {
+        if let Ok(config) = config::DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/s_dir_t_file.toml",
+        )?) {
             Err(eyre!(
                 "This config should not be loaded because target is not a directory: {:#?}",
                 config

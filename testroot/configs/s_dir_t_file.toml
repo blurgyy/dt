@@ -1,0 +1,3 @@
+[[local]]
+sources = ["../testroot"]
+target = "../testroot/README.md"
