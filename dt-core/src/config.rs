@@ -5,7 +5,7 @@ use serde::Deserialize;
 
 #[derive(Default, Clone, Deserialize, Debug)]
 pub struct DTConfig {
-    pub local: Option<Vec<LocalSyncConfig>>,
+    pub local: Vec<LocalSyncConfig>,
 }
 
 /// Configures how local items (files/directories) are synced.
@@ -35,7 +35,34 @@ impl DTConfig {
     /// Loads configuration from a file.
     pub fn from_pathbuf(path: PathBuf) -> Result<DTConfig, Report> {
         let confstr = std::fs::read_to_string(path)?;
-        let ret: DTConfig = DTConfig::from_str(&confstr)?;
+        let raw: DTConfig = DTConfig::from_str(&confstr)?;
+
+        // Expand tilde and globs in "sources" and manifest new config object.
+        let globbing_options = glob::MatchOptions {
+            case_sensitive: true,
+            require_literal_separator: true,
+            require_literal_leading_dot: true,
+        };
+        let mut ret = DTConfig { local: vec![] };
+        for original in &raw.local {
+            let mut next = LocalSyncConfig {
+                sources: vec![],
+                target: original.target.to_owned(),
+            };
+            for s in &original.sources {
+                let s = shellexpand::tilde(s.to_str().unwrap());
+                let mut s = glob::glob_with(&s, globbing_options)?
+                    .map(|x| {
+                        x.expect(&format!(
+                            "Failed globbing source path {}",
+                            &s
+                        ))
+                    })
+                    .collect();
+                next.sources.append(&mut s);
+            }
+            ret.local.push(next);
+        }
 
         Ok(ret)
     }
@@ -48,13 +75,9 @@ impl DTConfig {
     }
 
     fn validate(self: &DTConfig) -> Result<(), Report> {
-        if let Some(local) = &self.local {
-            for group in local {
-                if group.target.exists() && !group.target.is_dir() {
-                    return Err(eyre!(
-                        "Target path exists and not a directory"
-                    ));
-                }
+        for group in &self.local {
+            if group.target.exists() && !group.target.is_dir() {
+                return Err(eyre!("Target path exists and not a directory"));
             }
         }
         Ok(())
@@ -138,6 +161,26 @@ target = "../testroot/README.md"
         } else {
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod paths_expansion {
+    use color_eyre::Report;
+
+    #[test]
+    fn tilde() -> Result<(), Report> {
+        Ok(())
+    }
+
+    #[test]
+    fn glob() -> Result<(), Report> {
+        Ok(())
+    }
+
+    #[test]
+    fn tilde_with_glob() -> Result<(), Report> {
+        Ok(())
     }
 }
 

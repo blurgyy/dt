@@ -7,8 +7,10 @@ edition = "2018"
 
 [dependencies]
 color-eyre = "0.5.11"
+glob = "0.3.0"
 log = "0.4.14"
 serde = { version = "1.0.130", features = ["derive"] }
+shellexpand = "2.1.0"
 toml = "0.5.8"
 
 # Author: Blurgy <gy@blurgy.xyz>

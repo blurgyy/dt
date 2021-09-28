@@ -6,11 +6,9 @@ use crate::config::DTConfig;
 
 /// Syncs items specified in configuration.
 pub fn sync(config: &DTConfig) -> Result<(), Report> {
-    if let Some(locals) = &config.local {
-        for local in locals {
-            for spath in &local.sources {
-                sync_recursive(spath, &local.target, false)?;
-            }
+    for local in &config.local {
+        for spath in &local.sources {
+            sync_recursive(spath, &local.target, false)?;
         }
     }
     Ok(())
@@ -18,11 +16,9 @@ pub fn sync(config: &DTConfig) -> Result<(), Report> {
 
 /// Show changes to be made according to configuration, without actually syncing items.
 pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
-    if let Some(locals) = &config.local {
-        for local in locals {
-            for spath in &local.sources {
-                sync_recursive(spath, &local.target, true)?;
-            }
+    for local in &config.local {
+        for spath in &local.sources {
+            sync_recursive(spath, &local.target, true)?;
         }
     }
     Ok(())
