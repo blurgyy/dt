@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, str::FromStr};
 
 use color_eyre::{eyre::eyre, Report};
 use serde::Deserialize;
@@ -61,6 +61,9 @@ impl DTConfig {
                     .collect();
                 next.sources.append(&mut s);
             }
+            next.target = PathBuf::from_str(&shellexpand::tilde(
+                next.target.to_str().unwrap(),
+            ))?;
             ret.local.push(next);
         }
 
@@ -183,6 +186,7 @@ mod paths_expansion {
                     for s in &local.sources {
                         assert_eq!(s.to_str(), Some(home.as_str()));
                     }
+                    assert_eq!(local.target.to_str(), Some(home.as_str()));
                 }
                 Ok(())
             } else {
