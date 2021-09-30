@@ -166,21 +166,82 @@ target = "../testroot/README.md"
 
 #[cfg(test)]
 mod paths_expansion {
-    use color_eyre::Report;
+    use std::path::PathBuf;
+    use std::str::FromStr;
+
+    use color_eyre::{eyre::eyre, Report};
+
+    use super::DTConfig;
 
     #[test]
     fn tilde() -> Result<(), Report> {
-        Ok(())
+        if let Ok(home) = std::env::var("HOME") {
+            if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+                "../testroot/configs/expand_tilde.toml",
+            )?) {
+                for local in &config.local {
+                    for s in &local.sources {
+                        assert_eq!(s.to_str(), Some(home.as_str()));
+                    }
+                }
+                Ok(())
+            } else {
+                Err(eyre!(
+                    "This config should be loaded because target is a directory"
+                ))
+            }
+        } else {
+            Err(eyre!(
+                "Set the `HOME` environment variable to complete this test"
+            ))
+        }
     }
 
     #[test]
     fn glob() -> Result<(), Report> {
+        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/expand_glob.toml",
+        )?) {
+            for local in &config.local {
+                assert_eq!(
+                    vec![
+                        PathBuf::from_str("../Cargo.lock")?,
+                        PathBuf::from_str("../Cargo.toml")?,
+                    ],
+                    local.sources
+                );
+            }
+        }
         Ok(())
     }
 
     #[test]
     fn tilde_with_glob() -> Result<(), Report> {
-        Ok(())
+        if let Ok(home) = std::env::var("HOME") {
+            if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+                "../testroot/configs/expand_tilde_with_glob.toml",
+            )?) {
+                let entries = std::fs::read_dir(&home)?
+                    .map(|x| x.expect("Failed reading dir entry"))
+                    .map(|x| x.path())
+                    .collect::<Vec<_>>();
+                for local in &config.local {
+                    assert_eq!(entries.len(), local.sources.len());
+                    for s in &local.sources {
+                        assert!(entries.contains(s));
+                    }
+                }
+                Ok(())
+            } else {
+                Err(eyre!(
+                    "This config should be loaded because target is a directory"
+                ))
+            }
+        } else {
+            Err(eyre!(
+                "Set the `HOME` environment variable to complete this test"
+            ))
+        }
     }
 }
 

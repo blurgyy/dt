@@ -1,0 +1,7 @@
+[[local]]
+# Explanation:
+#   - "*":      All files without leading dot.
+#   - ".[!.]*": All files with a single leading dot.
+#   - "..?*":   All files with double (or more) leading dots.
+sources = ["~/*", "~/.[!.]*", "~/..?*"]
+target = "../testroot"
