@@ -1,0 +1,4 @@
+[[local]]
+basedir = ".."
+sources = ["Cargo.*"]
+target = "."

@@ -18,6 +18,37 @@ pub struct DTConfig {
 ///     - is an absolute path
 #[derive(Default, Clone, Deserialize, Debug)]
 pub struct LocalSyncConfig {
+    /// The base directory of all source items.  This simplifies configuration files with common
+    /// prefixes in `local.sources` array.
+    ///
+    /// ## Example
+    ///
+    /// For a directory structure like:
+    ///
+    /// ```plain
+    /// dt/
+    /// ├── dt-core/
+    /// │  └── src/
+    /// │     └── config.rs
+    /// ├── dt-cli/
+    /// │  └── src/
+    /// │     └── main.rs
+    /// └── README.md
+    /// ```
+    ///
+    /// Consider the following config file:
+    ///
+    /// ```toml
+    /// [[local]]
+    /// basedir = "dt/dt-cli"
+    /// sources = ["*"]
+    /// target = "."
+    /// ```
+    ///
+    /// It will only sync `src/main.rs` to the configured target directory (in this case, the
+    /// directory where `dt` is being executed).
+    pub basedir: Option<PathBuf>,
+
     /// Paths to the items to be synced.
     pub sources: Vec<PathBuf>,
 
@@ -109,11 +140,19 @@ impl DTConfig {
         };
         for original in &self.local {
             let mut next = LocalSyncConfig {
+                basedir: None, // basedir is expanded and removed.
                 sources: vec![],
-                target: original.target.to_owned(),
+                target: PathBuf::from_str(&shellexpand::tilde(
+                    original.target.to_str().unwrap(),
+                ))?,
                 ignored: original.ignored.to_owned(),
             };
             for s in &original.sources {
+                let s = if let Some(basedir) = &original.basedir {
+                    basedir.join(s)
+                } else {
+                    s.to_owned()
+                };
                 let s = shellexpand::tilde(s.to_str().unwrap());
                 let mut s = glob::glob_with(&s, globbing_options)?
                     .map(|x| {
@@ -138,9 +177,6 @@ impl DTConfig {
                     .collect();
                 next.sources.append(&mut s);
             }
-            next.target = PathBuf::from_str(&shellexpand::tilde(
-                next.target.to_str().unwrap(),
-            ))?;
             ret.local.push(next);
         }
 
@@ -358,6 +394,24 @@ mod paths_expansion {
                 "Set the `HOME` environment variable to complete this test"
             ))
         }
+    }
+
+    #[test]
+    fn basedir() -> Result<(), Report> {
+        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/basedir.toml",
+        )?) {
+            for group in config.local {
+                assert_eq!(
+                    group.sources,
+                    vec![
+                        PathBuf::from_str("../Cargo.lock")?,
+                        PathBuf::from_str("../Cargo.toml")?,
+                    ]
+                )
+            }
+        }
+        Ok(())
     }
 }
 
