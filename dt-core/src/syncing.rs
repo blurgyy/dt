@@ -35,6 +35,17 @@ fn sync_recursive(
     tparent: &PathBuf,
     dry: bool,
 ) -> Result<(), Report> {
+    if !tparent.exists() {
+        if dry {
+            log::info!(
+                "DRYRUN: Stopping at non-existing target directory {:?}",
+                tparent
+            );
+        } else {
+            log::debug!("Creating target directory {:?}", tparent);
+            std::fs::create_dir_all(tparent)?;
+        }
+    }
     let sname = spath.file_name().unwrap();
     let tpath = tparent.join(sname);
     if spath.is_file() {
@@ -63,6 +74,9 @@ fn sync_recursive(
             }
             log::info!("DRYRUN: {:?} -> {:?}", &spath, &tpath);
         } else {
+            if tpath.exists() {
+                log::warn!("Target path ({:?}) exists, overwriting", &tpath);
+            }
             log::debug!("{:?} => {:?}", &spath, &tpath);
             std::fs::copy(spath, tpath)?;
         }
@@ -89,12 +103,12 @@ fn sync_recursive(
         if !tpath.exists() {
             if dry {
                 log::info!(
-                    "DRYRUN: Stopping recursion at non-existing directory '{:?}'",
+                    "DRYRUN: Stopping recursion at non-existing directory {:?}",
                     &tpath
                 );
                 return Ok(());
             } else {
-                log::debug!("Creating directory hierarchy: '{:?}'", &tpath);
+                log::debug!("Creating directory: {:?}", &tpath);
                 std::fs::create_dir_all(&tpath)?;
             }
         }
