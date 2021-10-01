@@ -3,8 +3,10 @@ use std::{path::PathBuf, str::FromStr};
 use color_eyre::{eyre::eyre, Report};
 use serde::Deserialize;
 
+/// The configuration object constructed from configuration file.
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct DTConfig {
+    /// Optional, sets fallback behaviours.
     pub global: Option<GlobalConfig>,
     pub local: Vec<LocalSyncConfig>,
 }
@@ -168,6 +170,11 @@ pub struct GlobalConfig {
     ///
     /// When `method` is `Copy`, the above `staging` setting will be disabled.
     pub method: SyncMethod,
+
+    /// Whether to allow overwriting existing files.
+    ///
+    /// This alters syncing behaviours.
+    pub allow_overwrite: bool,
 }
 
 impl Default for GlobalConfig {
@@ -198,6 +205,7 @@ impl Default for GlobalConfig {
         GlobalConfig {
             staging: Some(default_staging),
             method: SyncMethod::Copy,
+            allow_overwrite: false,
         }
     }
 }

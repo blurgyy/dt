@@ -8,7 +8,12 @@ use crate::config::DTConfig;
 pub fn sync(config: &DTConfig) -> Result<(), Report> {
     for local in &config.local {
         for spath in &local.sources {
-            sync_recursive(spath, &local.target, false)?;
+            sync_recursive(
+                spath,
+                &local.target,
+                false,
+                config.global.to_owned().unwrap_or_default().allow_overwrite,
+            )?;
         }
     }
     Ok(())
@@ -18,7 +23,12 @@ pub fn sync(config: &DTConfig) -> Result<(), Report> {
 pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
     for local in &config.local {
         for spath in &local.sources {
-            sync_recursive(spath, &local.target, true)?;
+            sync_recursive(
+                spath,
+                &local.target,
+                true,
+                config.global.to_owned().unwrap_or_default().allow_overwrite,
+            )?;
         }
     }
     Ok(())
@@ -30,10 +40,12 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
 ///   - `spath`: Path to source item.
 ///   - `tparent`: Path to the parent dir of the disired sync destination.
 ///   - `dry`: Whether to issue a dry run.
+///   - `allow_overwrite`: Whether overwrite existing files or not.
 fn sync_recursive(
     spath: &PathBuf,
     tparent: &PathBuf,
     dry: bool,
+    allow_overwrite: bool,
 ) -> Result<(), Report> {
     if !tparent.exists() {
         if dry {
@@ -46,6 +58,12 @@ fn sync_recursive(
             std::fs::create_dir_all(tparent)?;
         }
     }
+    let overwrite_log_level = if allow_overwrite {
+        log::Level::Warn
+    } else {
+        log::Level::Error
+    };
+
     let sname = spath.file_name().unwrap();
     let tpath = tparent.join(sname);
     if spath.is_file() {
@@ -70,15 +88,24 @@ fn sync_recursive(
 
         if dry {
             if tpath.exists() {
-                log::warn!("DRYRUN: Target path ({:?}) exists", &tpath);
+                log::log!(
+                    overwrite_log_level,
+                    "DRYRUN: Target path ({:?}) exists",
+                    &tpath
+                );
             }
             log::info!("DRYRUN: {:?} -> {:?}", &spath, &tpath);
         } else {
-            if tpath.exists() {
-                log::warn!("Target path ({:?}) exists, overwriting", &tpath);
+            if tpath.exists() && !allow_overwrite {
+                log::log!(
+                    overwrite_log_level,
+                    "SKIPPING: Target path ({:?}) exists",
+                    &tpath
+                );
+            } else {
+                log::debug!("SYNCING: {:?} => {:?}", spath, tpath);
+                std::fs::copy(spath, tpath)?;
             }
-            log::debug!("{:?} => {:?}", &spath, &tpath);
-            std::fs::copy(spath, tpath)?;
         }
     } else if spath.is_dir() {
         if tpath.is_file() {
@@ -108,14 +135,14 @@ fn sync_recursive(
                 );
                 return Ok(());
             } else {
-                log::debug!("Creating directory: {:?}", &tpath);
+                log::debug!("CREATING: {:?}", &tpath);
                 std::fs::create_dir_all(&tpath)?;
             }
         }
 
         for item in std::fs::read_dir(spath)? {
             let item = item?;
-            sync_recursive(&item.path(), &tpath, dry)?;
+            sync_recursive(&item.path(), &tpath, dry, allow_overwrite)?;
         }
     }
     Ok(())
