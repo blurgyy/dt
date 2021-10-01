@@ -88,7 +88,7 @@ impl DTConfig {
         }
         if let Some(global) = &self.global {
             if global.method == SyncMethod::Symlink {
-                unimplemented!("Syncing with symlinks is not implemented");
+                todo!("Syncing with symlinks is not implemented");
             }
         }
         Ok(())
