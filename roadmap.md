@@ -6,6 +6,7 @@
       staging directory, and default behaviours like whether to
       `copy`/`symlink` when syncing.
 - [ ] Implement staging when `global.method` is `symlink`
+- [ ] Add `basedir` to LocalSyncConfig for easier configuring in sources
 
 > Author: Blurgy <gy@blurgy.xyz>
 > Date:   Sep 29 2021, 00:18 [CST]
