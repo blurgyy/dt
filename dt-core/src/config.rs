@@ -61,21 +61,51 @@ pub struct LocalSyncConfig {
 
 impl DTConfig {
     /// Loads configuration from a file.
-    pub fn from_pathbuf(path: PathBuf) -> Result<DTConfig, Report> {
+    pub fn from_pathbuf(path: PathBuf) -> Result<Self, Report> {
         let confstr = std::fs::read_to_string(path)?;
-        let raw: DTConfig = DTConfig::from_str(&confstr)?;
+        Self::from_str(&confstr)
+    }
 
+    /// Loads configuration from string.
+    fn from_str(s: &str) -> Result<Self, Report> {
+        let ret: Self = toml::from_str(s)?;
+        ret.validate()?;
+        ret.expand()
+    }
+
+    fn validate(self: &Self) -> Result<(), Report> {
+        for group in &self.local {
+            if group.target.exists() && !group.target.is_dir() {
+                return Err(eyre!("Target path exists and not a directory"));
+            }
+            for i in &group.ignored {
+                if i.contains(&"/".to_owned()) {
+                    return Err(eyre!(
+                        "Ignored pattern contains slash, this is not allowed"
+                    ));
+                }
+            }
+        }
+        if let Some(global) = &self.global {
+            if global.method == SyncMethod::Symlink {
+                unimplemented!("Syncing with symlinks is not implemented");
+            }
+        }
+        Ok(())
+    }
+
+    fn expand(&self) -> Result<Self, Report> {
         // Expand tilde and globs in "sources" and manifest new config object.
         let globbing_options = glob::MatchOptions {
             case_sensitive: true,
             require_literal_separator: true,
             require_literal_leading_dot: true,
         };
-        let mut ret = DTConfig {
-            global: raw.global,
+        let mut ret = Self {
+            global: self.global.to_owned(),
             local: vec![],
         };
-        for original in &raw.local {
+        for original in &self.local {
             let mut next = LocalSyncConfig {
                 sources: vec![],
                 target: original.target.to_owned(),
@@ -113,34 +143,6 @@ impl DTConfig {
         }
 
         Ok(ret)
-    }
-
-    /// Loads configuration from string.
-    fn from_str(s: &str) -> Result<DTConfig, Report> {
-        let ret: DTConfig = toml::from_str(s)?;
-        ret.validate()?;
-        Ok(ret)
-    }
-
-    fn validate(self: &DTConfig) -> Result<(), Report> {
-        for group in &self.local {
-            if group.target.exists() && !group.target.is_dir() {
-                return Err(eyre!("Target path exists and not a directory"));
-            }
-            for i in &group.ignored {
-                if i.contains(&"/".to_owned()) {
-                    return Err(eyre!(
-                        "Ignored pattern contains slash, this is not allowed"
-                    ));
-                }
-            }
-        }
-        if let Some(global) = &self.global {
-            if global.method == SyncMethod::Symlink {
-                unimplemented!("Syncing with symlinks is not implemented");
-            }
-        }
-        Ok(())
     }
 }
 
