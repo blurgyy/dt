@@ -94,8 +94,8 @@ impl DTConfig {
         Ok(())
     }
 
+    /// Expand tilde and globs in "sources" and manifest new config object.
     fn expand(&self) -> Result<Self, Report> {
-        // Expand tilde and globs in "sources" and manifest new config object.
         let globbing_options = glob::MatchOptions {
             case_sensitive: true,
             require_literal_separator: true,
@@ -174,11 +174,17 @@ impl Default for GlobalConfig {
     fn default() -> Self {
         let default_staging: PathBuf;
         if let Ok(xdg_cache_home) = std::env::var("XDG_CACHE_HOME") {
+            log::debug!(
+                "Using environment variable XDG_CACHE_HOME to determine stating directory"
+            );
             default_staging = PathBuf::from_str(&xdg_cache_home)
                 .expect("Failed constructing default staging directory from xdg_cache_home")
                 .join("dt")
                 .join("staging");
         } else if let Ok(home) = std::env::var("HOME") {
+            log::debug!(
+                "Using environment variable HOME to determine stating directory"
+            );
             default_staging = PathBuf::from_str(&home)
                 .expect(
                     "Failed constructing default staging directory from home",
