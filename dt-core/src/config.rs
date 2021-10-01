@@ -3,8 +3,9 @@ use std::{path::PathBuf, str::FromStr};
 use color_eyre::{eyre::eyre, Report};
 use serde::Deserialize;
 
-#[derive(Default, Clone, Deserialize, Debug)]
+#[derive(Clone, Debug, Default, Deserialize)]
 pub struct DTConfig {
+    pub global: Option<GlobalConfig>,
     pub local: Vec<LocalSyncConfig>,
 }
 
@@ -70,7 +71,10 @@ impl DTConfig {
             require_literal_separator: true,
             require_literal_leading_dot: true,
         };
-        let mut ret = DTConfig { local: vec![] };
+        let mut ret = DTConfig {
+            global: raw.global,
+            local: vec![],
+        };
         for original in &raw.local {
             let mut next = LocalSyncConfig {
                 sources: vec![],
@@ -131,8 +135,69 @@ impl DTConfig {
                 }
             }
         }
+        if let Some(global) = &self.global {
+            if global.method == SyncMethod::Symlink {
+                unimplemented!("Syncing with symlinks is not implemented");
+            }
+        }
         Ok(())
     }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct GlobalConfig {
+    /// The staging directory.
+    ///
+    /// Only works when `method` (see below) is set to `Symlink`.  When syncing with `Symlink`
+    /// method, items will be copied to the staging directory, then symlinked (as of `ln -sf`) from
+    /// the staging directory to the target directory.
+    ///
+    /// Default to `$XDG_CACHE_HOME/dt/staging` if XDG_CACHE_HOME is set, or
+    /// `$HOME/.cache/dt/staging` if HOME is set.  Panics if neigther XDG_CACHE_HOME or HOME is set, and
+    /// config file does not specify this.
+    pub staging: Option<PathBuf>,
+
+    /// The syncing method.
+    ///
+    /// Available values are:
+    ///
+    /// - `Copy`
+    /// - `Symlink`
+    ///
+    /// When `method` is `Copy`, the above `staging` setting will be disabled.
+    pub method: SyncMethod,
+}
+
+impl Default for GlobalConfig {
+    fn default() -> Self {
+        let default_staging: PathBuf;
+        if let Ok(xdg_cache_home) = std::env::var("XDG_CACHE_HOME") {
+            default_staging = PathBuf::from_str(&xdg_cache_home)
+                .expect("Failed constructing default staging directory from xdg_cache_home")
+                .join("dt")
+                .join("staging");
+        } else if let Ok(home) = std::env::var("HOME") {
+            default_staging = PathBuf::from_str(&home)
+                .expect(
+                    "Failed constructing default staging directory from home",
+                )
+                .join(".cache")
+                .join("dt")
+                .join("staging");
+        } else {
+            panic!("Cannot infer staging directory, set either XDG_CACHE_HOME or HOME to solve this.");
+        }
+        GlobalConfig {
+            staging: Some(default_staging),
+            method: SyncMethod::Copy,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
+pub enum SyncMethod {
+    Copy,
+    Symlink,
 }
 
 #[cfg(test)]
