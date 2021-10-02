@@ -137,10 +137,6 @@ impl DTConfig {
 }
 
 /// Configures how local items (files/directories) are synced.
-///
-/// Each item should satisfy one of the following:
-///     - is relative to the path from which the executable is being run
-///     - is an absolute path
 #[derive(Default, Clone, Deserialize, Debug)]
 pub struct LocalSyncConfig {
     /// Name of this group, used as namespaces when staging.
@@ -245,6 +241,7 @@ impl LocalSyncConfig {
     }
 }
 
+/// Configures default behaviours.
 #[derive(Clone, Debug, Deserialize)]
 pub struct GlobalConfig {
     /// The staging root directory.
@@ -311,9 +308,14 @@ impl Default for GlobalConfig {
     }
 }
 
+/// Syncing methods.
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
 pub enum SyncMethod {
+    /// Instructs syncing module to directly copy each item from source to target.
     Copy,
+
+    /// Instructs syncing module to first copy iach item from source to its staging directory, then
+    /// symlink staged items from their staging directory to target.
     Symlink,
 }
 
