@@ -1,4 +1,4 @@
-use std::{path::PathBuf, str::FromStr};
+use std::{panic, path::PathBuf, str::FromStr};
 
 use color_eyre::{eyre::eyre, Report};
 use serde::Deserialize;
@@ -29,6 +29,19 @@ impl DTConfig {
 
     fn validate(self: &Self) -> Result<(), Report> {
         for group in &self.local {
+            for s in &group.sources {
+                if let Some(strpath) = s.to_str() {
+                    if strpath == ".*" || strpath.contains("/.*") {
+                        return Err(eyre!(
+                            "Do not use globbing patterns like '.*', because it also matches curent directory (.) and parent directory (..)"
+                        ));
+                    }
+                } else {
+                    return Err(eyre!(
+                        "Invalide unicode encountered in sources"
+                    ));
+                }
+            }
             if group.target.exists() && !group.target.is_dir() {
                 return Err(eyre!("Target path exists and not a directory"));
             }
@@ -355,6 +368,21 @@ mod paths_expansion {
     use super::DTConfig;
 
     #[test]
+    fn except_dot_asterisk_glob() -> Result<(), Report> {
+        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/except_dot_asterisk_glob.toml",
+        )?) {
+            assert_eq!(
+                msg.to_string(),
+                "Do not use globbing patterns like '.*', because it also matches curent directory (.) and parent directory (..)",
+            );
+            Ok(())
+        } else {
+            Err(eyre!("This config should not be loaded because it contains bad globs (.* and /.*)"))
+        }
+    }
+
+    #[test]
     fn tilde() -> Result<(), Report> {
         if let Ok(home) = std::env::var("HOME") {
             if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
@@ -393,6 +421,8 @@ mod paths_expansion {
                     local.sources
                 );
             }
+        } else {
+            return Err(eyre!("Failed loading testing config"));
         }
         Ok(())
     }
