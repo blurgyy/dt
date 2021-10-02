@@ -6,8 +6,10 @@ use serde::Deserialize;
 /// The configuration object constructed from configuration file.
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct DTConfig {
-    /// Optional, sets fallback behaviours.
+    /// (Optional) Sets fallback behaviours.
     pub global: Option<GlobalConfig>,
+
+    /// Local items groups.
     pub local: Vec<LocalSyncConfig>,
 }
 
@@ -211,9 +213,9 @@ pub struct GlobalConfig {
     /// method, items will be copied to the staging directory, then symlinked (as of `ln -sf`) from
     /// the staging directory to the target directory.
     ///
-    /// Default to `$XDG_CACHE_HOME/dt/staging` if XDG_CACHE_HOME is set, or
-    /// `$HOME/.cache/dt/staging` if HOME is set.  Panics if neigther XDG_CACHE_HOME or HOME is set, and
-    /// config file does not specify this.
+    /// Default to `$XDG_CACHE_HOME/dt/staging` if `XDG_CACHE_HOME` is set, or
+    /// `$HOME/.cache/dt/staging` if `HOME` is set.  Panics when neither `XDG_CACHE_HOME` nor
+    /// `HOME` is set and config file does not specify this.
     pub staging: Option<PathBuf>,
 
     /// The syncing method.
@@ -228,7 +230,10 @@ pub struct GlobalConfig {
 
     /// Whether to allow overwriting existing files.
     ///
-    /// This alters syncing behaviours.
+    /// This alters syncing behaviours when the target file exists.  If set to `true`, no
+    /// errors/warnings will be omitted when the target file exists; otherwise reports error and
+    /// skips the existing item.  Using dry run to spot the existing files before syncing is
+    /// recommended.
     pub allow_overwrite: bool,
 }
 
