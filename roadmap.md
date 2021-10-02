@@ -6,6 +6,8 @@
       staging directory, and default behaviours like whether to
       `copy`/`symlink` when syncing.
 - [ ] Implement staging when `global.method` is `symlink`
+  - [ ] Make `local.basedir` mandatory (instead of optional) so as to preserve
+        directory structure in the stating directory
 - [x] Add `basedir` to LocalSyncConfig for easier configuring in sources
 - [ ] Manage permission bits on a per-group basis
   - [ ] Handle permission denied error when target file is created by current
