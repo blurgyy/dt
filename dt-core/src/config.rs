@@ -191,7 +191,7 @@ pub struct LocalSyncConfig {
     /// will sync "source/dir" to "/tar/get/dir/dir" (creating non-existing directories along the way).
     pub target: PathBuf,
 
-    /// (Optional) Ignored patterns.
+    /// (Optional) Ignored names.
     ///
     /// ## Example
     ///
