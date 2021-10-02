@@ -18,7 +18,7 @@
       glob also matches current directory (`.`) and parent directory (`..`)
 - [x] Expand environment variables in `local.basedir`, `local.sources`,
       `local.target`
-- [ ] Handle non-existing source, give warnings when encountered
+- [x] Handle non-existing source, give warnings when encountered
 - [ ] Add `local.for` to separate groups for different machines w.r.t. their
       hostname (with `gethostname` crate)
 - [ ] Add `global.ignored` as fallback ignoring list

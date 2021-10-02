@@ -98,7 +98,6 @@ impl DTConfig {
             };
             for s in &original.sources {
                 let s = next.basedir.join(s);
-                // let s = shellexpand::tilde(s.to_str().unwrap());
                 let mut s =
                     glob::glob_with(s.to_str().unwrap(), globbing_options)?
                         .map(|x| {
