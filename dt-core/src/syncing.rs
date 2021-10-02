@@ -32,8 +32,12 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
                 spath,
                 &local.target,
                 true,
-                config.global.to_owned().unwrap_or_default().allow_overwrite,
-                config.global.to_owned().unwrap_or_default().method,
+                local.get_allow_overwrite(
+                    &config.global.to_owned().unwrap_or_default(),
+                ),
+                local.get_method(
+                    &config.global.to_owned().unwrap_or_default(),
+                ),
             )?;
         }
     }
