@@ -12,7 +12,7 @@
           after making basedir mandatory
 - [x] Add `basedir` to LocalSyncConfig for easier configuring in sources
 - [ ] Manage permission bits on a per-group basis
-  - [ ] Handle permission denied error when target file is created by current
+  - [x] Handle permission denied error when target file is created by current
         user but the `write` permission is not set
 - [x] Return error when `sources` contains `.*` or similar globs, because this
       glob also matches current directory (`.`) and parent directory (`..`)

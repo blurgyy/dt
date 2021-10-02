@@ -107,6 +107,7 @@ fn sync_recursive(
     } else {
         log::Level::Error
     };
+    let staging_path = staging.join(spath.strip_prefix(basedir)?);
 
     let sname = spath.file_name().unwrap();
     let tpath = tparent.join(sname);
@@ -146,27 +147,53 @@ fn sync_recursive(
                     tpath.display(),
                 );
             } else {
+                // Allows overwrite in this block.
                 if method == SyncMethod::Copy {
                     log::debug!(
                         "SYNC::COPY> {} => {}",
                         spath.display(),
                         tpath.display()
                     );
+                    match std::fs::remove_file(&tpath) {
+                        Ok(_) => log::trace!(
+                            "SYNC::OVERWRITE> {}",
+                            tpath.display()
+                        ),
+                        _ => {}
+                    }
                     std::fs::copy(spath, tpath)?;
                 } else if method == SyncMethod::Symlink {
-                    let staging_path =
-                        staging.join(spath.strip_prefix(basedir)?);
+                    // Staging
                     log::debug!(
                         "SYNC::STAGE> {} => {}",
                         spath.display(),
                         staging_path.display(),
                     );
+
+                    match std::fs::remove_file(&staging_path) {
+                        Ok(_) => log::trace!(
+                            "SYNC::OVERWRITE> {}",
+                            staging_path.display(),
+                        ),
+                        _ => {}
+                    }
                     std::fs::copy(spath, &staging_path)?;
+
+                    // Symlinking
                     log::debug!(
                         "SYNC::SYMLINK> {} => {}",
                         staging_path.display(),
                         tpath.display(),
                     );
+                    match std::fs::remove_file(&tpath) {
+                        Ok(_) => {
+                            log::trace!(
+                                "SYNC::OVERWRITE> {}",
+                                tpath.display(),
+                            );
+                        }
+                        _ => {}
+                    }
                     std::os::unix::fs::symlink(staging_path, tpath)?;
                 }
             }
@@ -190,7 +217,9 @@ fn sync_recursive(
             };
         }
 
-        if !tpath.exists() {
+        if !tpath.exists()
+            || method == SyncMethod::Symlink && !staging_path.exists()
+        {
             if dry {
                 log::info!(
                     "DRYRUN> Stopping recursion at non-existing directory {}",
@@ -199,8 +228,6 @@ fn sync_recursive(
                 return Ok(());
             } else {
                 if method == SyncMethod::Symlink {
-                    let staging_path =
-                        staging.join(spath.strip_prefix(basedir)?);
                     log::debug!(
                         "SYNC::STAGE::CREATE> {}",
                         staging_path.display(),
