@@ -95,11 +95,13 @@ impl DTConfig {
             let mut next = LocalSyncConfig {
                 basedir: PathBuf::from_str(&shellexpand::tilde(
                     original.basedir.to_str().unwrap(),
-                ))?,
+                ))?
+                .canonicalize()?,
                 sources: vec![],
                 target: PathBuf::from_str(&shellexpand::tilde(
                     original.target.to_str().unwrap(),
-                ))?,
+                ))?
+                .canonicalize()?,
                 ..original.to_owned()
             };
             for s in &original.sources {
@@ -125,6 +127,12 @@ impl DTConfig {
                             } else {
                                 true
                             }
+                        })
+                        .map(|x| {
+                            x.canonicalize().expect(&format!(
+                                "Failed canonicalizing path {}",
+                                x.display(),
+                            ))
                         })
                         .collect();
                 next.sources.append(&mut s);
@@ -449,8 +457,8 @@ mod paths_expansion {
             for local in &config.local {
                 assert_eq!(
                     vec![
-                        PathBuf::from_str("../Cargo.lock")?,
-                        PathBuf::from_str("../Cargo.toml")?,
+                        PathBuf::from_str("../Cargo.lock")?.canonicalize()?,
+                        PathBuf::from_str("../Cargo.toml")?.canonicalize()?,
                     ],
                     local.sources
                 );
@@ -469,7 +477,12 @@ mod paths_expansion {
             )?) {
                 let entries = std::fs::read_dir(&home)?
                     .map(|x| x.expect("Failed reading dir entry"))
-                    .map(|x| x.path())
+                    .map(|x| {
+                        x.path().canonicalize().expect(&format!(
+                            "Failed canonicalizing path {}",
+                            x.path().display(),
+                        ))
+                    })
                     .collect::<Vec<_>>();
                 for local in &config.local {
                     assert_eq!(entries.len(), local.sources.len());
@@ -499,8 +512,8 @@ mod paths_expansion {
                 assert_eq!(
                     group.sources,
                     vec![
-                        PathBuf::from_str("../Cargo.lock")?,
-                        PathBuf::from_str("../Cargo.toml")?,
+                        PathBuf::from_str("../Cargo.lock")?.canonicalize()?,
+                        PathBuf::from_str("../Cargo.toml")?.canonicalize()?,
                     ]
                 )
             }
@@ -527,9 +540,13 @@ mod ignored_patterns {
         )?) {
             for group in &config.local {
                 let expected_sources =
-                    vec![PathBuf::from_str("../testroot/README.md")?];
+                    vec![PathBuf::from_str("../testroot/README.md")?
+                        .canonicalize()?];
                 assert_eq!(group.sources, expected_sources);
-                assert_eq!(group.target, PathBuf::from_str(".")?);
+                assert_eq!(
+                    group.target,
+                    PathBuf::from_str(".")?.canonicalize()?,
+                );
                 assert_eq!(group.ignored, Some(Vec::<String>::new()));
             }
         } else {
@@ -547,7 +564,10 @@ mod ignored_patterns {
             for group in &config.local {
                 let expected_sources: Vec<PathBuf> = vec![];
                 assert_eq!(group.sources, expected_sources);
-                assert_eq!(group.target, PathBuf::from_str(".")?);
+                assert_eq!(
+                    group.target,
+                    PathBuf::from_str(".")?.canonicalize()?,
+                );
                 assert_eq!(group.ignored, Some(vec!["README.md".to_owned()]));
             }
         } else {
@@ -564,11 +584,14 @@ mod ignored_patterns {
         )?) {
             for group in &config.local {
                 let expected_sources = vec![
-                    PathBuf::from_str("../Cargo.lock")?,
-                    PathBuf::from_str("../Cargo.toml")?,
+                    PathBuf::from_str("../Cargo.lock")?.canonicalize()?,
+                    PathBuf::from_str("../Cargo.toml")?.canonicalize()?,
                 ];
                 assert_eq!(group.sources, expected_sources);
-                assert_eq!(group.target, PathBuf::from_str(".")?);
+                assert_eq!(
+                    group.target,
+                    PathBuf::from_str(".")?.canonicalize()?
+                );
                 assert_eq!(group.ignored, Some(vec![".lock".to_owned()]));
             }
         } else {
@@ -585,9 +608,12 @@ mod ignored_patterns {
         )?) {
             for group in &config.local {
                 let expected_sources =
-                    vec![PathBuf::from_str("../Cargo.lock")?];
+                    vec![PathBuf::from_str("../Cargo.lock")?.canonicalize()?];
                 assert_eq!(group.sources, expected_sources);
-                assert_eq!(group.target, PathBuf::from_str(".")?);
+                assert_eq!(
+                    group.target,
+                    PathBuf::from_str(".")?.canonicalize()?,
+                );
                 assert_eq!(
                     group.ignored,
                     Some(vec!["Cargo.toml".to_owned()])
