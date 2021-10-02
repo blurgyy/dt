@@ -1,4 +1,5 @@
 [[local]]
+name = "placeholder"
 # Explanation:
 #   - "*":      All files without leading dot.
 #   - ".[!.]*": All files with a single leading dot.

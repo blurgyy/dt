@@ -32,7 +32,13 @@ impl DTConfig {
     }
 
     fn validate_pre_expansion(self: &Self) -> Result<(), Report> {
+        let mut group_name_rec: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
         for group in &self.local {
+            if let Some(_) = group_name_rec.get(&group.name) {
+                return Err(eyre!("Duplicated group name: {}", group.name));
+            }
+            group_name_rec.insert(group.name.to_owned());
             for s in &group.sources {
                 if let Some(strpath) = s.to_str() {
                     if strpath == ".*" || strpath.contains("/.*") {
@@ -137,6 +143,9 @@ impl DTConfig {
 ///     - is an absolute path
 #[derive(Default, Clone, Deserialize, Debug)]
 pub struct LocalSyncConfig {
+    /// Name of this group, used as namespaces when staging.
+    pub name: String,
+
     /// The base directory of all source items.  This simplifies configuration files with common
     /// prefixes in `local.sources` array.
     ///
@@ -238,11 +247,12 @@ impl LocalSyncConfig {
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct GlobalConfig {
-    /// The staging directory.
+    /// The staging root directory.
     ///
     /// Only works when `method` (see below) is set to `Symlink`.  When syncing with `Symlink`
-    /// method, items will be copied to the staging directory, then symlinked (as of `ln -sf`) from
-    /// the staging directory to the target directory.
+    /// method, items will be copied to their staging directory (composed by joining staging root
+    /// directory with their group name), then symlinked (as of `ln -sf`) from their staging
+    /// directory to the target directory.
     ///
     /// Default to `$XDG_CACHE_HOME/dt/staging` if `XDG_CACHE_HOME` is set, or
     /// `$HOME/.cache/dt/staging` if `HOME` is set.  Panics when neither `XDG_CACHE_HOME` nor

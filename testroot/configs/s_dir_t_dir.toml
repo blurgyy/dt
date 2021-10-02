@@ -1,4 +1,5 @@
 [[local]]
+name = "placeholder"
 basedir = "."
 sources = ["../testroot"]
 target = "../testroot/configs"

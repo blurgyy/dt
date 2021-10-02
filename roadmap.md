@@ -22,7 +22,7 @@
 - [ ] Add `local.for` to separate groups for different machines w.r.t. their
       hostname (with `gethostname` crate)
 - [ ] Add `global.ignored` as fallback ignoring list
-- [ ] Add `local.name` for local groups as namespaces, to properly handle
+- [x] Add `local.name` for local groups as namespaces, to properly handle
       files from different groups having the same relative path to their
       basedir.
 

@@ -3,6 +3,7 @@ method = "Copy"
 allow_overwrite = false # Default value because not testing this key
 
 [[local]]
+name = "placeholder"
 basedir = "~"
 sources = ["*"]
 target = "."

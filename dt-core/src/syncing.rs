@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, str::FromStr};
 
 use color_eyre::{eyre::eyre, Report};
 
@@ -13,11 +13,22 @@ pub fn sync(config: &DTConfig) -> Result<(), Report> {
         .staging
         .unwrap_or(GlobalConfig::default().staging.unwrap());
     if !staging.exists() {
-        log::debug!("Creating non-existing staging directory");
+        log::debug!(
+            "Creating non-existing staging root {}",
+            staging.display(),
+        );
         std::fs::create_dir_all(staging)?;
     }
 
     for local in &config.local {
+        let group_staging = staging.join(PathBuf::from_str(&local.name)?);
+        if !group_staging.exists() {
+            log::debug!(
+                "Creating non-existing staging directory {}",
+                group_staging.display(),
+            );
+            std::fs::create_dir_all(&group_staging)?;
+        }
         for spath in &local.sources {
             sync_recursive(
                 spath,
@@ -29,7 +40,7 @@ pub fn sync(config: &DTConfig) -> Result<(), Report> {
                 local.get_method(
                     &config.global.to_owned().unwrap_or_default(),
                 ),
-                &staging,
+                &group_staging,
                 &local.basedir,
             )?;
         }
@@ -46,14 +57,20 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
         .staging
         .unwrap_or(GlobalConfig::default().staging.unwrap());
     if !staging.exists() {
-        log::info!("Staging directory does not exist, will be automatically created when syncing");
+        log::info!("Staging root does not exist, will be automatically created when syncing");
     } else if !staging.is_dir() {
-        log::error!(
-            "Staging directory seems to exist and is not a directory",
-        );
+        log::error!("Staging root seems to exist and is not a directory");
     }
 
     for local in &config.local {
+        let group_staging = staging.join(PathBuf::from_str(&local.name)?);
+        if !group_staging.exists() {
+            log::info!("Staging directory does not exist, will be automatically created when syncing");
+        } else if !staging.is_dir() {
+            log::info!(
+                "Staging directory seems to exist and is not a directory"
+            )
+        }
         for spath in &local.sources {
             sync_recursive(
                 spath,
@@ -81,7 +98,7 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
 ///   - `dry`: Whether to issue a dry run.
 ///   - `allow_overwrite`: Whether overwrite existing files or not.
 ///   - `method`: A `SyncMethod` instance.
-///   - `staging`: The staging directory.
+///   - `staging`: Path to staging directory.
 fn sync_recursive(
     spath: &PathBuf,
     tparent: &PathBuf,
