@@ -257,7 +257,7 @@ impl Default for GlobalConfig {
         let default_staging: PathBuf;
         if let Ok(xdg_cache_home) = std::env::var("XDG_CACHE_HOME") {
             log::debug!(
-                "Using environment variable XDG_CACHE_HOME to determine stating directory"
+                "Using environment variable XDG_CACHE_HOME to determine staging directory"
             );
             default_staging = PathBuf::from_str(&xdg_cache_home)
                 .expect("Failed constructing default staging directory from xdg_cache_home")
@@ -265,7 +265,7 @@ impl Default for GlobalConfig {
                 .join("staging");
         } else if let Ok(home) = std::env::var("HOME") {
             log::debug!(
-                "Using environment variable HOME to determine stating directory"
+                "Using environment variable HOME to determine staging directory"
             );
             default_staging = PathBuf::from_str(&home)
                 .expect(
