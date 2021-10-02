@@ -296,7 +296,7 @@ impl Default for GlobalConfig {
         }
         GlobalConfig {
             staging: Some(default_staging),
-            method: SyncMethod::Copy,
+            method: SyncMethod::Symlink,
             allow_overwrite: false,
         }
     }
