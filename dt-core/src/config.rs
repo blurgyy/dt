@@ -23,11 +23,15 @@ impl DTConfig {
     /// Loads configuration from string.
     fn from_str(s: &str) -> Result<Self, Report> {
         let ret: Self = toml::from_str(s)?;
-        ret.validate()?;
-        ret.expand()
+        ret.validate_pre_expansion()?;
+        let ret = ret.expand()?;
+        match ret.validate_post_expansion() {
+            Ok(()) => Ok(ret),
+            Err(e) => Err(e),
+        }
     }
 
-    fn validate(self: &Self) -> Result<(), Report> {
+    fn validate_pre_expansion(self: &Self) -> Result<(), Report> {
         for group in &self.local {
             for s in &group.sources {
                 if let Some(strpath) = s.to_str() {
@@ -53,6 +57,18 @@ impl DTConfig {
                         "Ignored pattern contains slash, this is not allowed"
                     ));
                 }
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_post_expansion(self: &Self) -> Result<(), Report> {
+        for group in &self.local {
+            if !group.basedir.is_dir() {
+                return Err(eyre!(
+                    "Configured basedir {} is invalid",
+                    group.basedir.display(),
+                ));
             }
         }
         Ok(())
@@ -190,7 +206,8 @@ pub struct LocalSyncConfig {
     /// Cannot contain slash in any of the patterns.
     pub ignored: Option<Vec<String>>,
 
-    /// (Optional) Whether to allow overwriting existing files.
+    /// (Optional) Whether to allow overwriting existing files.  Dead symlinks are treated as
+    /// non-existing, and are always overwrited (regardless of this option).
     allow_overwrite: Option<bool>,
 
     /// (Optional) Syncing method, overrides `global.method` key.
