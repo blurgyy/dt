@@ -12,6 +12,8 @@
         user but the `write` permission is not set
 - [x] Return error when `sources` contains `.*` or similar globs, because this
       glob also matches current directory (`.`) and parent directory (`..`)
+- [ ] Expand environment variables in `local.basedir`, `local.sources`,
+      `local.target`
 
 > Author: Blurgy <gy@blurgy.xyz>
 > Date:   Sep 29 2021, 00:18 [CST]
