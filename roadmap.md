@@ -25,6 +25,7 @@
 - [x] Add `local.name` for local groups as namespaces, to properly handle
       files from different groups having the same relative path to their
       basedir.
+- [ ] Let `ignored` array(s) match more intelligently
 
 > Author: Blurgy <gy@blurgy.xyz>
 > Date:   Sep 29 2021, 00:18 [CST]
