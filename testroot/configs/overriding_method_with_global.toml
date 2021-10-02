@@ -1,9 +1,9 @@
 [global]
-method = "Symlink"
+method = "Copy"
 allow_overwrite = false # Default value because not testing this key
 
 [[local]]
 basedir = "~"
 sources = ["*"]
 target = "."
-method = "Copy"
+method = "Symlink"

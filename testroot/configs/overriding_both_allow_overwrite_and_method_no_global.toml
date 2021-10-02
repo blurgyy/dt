@@ -2,5 +2,5 @@
 basedir = "~"
 sources = ["*"]
 target = "."
-method = "Symlink"
+method = "Copy"
 allow_overwrite = true

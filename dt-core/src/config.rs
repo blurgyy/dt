@@ -310,7 +310,7 @@ pub enum SyncMethod {
 
 impl Default for SyncMethod {
     fn default() -> Self {
-        SyncMethod::Copy
+        SyncMethod::Symlink
     }
 }
 
@@ -648,7 +648,7 @@ mod overriding_global_config {
                     local.get_method(
                         &config.global.to_owned().unwrap_or_default(),
                     ),
-                    SyncMethod::Symlink,
+                    SyncMethod::Copy,
                 )
             }
         } else {
@@ -668,7 +668,7 @@ mod overriding_global_config {
                     local.get_method(
                         &config.global.to_owned().unwrap_or_default(),
                     ),
-                    SyncMethod::Copy,
+                    SyncMethod::Symlink,
                 )
             }
         } else {
@@ -689,7 +689,7 @@ mod overriding_global_config {
                     local.get_method(
                         &config.global.to_owned().unwrap_or_default()
                     ),
-                    SyncMethod::Symlink,
+                    SyncMethod::Copy,
                 );
                 assert_eq!(
                     local.get_allow_overwrite(
@@ -715,7 +715,7 @@ mod overriding_global_config {
                     local.get_method(
                         &config.global.to_owned().unwrap_or_default()
                     ),
-                    SyncMethod::Copy
+                    SyncMethod::Symlink,
                 );
                 assert_eq!(
                     local.get_allow_overwrite(

@@ -1,10 +1,10 @@
 [global]
-method = "Symlink"
+method = "Copy"
 allow_overwrite = true
 
 [[local]]
 basedir = "~"
 sources = ["*"]
 target = "."
-method = "Copy"
+method = "Symlink"
 allow_overwrite = false
