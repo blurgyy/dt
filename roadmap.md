@@ -18,6 +18,7 @@
       glob also matches current directory (`.`) and parent directory (`..`)
 - [x] Expand environment variables in `local.basedir`, `local.sources`,
       `local.target`
+- [ ] Handle non-existing source, give warnings when encountered
 
 > Author: Blurgy <gy@blurgy.xyz>
 > Date:   Sep 29 2021, 00:18 [CST]
