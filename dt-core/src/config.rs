@@ -87,8 +87,8 @@ impl DTConfig {
                     glob::glob_with(s.to_str().unwrap(), globbing_options)?
                         .map(|x| {
                             x.expect(&format!(
-                                "Failed globbing source path {:?}",
-                                &s
+                                "Failed globbing source path {}",
+                                s.display(),
                             ))
                         })
                         .filter(|x| {

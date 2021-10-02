@@ -5,7 +5,7 @@
 - [x] Add [global] section to config file, which defines global settings like
       staging directory, and default behaviours like whether to
       `copy`/`symlink` when syncing.
-- [ ] Implement staging when `global.method` is `symlink`
+- [x] Implement staging when `global.method` is `symlink`
   - [x] Make `local.basedir` mandatory (instead of optional) so as to preserve
         directory structure in the stating directory
     - [x] Do not expand tilde in sources, because sources are relative paths
