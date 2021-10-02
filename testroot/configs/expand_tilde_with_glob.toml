@@ -3,5 +3,6 @@
 #   - "*":      All files without leading dot.
 #   - ".[!.]*": All files with a single leading dot.
 #   - "..?*":   All files with double (or more) leading dots.
-sources = ["~/*", "~/.[!.]*", "~/..?*"]
+basedir = "~"
+sources = ["*", ".[!.]*", "..?*"]
 target = "../testroot"

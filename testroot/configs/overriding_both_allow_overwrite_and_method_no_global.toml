@@ -1,5 +1,6 @@
 [[local]]
-sources = ["~/*"]
+basedir = "~"
+sources = ["*"]
 target = "."
 method = "Symlink"
 allow_overwrite = true

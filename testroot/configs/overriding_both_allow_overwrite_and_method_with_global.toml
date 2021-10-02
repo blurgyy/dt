@@ -3,7 +3,8 @@ method = "Symlink"
 allow_overwrite = true
 
 [[local]]
-sources = ["~/*"]
+basedir = "~"
+sources = ["*"]
 target = "."
 method = "Copy"
 allow_overwrite = false

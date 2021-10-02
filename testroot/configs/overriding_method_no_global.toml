@@ -1,4 +1,5 @@
 [[local]]
-sources = ["~/*"]
+basedir = "~"
+sources = ["*"]
 target = "."
 method = "Symlink"

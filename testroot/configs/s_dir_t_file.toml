@@ -1,3 +1,4 @@
 [[local]]
+basedir = "."
 sources = ["../testroot"]
 target = "../testroot/README.md"

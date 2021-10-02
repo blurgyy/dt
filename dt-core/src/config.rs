@@ -43,7 +43,9 @@ impl DTConfig {
                 }
             }
             if group.target.exists() && !group.target.is_dir() {
-                return Err(eyre!("Target path exists and not a directory"));
+                return Err(eyre!(
+                    "Target path exists and is not a directory"
+                ));
             }
             for i in &group.ignored {
                 if i.contains(&"/".to_owned()) {
@@ -69,7 +71,9 @@ impl DTConfig {
         };
         for original in &self.local {
             let mut next = LocalSyncConfig {
-                basedir: None, // basedir is expanded and removed.
+                basedir: PathBuf::from_str(&shellexpand::tilde(
+                    original.basedir.to_str().unwrap(),
+                ))?,
                 sources: vec![],
                 target: PathBuf::from_str(&shellexpand::tilde(
                     original.target.to_str().unwrap(),
@@ -77,33 +81,31 @@ impl DTConfig {
                 ..original.to_owned()
             };
             for s in &original.sources {
-                let s = if let Some(basedir) = &original.basedir {
-                    basedir.join(s)
-                } else {
-                    s.to_owned()
-                };
-                let s = shellexpand::tilde(s.to_str().unwrap());
-                let mut s = glob::glob_with(&s, globbing_options)?
-                    .map(|x| {
-                        x.expect(&format!(
-                            "Failed globbing source path {}",
-                            &s
-                        ))
-                    })
-                    .filter(|x| {
-                        if let Some(ignored) = &next.ignored {
-                            if ignored.len() == 0 {
-                                true
+                let s = next.basedir.join(s);
+                // let s = shellexpand::tilde(s.to_str().unwrap());
+                let mut s =
+                    glob::glob_with(s.to_str().unwrap(), globbing_options)?
+                        .map(|x| {
+                            x.expect(&format!(
+                                "Failed globbing source path {:?}",
+                                &s
+                            ))
+                        })
+                        .filter(|x| {
+                            if let Some(ignored) = &next.ignored {
+                                if ignored.len() == 0 {
+                                    true
+                                } else {
+                                    ignored.iter().any(|y| {
+                                        x.iter()
+                                            .all(|z| z.to_str().unwrap() != y)
+                                    })
+                                }
                             } else {
-                                ignored.iter().any(|y| {
-                                    x.iter().all(|z| z.to_str().unwrap() != y)
-                                })
+                                true
                             }
-                        } else {
-                            true
-                        }
-                    })
-                    .collect();
+                        })
+                        .collect();
                 next.sources.append(&mut s);
             }
             ret.local.push(next);
@@ -149,12 +151,12 @@ pub struct LocalSyncConfig {
     ///
     /// It will only sync `src/main.rs` to the configured target directory (in this case, the
     /// directory where `dt` is being executed).
-    pub basedir: Option<PathBuf>,
+    pub basedir: PathBuf,
 
-    /// Paths to the items to be synced.
+    /// Paths (relative to `basedir`) to the items to be synced.
     pub sources: Vec<PathBuf>,
 
-    /// The parent dir of the final synced items.
+    /// The absolute path of the parent dir of the final synced items.
     ///
     /// ## Example
     ///
@@ -305,15 +307,18 @@ mod validating {
 
     #[test]
     fn s_file_t_file() -> Result<(), Report> {
-        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
             "../testroot/configs/s_file_t_file.toml",
         )?) {
-            Err(eyre!(
-                "This config should not be loaded because target is not a directory: {:#?}",
-                config
-            ))
-        } else {
+            assert_eq!(
+                msg.to_string(),
+                "Target path exists and is not a directory",
+            );
             Ok(())
+        } else {
+            Err(eyre!(
+                "This config should not be loaded because target is not a directory",
+            ))
         }
     }
 
@@ -345,15 +350,18 @@ mod validating {
 
     #[test]
     fn s_dir_t_file() -> Result<(), Report> {
-        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
             "../testroot/configs/s_dir_t_file.toml",
         )?) {
-            Err(eyre!(
-                "This config should not be loaded because target is not a directory: {:#?}",
-                config
-            ))
-        } else {
+            assert_eq!(
+                msg.to_string(),
+                "Target path exists and is not a directory",
+            );
             Ok(())
+        } else {
+            Err(eyre!(
+                "This config should not be loaded because target is not a directory",
+            ))
         }
     }
 }
@@ -389,9 +397,7 @@ mod paths_expansion {
                 "../testroot/configs/expand_tilde.toml",
             )?) {
                 for local in &config.local {
-                    for s in &local.sources {
-                        assert_eq!(s.to_str(), Some(home.as_str()));
-                    }
+                    assert_eq!(local.basedir.to_str(), Some(home.as_str()));
                     assert_eq!(local.target.to_str(), Some(home.as_str()));
                 }
                 Ok(())

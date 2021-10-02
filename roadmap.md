@@ -6,15 +6,17 @@
       staging directory, and default behaviours like whether to
       `copy`/`symlink` when syncing.
 - [ ] Implement staging when `global.method` is `symlink`
-  - [ ] Make `local.basedir` mandatory (instead of optional) so as to preserve
+  - [x] Make `local.basedir` mandatory (instead of optional) so as to preserve
         directory structure in the stating directory
+    - [x] Do not expand tilde in sources, because sources are relative paths
+          after making basedir mandatory
 - [x] Add `basedir` to LocalSyncConfig for easier configuring in sources
 - [ ] Manage permission bits on a per-group basis
   - [ ] Handle permission denied error when target file is created by current
         user but the `write` permission is not set
 - [x] Return error when `sources` contains `.*` or similar globs, because this
       glob also matches current directory (`.`) and parent directory (`..`)
-- [ ] Expand environment variables in `local.basedir`, `local.sources`,
+- [x] Expand environment variables in `local.basedir`, `local.sources`,
       `local.target`
 
 > Author: Blurgy <gy@blurgy.xyz>

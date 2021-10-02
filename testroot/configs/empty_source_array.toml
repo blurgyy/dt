@@ -1,4 +1,5 @@
 [[local]]
+basedir = "."
 sources = []
 target = "."
 ignored = ["README.md"]
