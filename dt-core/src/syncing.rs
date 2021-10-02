@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use color_eyre::{eyre::eyre, Report};
 
-use crate::config::DTConfig;
+use crate::config::*;
 
 /// Syncs items specified in configuration.
 pub fn sync(config: &DTConfig) -> Result<(), Report> {
@@ -12,7 +12,12 @@ pub fn sync(config: &DTConfig) -> Result<(), Report> {
                 spath,
                 &local.target,
                 false,
-                config.global.to_owned().unwrap_or_default().allow_overwrite,
+                local.get_allow_overwrite(
+                    &config.global.to_owned().unwrap_or_default(),
+                ),
+                local.get_method(
+                    &config.global.to_owned().unwrap_or_default(),
+                ),
             )?;
         }
     }
@@ -28,6 +33,7 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
                 &local.target,
                 true,
                 config.global.to_owned().unwrap_or_default().allow_overwrite,
+                config.global.to_owned().unwrap_or_default().method,
             )?;
         }
     }
@@ -41,12 +47,18 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
 ///   - `tparent`: Path to the parent dir of the disired sync destination.
 ///   - `dry`: Whether to issue a dry run.
 ///   - `allow_overwrite`: Whether overwrite existing files or not.
+///   - `method`: A `SyncMethod` instance.
 fn sync_recursive(
     spath: &PathBuf,
     tparent: &PathBuf,
     dry: bool,
     allow_overwrite: bool,
+    method: SyncMethod,
 ) -> Result<(), Report> {
+    if method == SyncMethod::Symlink {
+        todo!("Syncing with symlinks is not implemented");
+    }
+
     if !tparent.exists() {
         if dry {
             log::info!(
@@ -142,7 +154,13 @@ fn sync_recursive(
 
         for item in std::fs::read_dir(spath)? {
             let item = item?;
-            sync_recursive(&item.path(), &tpath, dry, allow_overwrite)?;
+            sync_recursive(
+                &item.path(),
+                &tpath,
+                dry,
+                allow_overwrite,
+                method,
+            )?;
         }
     }
     Ok(())

@@ -1,0 +1,8 @@
+[global]
+method = "Symlink"
+allow_overwrite = false # Default value because not testing this key
+
+[[local]]
+sources = ["~/*"]
+target = "."
+method = "Copy"

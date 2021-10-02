@@ -1,0 +1,5 @@
+[[local]]
+sources = ["~/*"]
+target = "."
+method = "Symlink"
+allow_overwrite = true

@@ -1,0 +1,4 @@
+[[local]]
+sources = ["~/*"]
+target = "."
+allow_overwrite = true

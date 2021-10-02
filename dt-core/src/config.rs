@@ -11,6 +11,93 @@ pub struct DTConfig {
     pub local: Vec<LocalSyncConfig>,
 }
 
+impl DTConfig {
+    /// Loads configuration from a file.
+    pub fn from_pathbuf(path: PathBuf) -> Result<Self, Report> {
+        let confstr = std::fs::read_to_string(path)?;
+        Self::from_str(&confstr)
+    }
+
+    /// Loads configuration from string.
+    fn from_str(s: &str) -> Result<Self, Report> {
+        let ret: Self = toml::from_str(s)?;
+        ret.validate()?;
+        ret.expand()
+    }
+
+    fn validate(self: &Self) -> Result<(), Report> {
+        for group in &self.local {
+            if group.target.exists() && !group.target.is_dir() {
+                return Err(eyre!("Target path exists and not a directory"));
+            }
+            for i in &group.ignored {
+                if i.contains(&"/".to_owned()) {
+                    return Err(eyre!(
+                        "Ignored pattern contains slash, this is not allowed"
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Expand tilde and globs in "sources" and manifest new config object.
+    fn expand(&self) -> Result<Self, Report> {
+        let globbing_options = glob::MatchOptions {
+            case_sensitive: true,
+            require_literal_separator: true,
+            require_literal_leading_dot: true,
+        };
+        let mut ret = Self {
+            global: self.global.to_owned(),
+            local: vec![],
+        };
+        for original in &self.local {
+            let mut next = LocalSyncConfig {
+                basedir: None, // basedir is expanded and removed.
+                sources: vec![],
+                target: PathBuf::from_str(&shellexpand::tilde(
+                    original.target.to_str().unwrap(),
+                ))?,
+                ..original.to_owned()
+            };
+            for s in &original.sources {
+                let s = if let Some(basedir) = &original.basedir {
+                    basedir.join(s)
+                } else {
+                    s.to_owned()
+                };
+                let s = shellexpand::tilde(s.to_str().unwrap());
+                let mut s = glob::glob_with(&s, globbing_options)?
+                    .map(|x| {
+                        x.expect(&format!(
+                            "Failed globbing source path {}",
+                            &s
+                        ))
+                    })
+                    .filter(|x| {
+                        if let Some(ignored) = &next.ignored {
+                            if ignored.len() == 0 {
+                                true
+                            } else {
+                                ignored.iter().any(|y| {
+                                    x.iter().all(|z| z.to_str().unwrap() != y)
+                                })
+                            }
+                        } else {
+                            true
+                        }
+                    })
+                    .collect();
+                next.sources.append(&mut s);
+            }
+            ret.local.push(next);
+        }
+
+        Ok(ret)
+    }
+}
+
 /// Configures how local items (files/directories) are synced.
 ///
 /// Each item should satisfy one of the following:
@@ -85,6 +172,12 @@ pub struct LocalSyncConfig {
     ///
     /// Cannot contain slash in any of the patterns.
     pub ignored: Option<Vec<String>>,
+
+    /// (Optional) Whether to allow overwriting existing files.
+    allow_overwrite: Option<bool>,
+
+    /// (Optional) Syncing method, overrides `global.method` key.
+    method: Option<SyncMethod>,
     // // The pattern specified in `match_begin` is matched against all
     // match_begin: String,
     // replace_begin: String,
@@ -92,95 +185,21 @@ pub struct LocalSyncConfig {
     // replace_end: String,
 }
 
-impl DTConfig {
-    /// Loads configuration from a file.
-    pub fn from_pathbuf(path: PathBuf) -> Result<Self, Report> {
-        let confstr = std::fs::read_to_string(path)?;
-        Self::from_str(&confstr)
+impl LocalSyncConfig {
+    /// Gets the `allow_overwrite` key from a `LocalSyncConfig` object, falls back to the `allow_overwrite` from provided global config.
+    pub fn get_allow_overwrite(&self, global_config: &GlobalConfig) -> bool {
+        match self.allow_overwrite {
+            Some(allow_overwrite) => allow_overwrite,
+            _ => global_config.allow_overwrite,
+        }
     }
 
-    /// Loads configuration from string.
-    fn from_str(s: &str) -> Result<Self, Report> {
-        let ret: Self = toml::from_str(s)?;
-        ret.validate()?;
-        ret.expand()
-    }
-
-    fn validate(self: &Self) -> Result<(), Report> {
-        for group in &self.local {
-            if group.target.exists() && !group.target.is_dir() {
-                return Err(eyre!("Target path exists and not a directory"));
-            }
-            for i in &group.ignored {
-                if i.contains(&"/".to_owned()) {
-                    return Err(eyre!(
-                        "Ignored pattern contains slash, this is not allowed"
-                    ));
-                }
-            }
+    /// Gets the `method` key from a `LocalSyncConfig` object, falls back to the `method` from provided global config.
+    pub fn get_method(&self, global_config: &GlobalConfig) -> SyncMethod {
+        match self.method {
+            Some(method) => method,
+            _ => global_config.method,
         }
-        if let Some(global) = &self.global {
-            if global.method == SyncMethod::Symlink {
-                todo!("Syncing with symlinks is not implemented");
-            }
-        }
-        Ok(())
-    }
-
-    /// Expand tilde and globs in "sources" and manifest new config object.
-    fn expand(&self) -> Result<Self, Report> {
-        let globbing_options = glob::MatchOptions {
-            case_sensitive: true,
-            require_literal_separator: true,
-            require_literal_leading_dot: true,
-        };
-        let mut ret = Self {
-            global: self.global.to_owned(),
-            local: vec![],
-        };
-        for original in &self.local {
-            let mut next = LocalSyncConfig {
-                basedir: None, // basedir is expanded and removed.
-                sources: vec![],
-                target: PathBuf::from_str(&shellexpand::tilde(
-                    original.target.to_str().unwrap(),
-                ))?,
-                ignored: original.ignored.to_owned(),
-            };
-            for s in &original.sources {
-                let s = if let Some(basedir) = &original.basedir {
-                    basedir.join(s)
-                } else {
-                    s.to_owned()
-                };
-                let s = shellexpand::tilde(s.to_str().unwrap());
-                let mut s = glob::glob_with(&s, globbing_options)?
-                    .map(|x| {
-                        x.expect(&format!(
-                            "Failed globbing source path {}",
-                            &s
-                        ))
-                    })
-                    .filter(|x| {
-                        if let Some(ignored) = &next.ignored {
-                            if ignored.len() == 0 {
-                                true
-                            } else {
-                                ignored.iter().any(|y| {
-                                    x.iter().all(|z| z.to_str().unwrap() != y)
-                                })
-                            }
-                        } else {
-                            true
-                        }
-                    })
-                    .collect();
-                next.sources.append(&mut s);
-            }
-            ret.local.push(next);
-        }
-
-        Ok(ret)
     }
 }
 
@@ -250,6 +269,12 @@ impl Default for GlobalConfig {
 pub enum SyncMethod {
     Copy,
     Symlink,
+}
+
+impl Default for SyncMethod {
+    fn default() -> Self {
+        SyncMethod::Copy
+    }
 }
 
 #[cfg(test)]
@@ -502,6 +527,149 @@ mod ignored_patterns {
         } else {
             return Err(eyre!("Failed loading testing config"));
         }
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod overriding_global_config {
+    use std::{path::PathBuf, str::FromStr};
+
+    use color_eyre::{eyre::eyre, Report};
+
+    use super::{DTConfig, SyncMethod};
+
+    #[test]
+    fn overriding_allow_overwrite_no_global() -> Result<(), Report> {
+        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/overriding_allow_overwrite_no_global.toml",
+        )?) {
+            for local in config.local {
+                assert_eq!(
+                    local.get_allow_overwrite(
+                        &config.global.to_owned().unwrap_or_default()
+                    ),
+                    true,
+                );
+            }
+        } else {
+            return Err(eyre!("Failed loading testing config"));
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn overriding_allow_overwrite_with_global() -> Result<(), Report> {
+        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/overriding_allow_overwrite_with_global.toml",
+        )?) {
+            for local in config.local {
+                assert_eq!(
+                    local.get_allow_overwrite(
+                        &config.global.to_owned().unwrap_or_default()
+                    ),
+                    false,
+                );
+            }
+        } else {
+            return Err(eyre!("Failed loading testing config"));
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn overriding_method_no_global() -> Result<(), Report> {
+        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/overriding_method_no_global.toml",
+        )?) {
+            for local in config.local {
+                assert_eq!(
+                    local.get_method(
+                        &config.global.to_owned().unwrap_or_default(),
+                    ),
+                    SyncMethod::Symlink,
+                )
+            }
+        } else {
+            return Err(eyre!("Failed loading testing config"));
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn overriding_method_with_global() -> Result<(), Report> {
+        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/overriding_method_with_global.toml",
+        )?) {
+            for local in config.local {
+                assert_eq!(
+                    local.get_method(
+                        &config.global.to_owned().unwrap_or_default(),
+                    ),
+                    SyncMethod::Copy,
+                )
+            }
+        } else {
+            return Err(eyre!("Failed loading testing config"));
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn overriding_both_allow_overwrite_and_method_no_global(
+    ) -> Result<(), Report> {
+        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/overriding_both_allow_overwrite_and_method_no_global.toml",
+        )?) {
+            for local in config.local {
+                assert_eq!(
+                    local.get_method(
+                        &config.global.to_owned().unwrap_or_default()
+                    ),
+                    SyncMethod::Symlink,
+                );
+                assert_eq!(
+                    local.get_allow_overwrite(
+                        &config.global.to_owned().unwrap_or_default()
+                    ),
+                    true,
+                );
+            }
+        } else {
+            return Err(eyre!("Failed loading testing config"));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn overriding_both_allow_overwrite_and_method_with_global(
+    ) -> Result<(), Report> {
+        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/overriding_both_allow_overwrite_and_method_with_global.toml",
+        )?) {
+            for local in config.local {
+                assert_eq!(
+                    local.get_method(
+                        &config.global.to_owned().unwrap_or_default()
+                    ),
+                    SyncMethod::Copy
+                );
+                assert_eq!(
+                    local.get_allow_overwrite(
+                        &config.global.to_owned().unwrap_or_default()
+                    ),
+                    false,
+                );
+            }
+        } else {
+            return Err(eyre!("Failed loading testing config"));
+        }
+
         Ok(())
     }
 }
