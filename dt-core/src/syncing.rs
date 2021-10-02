@@ -42,6 +42,7 @@ pub fn sync(config: &DTConfig) -> Result<(), Report> {
                 ),
                 &group_staging,
                 &local.basedir,
+                local.per_host.unwrap_or(false),
             )?;
         }
     }
@@ -84,6 +85,7 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
                 ),
                 &staging,
                 &local.basedir,
+                local.per_host.unwrap_or(false),
             )?;
         }
     }
@@ -99,6 +101,7 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
 ///   - `allow_overwrite`: Whether overwrite existing files or not.
 ///   - `method`: A `SyncMethod` instance.
 ///   - `staging`: Path to staging directory.
+///   - `per_host`: Whether to check if host-specific item is present.
 fn sync_recursive(
     spath: &PathBuf,
     tparent: &PathBuf,
@@ -107,6 +110,7 @@ fn sync_recursive(
     method: SyncMethod,
     staging: &PathBuf,
     basedir: &PathBuf,
+    per_host: bool,
 ) -> Result<(), Report> {
     if !tparent.exists() {
         if dry {
@@ -124,10 +128,43 @@ fn sync_recursive(
     } else {
         log::Level::Error
     };
-    let staging_path = staging.join(spath.strip_prefix(basedir)?);
 
+    // First, get target path (without the per-host suffix).
     let sname = spath.file_name().unwrap();
     let tpath = tparent.join(sname);
+
+    // Next, update source path `spath` if `per_host` is set and a per-host item exists.
+    let spath = if per_host {
+        let per_host_spath = spath.with_file_name(
+            spath
+                .file_name()
+                .expect(&format!(
+                    "Failed extracting file name from source path {}",
+                    spath.display(),
+                ))
+                .to_str()
+                .expect(&format!(
+                    "Failed converting &OsStr to &str for source path {}",
+                    spath.display(),
+                ))
+                .to_owned()
+                + "@"
+                + gethostname::gethostname()
+                    .to_str()
+                    .expect("Failed extracting string from `gethostname`"),
+        );
+        if per_host_spath.exists() {
+            per_host_spath
+        } else {
+            spath.to_owned()
+        }
+    } else {
+        spath.to_owned()
+    };
+
+    // Finally, get the staging path with updated source path
+    let staging_path = staging.join(spath.strip_prefix(basedir)?);
+
     if spath.is_file() {
         if tpath.is_dir() {
             if dry {
@@ -266,6 +303,7 @@ fn sync_recursive(
                 method,
                 staging,
                 basedir,
+                per_host,
             )?;
         }
     }

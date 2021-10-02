@@ -19,13 +19,15 @@
 - [x] Expand environment variables in `local.basedir`, `local.sources`,
       `local.target`
 - [x] Handle non-existing source, give warnings when encountered
-- [ ] Add `local.for` to separate groups for different machines w.r.t. their
-      hostname (with `gethostname` crate)
+- [ ] ~~Add `local.for` to separate groups for different machines w.r.t. their
+      hostname (with `gethostname` crate)~~
 - [ ] Add `global.ignored` as fallback ignoring list
 - [x] Add `local.name` for local groups as namespaces, to properly handle
       files from different groups having the same relative path to their
       basedir.
 - [ ] Let `ignored` array(s) match more intelligently
+- [x] Add `local.per_host` to check for per-host syncing items for groups that
+      has this key set to `true`
 
 > Author: Blurgy <gy@blurgy.xyz>
 > Date:   Sep 29 2021, 00:18 [CST]

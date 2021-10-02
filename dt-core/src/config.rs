@@ -3,6 +3,8 @@ use std::{panic, path::PathBuf, str::FromStr};
 use color_eyre::{eyre::eyre, Report};
 use serde::Deserialize;
 
+use super::utils;
+
 /// The configuration object constructed from configuration file.
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct DTConfig {
@@ -93,15 +95,13 @@ impl DTConfig {
         };
         for original in &self.local {
             let mut next = LocalSyncConfig {
-                basedir: PathBuf::from_str(&shellexpand::tilde(
-                    original.basedir.to_str().unwrap(),
-                ))?
-                .canonicalize()?,
+                basedir: utils::to_absolute(PathBuf::from_str(
+                    &shellexpand::tilde(original.basedir.to_str().unwrap()),
+                )?)?,
                 sources: vec![],
-                target: PathBuf::from_str(&shellexpand::tilde(
-                    original.target.to_str().unwrap(),
-                ))?
-                .canonicalize()?,
+                target: utils::to_absolute(PathBuf::from_str(
+                    &shellexpand::tilde(original.target.to_str().unwrap()),
+                )?)?,
                 ..original.to_owned()
             };
             for s in &original.sources {
@@ -129,8 +129,8 @@ impl DTConfig {
                             }
                         })
                         .map(|x| {
-                            x.canonicalize().expect(&format!(
-                                "Failed canonicalizing path {}",
+                            utils::to_absolute(&x).expect(&format!(
+                                "Failed converting to absolute path: {}",
                                 x.display(),
                             ))
                         })
@@ -149,6 +149,32 @@ impl DTConfig {
 pub struct LocalSyncConfig {
     /// Name of this group, used as namespaces when staging.
     pub name: String,
+
+    /// Whether to check host-specific items in this group.
+    ///
+    /// Default to `false`, which means sources are synced as-is.  When `per_host` is `true`, an
+    /// additional item with `@$(hostname)` appended to the original item name will be checked
+    /// first, before looking for the original item.  If the appended item is found, use this item
+    /// instead of the configured one.
+    ///
+    /// ## Example
+    ///
+    /// On a machine with hostname set to `watson`, the below configuration (extraneous keys are
+    /// omitted here)
+    ///
+    /// ```toml
+    /// [[local]]
+    /// ...
+    /// per_host = true
+    /// basedir = "~/.ssh"
+    /// sources = ["config"]
+    /// target = "/tmp/sshconfig"
+    /// ...
+    /// ```
+    ///
+    /// Will first look for a file at `~/.ssh/config@watson`, if this file exists, it will be
+    /// synced to `/tmp/sshconfig/config`.
+    pub per_host: Option<bool>,
 
     /// The base directory of all source items.  This simplifies configuration files with common
     /// prefixes in `local.sources` array.
@@ -409,6 +435,8 @@ mod paths_expansion {
 
     use color_eyre::{eyre::eyre, Report};
 
+    use crate::utils;
+
     use super::DTConfig;
 
     #[test]
@@ -457,8 +485,12 @@ mod paths_expansion {
             for local in &config.local {
                 assert_eq!(
                     vec![
-                        PathBuf::from_str("../Cargo.lock")?.canonicalize()?,
-                        PathBuf::from_str("../Cargo.toml")?.canonicalize()?,
+                        utils::to_absolute(PathBuf::from_str(
+                            "../Cargo.lock"
+                        )?)?,
+                        utils::to_absolute(PathBuf::from_str(
+                            "../Cargo.toml"
+                        )?)?,
                     ],
                     local.sources
                 );
@@ -478,8 +510,8 @@ mod paths_expansion {
                 let entries = std::fs::read_dir(&home)?
                     .map(|x| x.expect("Failed reading dir entry"))
                     .map(|x| {
-                        x.path().canonicalize().expect(&format!(
-                            "Failed canonicalizing path {}",
+                        utils::to_absolute(x.path()).expect(&format!(
+                            "Failed converting to absolute path: {}",
                             x.path().display(),
                         ))
                     })
@@ -512,8 +544,12 @@ mod paths_expansion {
                 assert_eq!(
                     group.sources,
                     vec![
-                        PathBuf::from_str("../Cargo.lock")?.canonicalize()?,
-                        PathBuf::from_str("../Cargo.toml")?.canonicalize()?,
+                        utils::to_absolute(PathBuf::from_str(
+                            "../Cargo.lock"
+                        )?)?,
+                        utils::to_absolute(PathBuf::from_str(
+                            "../Cargo.toml"
+                        )?)?,
                     ]
                 )
             }
@@ -531,6 +567,8 @@ mod ignored_patterns {
     use std::path::PathBuf;
     use std::str::FromStr;
 
+    use crate::utils;
+
     use super::DTConfig;
 
     #[test]
@@ -539,13 +577,13 @@ mod ignored_patterns {
             "../testroot/configs/empty_ignored_array.toml",
         )?) {
             for group in &config.local {
-                let expected_sources =
-                    vec![PathBuf::from_str("../testroot/README.md")?
-                        .canonicalize()?];
+                let expected_sources = vec![utils::to_absolute(
+                    PathBuf::from_str("../testroot/README.md")?,
+                )?];
                 assert_eq!(group.sources, expected_sources);
                 assert_eq!(
                     group.target,
-                    PathBuf::from_str(".")?.canonicalize()?,
+                    utils::to_absolute(PathBuf::from_str(".")?)?,
                 );
                 assert_eq!(group.ignored, Some(Vec::<String>::new()));
             }
@@ -566,7 +604,7 @@ mod ignored_patterns {
                 assert_eq!(group.sources, expected_sources);
                 assert_eq!(
                     group.target,
-                    PathBuf::from_str(".")?.canonicalize()?,
+                    utils::to_absolute(PathBuf::from_str(".")?)?,
                 );
                 assert_eq!(group.ignored, Some(vec!["README.md".to_owned()]));
             }
@@ -584,13 +622,13 @@ mod ignored_patterns {
         )?) {
             for group in &config.local {
                 let expected_sources = vec![
-                    PathBuf::from_str("../Cargo.lock")?.canonicalize()?,
-                    PathBuf::from_str("../Cargo.toml")?.canonicalize()?,
+                    utils::to_absolute(PathBuf::from_str("../Cargo.lock")?)?,
+                    utils::to_absolute(PathBuf::from_str("../Cargo.toml")?)?,
                 ];
                 assert_eq!(group.sources, expected_sources);
                 assert_eq!(
                     group.target,
-                    PathBuf::from_str(".")?.canonicalize()?
+                    utils::to_absolute(PathBuf::from_str(".")?)?
                 );
                 assert_eq!(group.ignored, Some(vec![".lock".to_owned()]));
             }
@@ -607,12 +645,13 @@ mod ignored_patterns {
             "../testroot/configs/regular_ignore.toml",
         )?) {
             for group in &config.local {
-                let expected_sources =
-                    vec![PathBuf::from_str("../Cargo.lock")?.canonicalize()?];
+                let expected_sources = vec![utils::to_absolute(
+                    PathBuf::from_str("../Cargo.lock")?,
+                )?];
                 assert_eq!(group.sources, expected_sources);
                 assert_eq!(
                     group.target,
-                    PathBuf::from_str(".")?.canonicalize()?,
+                    utils::to_absolute(PathBuf::from_str(".")?)?,
                 );
                 assert_eq!(
                     group.ignored,
