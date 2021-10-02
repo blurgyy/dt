@@ -410,14 +410,17 @@ mod paths_expansion {
                     ]
                 )
             }
+        } else {
+            return Err(eyre!("Failed loading testing config"));
         }
+
         Ok(())
     }
 }
 
 #[cfg(test)]
 mod ignored_patterns {
-    use color_eyre::Report;
+    use color_eyre::{eyre::eyre, Report};
     use std::path::PathBuf;
     use std::str::FromStr;
 
@@ -435,7 +438,10 @@ mod ignored_patterns {
                 assert_eq!(group.target, PathBuf::from_str(".")?);
                 assert_eq!(group.ignored, Some(Vec::<String>::new()));
             }
+        } else {
+            return Err(eyre!("Failed loading testing config"));
         }
+
         Ok(())
     }
 
@@ -450,7 +456,10 @@ mod ignored_patterns {
                 assert_eq!(group.target, PathBuf::from_str(".")?);
                 assert_eq!(group.ignored, Some(vec!["README.md".to_owned()]));
             }
+        } else {
+            return Err(eyre!("Failed loading testing config"));
         }
+
         Ok(())
     }
 
@@ -468,7 +477,10 @@ mod ignored_patterns {
                 assert_eq!(group.target, PathBuf::from_str(".")?);
                 assert_eq!(group.ignored, Some(vec![".lock".to_owned()]));
             }
+        } else {
+            return Err(eyre!("Failed loading testing config"));
         }
+
         Ok(())
     }
 
@@ -487,6 +499,8 @@ mod ignored_patterns {
                     Some(vec!["Cargo.toml".to_owned()])
                 );
             }
+        } else {
+            return Err(eyre!("Failed loading testing config"));
         }
         Ok(())
     }

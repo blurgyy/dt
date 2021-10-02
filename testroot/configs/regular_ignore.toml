@@ -1,4 +1,4 @@
 [[local]]
 sources = ["../Cargo.lock", "../Cargo.toml"]
 target = "."
-ignored = "Cargo.toml"
+ignored = ["Cargo.toml"]
