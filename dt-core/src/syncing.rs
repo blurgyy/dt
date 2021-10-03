@@ -1,4 +1,4 @@
-use std::{path::PathBuf, str::FromStr};
+use std::{ops::Not, path::PathBuf, str::FromStr};
 
 use color_eyre::{eyre::eyre, Report};
 
@@ -12,7 +12,7 @@ pub fn sync(config: &DTConfig) -> Result<(), Report> {
         .unwrap_or_default()
         .staging
         .unwrap_or(GlobalConfig::default().staging.unwrap());
-    if !staging.exists() {
+    if staging.exists().not() {
         log::debug!(
             "Creating non-existing staging root {}",
             staging.display(),
@@ -22,7 +22,7 @@ pub fn sync(config: &DTConfig) -> Result<(), Report> {
 
     for local in &config.local {
         let group_staging = staging.join(PathBuf::from_str(&local.name)?);
-        if !group_staging.exists() {
+        if group_staging.exists().not() {
             log::debug!(
                 "Creating non-existing staging directory {}",
                 group_staging.display(),
@@ -58,17 +58,17 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
         .unwrap_or_default()
         .staging
         .unwrap_or(GlobalConfig::default().staging.unwrap());
-    if !staging.exists() {
+    if staging.exists().not() {
         log::info!("Staging root does not exist, will be automatically created when syncing");
-    } else if !staging.is_dir() {
+    } else if staging.is_dir().not() {
         log::error!("Staging root seems to exist and is not a directory");
     }
 
     for local in &config.local {
         let group_staging = staging.join(PathBuf::from_str(&local.name)?);
-        if !group_staging.exists() {
+        if group_staging.exists().not() {
             log::info!("Staging directory does not exist, will be automatically created when syncing");
-        } else if !staging.is_dir() {
+        } else if staging.is_dir().not() {
             log::info!(
                 "Staging directory seems to exist and is not a directory"
             )
@@ -115,7 +115,7 @@ fn sync_recursive(
     per_host: bool,
     hostname_sep: &str,
 ) -> Result<(), Report> {
-    if !tparent.exists() {
+    if tparent.exists().not() {
         if dry {
             log::info!(
                 "DRYRUN> Stopping at non-existing target directory {}",
@@ -274,7 +274,7 @@ fn sync_recursive(
             };
         }
 
-        if !tpath.exists()
+        if tpath.exists().not()
             || method == SyncMethod::Symlink && !staging_path.exists()
         {
             if dry {

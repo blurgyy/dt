@@ -72,7 +72,7 @@ impl DTConfig {
 
     fn validate_post_expansion(self: &Self) -> Result<(), Report> {
         for group in &self.local {
-            if !group.basedir.is_dir() {
+            if group.basedir.is_dir().not() {
                 return Err(eyre!(
                     "Configured basedir {} is invalid",
                     group.basedir.display(),
