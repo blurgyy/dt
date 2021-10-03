@@ -28,21 +28,25 @@ pub fn to_host_specific(
 ) -> Result<PathBuf, Report> {
     let path = path.as_ref();
 
-    let hs_filename = path
-        .file_name()
-        .expect(&format!(
-            "Failed extracting file name from path {}",
-            path.display(),
-        ))
-        .to_str()
-        .expect(&format!(
-            "Failed converting &OsStr to &str for path: {}",
-            path.display(),
-        ))
-        .to_owned()
-        + &host_specific_suffix(hostname_sep)?;
+    if path.ends_with(host_specific_suffix(hostname_sep)?) {
+        Ok(path.to_owned())
+    } else {
+        let hs_filename = path
+            .file_name()
+            .expect(&format!(
+                "Failed extracting file name from path {}",
+                path.display(),
+            ))
+            .to_str()
+            .expect(&format!(
+                "Failed converting &OsStr to &str for path: {}",
+                path.display(),
+            ))
+            .to_owned()
+            + &host_specific_suffix(hostname_sep)?;
 
-    Ok(path.with_file_name(hs_filename))
+        Ok(path.with_file_name(hs_filename))
+    }
 }
 
 pub fn to_non_host_specific(
