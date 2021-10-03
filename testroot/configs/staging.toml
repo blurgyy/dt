@@ -1,0 +1,10 @@
+[global]
+staging = "~/.cache/dt/staging"
+allow_overwrite = false
+method = "Symlink"
+
+[[local]]
+name = "placeholder"
+basedir = "~"
+sources = ["*", ".[!.]*", "..?*"]
+target = "."

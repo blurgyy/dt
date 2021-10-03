@@ -90,7 +90,20 @@ impl DTConfig {
             require_literal_leading_dot: true,
         };
         let mut ret = Self {
-            global: self.global.to_owned(),
+            global: match &self.global {
+                Some(global) => Some(GlobalConfig {
+                    staging: match &global.staging {
+                        Some(staging) => Some(utils::to_absolute(
+                            PathBuf::from_str(&shellexpand::tilde(
+                                staging.to_str().unwrap(),
+                            ))?,
+                        )?),
+                        None => GlobalConfig::default().staging,
+                    },
+                    ..global.to_owned()
+                }),
+                None => Some(GlobalConfig::default()),
+            },
             local: vec![],
         };
         for original in &self.local {
@@ -556,6 +569,32 @@ mod paths_expansion {
                         assert!(entries.contains(s));
                     }
                 }
+                Ok(())
+            } else {
+                Err(eyre!("Failed loading testing config"))
+            }
+        } else {
+            Err(eyre!(
+                "Set the `HOME` environment variable to complete this test"
+            ))
+        }
+    }
+
+    #[test]
+    fn staging() -> Result<(), Report> {
+        if let Ok(home) = std::env::var("HOME") {
+            if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+                "../testroot/configs/staging.toml",
+            )?) {
+                assert_eq!(
+                    config.global.unwrap().staging.unwrap().to_str().unwrap(),
+                    PathBuf::from_str(&home)?
+                        .join(".cache")
+                        .join("dt")
+                        .join("staging")
+                        .to_str()
+                        .unwrap(),
+                );
                 Ok(())
             } else {
                 Err(eyre!("Failed loading testing config"))
