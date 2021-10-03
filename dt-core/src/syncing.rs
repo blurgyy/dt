@@ -2,7 +2,7 @@ use std::{ops::Not, path::PathBuf, str::FromStr};
 
 use color_eyre::{eyre::eyre, Report};
 
-use crate::config::*;
+use crate::{config::*, utils};
 
 /// Syncs items specified in configuration.
 pub fn sync(config: &DTConfig) -> Result<(), Report> {
@@ -138,24 +138,7 @@ fn sync_recursive(
 
     // Next, update source path `spath` if `per_host` is set and a per-host item exists.
     let spath = if per_host {
-        let per_host_spath = spath.with_file_name(
-            spath
-                .file_name()
-                .expect(&format!(
-                    "Failed extracting file name from source path {}",
-                    spath.display(),
-                ))
-                .to_str()
-                .expect(&format!(
-                    "Failed converting &OsStr to &str for source path {}",
-                    spath.display(),
-                ))
-                .to_owned()
-                + hostname_sep
-                + gethostname::gethostname()
-                    .to_str()
-                    .expect("Failed extracting string from `gethostname`"),
-        );
+        let per_host_spath = utils::to_host_specific(spath, hostname_sep)?;
         if per_host_spath.exists() {
             per_host_spath
         } else {
