@@ -86,7 +86,7 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
                 local.get_method(
                     &config.global.to_owned().unwrap_or_default(),
                 ),
-                &staging,
+                &group_staging,
                 &local.basedir,
                 &local
                     .hostname_sep
@@ -259,24 +259,32 @@ fn sync_recursive(
         }
 
         if tpath.exists().not()
-            || method == SyncMethod::Symlink && !staging_path.exists()
+            || method == SyncMethod::Symlink && staging_path.exists().not()
         {
             if dry {
                 log::info!(
                     "DRYRUN> Stopping recursion at non-existing directory {}",
-                    tpath.display(),
+                    if tpath.exists().not() {
+                        tpath.display()
+                    } else {
+                        staging_path.display()
+                    },
                 );
                 return Ok(());
             } else {
-                if method == SyncMethod::Symlink {
+                if method == SyncMethod::Symlink
+                    && staging_path.exists().not()
+                {
                     log::debug!(
                         "SYNC::STAGE::CREATE> {}",
                         staging_path.display(),
                     );
                     std::fs::create_dir_all(staging_path)?;
                 }
-                log::debug!("SYNC::CREATE> {}", tpath.display());
-                std::fs::create_dir_all(&tpath)?;
+                if tpath.exists().not() {
+                    log::debug!("SYNC::CREATE> {}", tpath.display());
+                    std::fs::create_dir_all(&tpath)?;
+                }
             }
         }
 
