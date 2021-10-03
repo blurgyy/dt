@@ -646,6 +646,40 @@ mod paths_expansion {
             ))
         }
     }
+
+    #[test]
+    fn sorting_and_deduping() -> Result<(), Report> {
+        let config = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/sorting_and_deduping.toml",
+        )?)?;
+        for group in config.local {
+            assert_eq!(group.sources.len(), 6);
+            assert_eq!(
+                group.sources,
+                vec![
+                    utils::to_absolute(PathBuf::from_str(
+                        "../testroot/items/sorting_and_deduping/A-a"
+                    )?)?,
+                    utils::to_absolute(PathBuf::from_str(
+                        "../testroot/items/sorting_and_deduping/A-b"
+                    )?)?,
+                    utils::to_absolute(PathBuf::from_str(
+                        "../testroot/items/sorting_and_deduping/A-c"
+                    )?)?,
+                    utils::to_absolute(PathBuf::from_str(
+                        "../testroot/items/sorting_and_deduping/B-a"
+                    )?)?,
+                    utils::to_absolute(PathBuf::from_str(
+                        "../testroot/items/sorting_and_deduping/B-b"
+                    )?)?,
+                    utils::to_absolute(PathBuf::from_str(
+                        "../testroot/items/sorting_and_deduping/B-c"
+                    )?)?,
+                ]
+            );
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]

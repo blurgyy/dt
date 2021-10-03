@@ -1,0 +1,6 @@
+[[local]]
+name = "placeholder"
+
+basedir = "../testroot/items/sorting_and_deduping"
+sources = ["B-*", "*-c", "A-b", "A-a"]
+target = "../testroot/items/sorting/target"
