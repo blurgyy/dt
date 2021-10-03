@@ -28,6 +28,7 @@
 - [ ] Let `ignored` array(s) match more intelligently
 - [x] Add `local.per_host` to check for per-host syncing items for groups that
       has this key set to `true`
+- [ ] Make `local.per_host` default to `true`, or remove this from config
 
 > Author: Blurgy <gy@blurgy.xyz>
 > Date:   Sep 29 2021, 00:18 [CST]
