@@ -1,4 +1,4 @@
-use std::{panic, path::PathBuf, str::FromStr};
+use std::{ops::Not, panic, path::PathBuf, str::FromStr};
 
 use color_eyre::{eyre::eyre, Report};
 use serde::Deserialize;
@@ -121,12 +121,33 @@ impl DTConfig {
                 let s = next.basedir.join(s);
                 let mut s =
                     glob::glob_with(s.to_str().unwrap(), globbing_options)?
+                        // Extract value from Result<PathBuf>
                         .map(|x| {
                             x.expect(&format!(
                                 "Failed globbing source path {}",
                                 s.display(),
                             ))
                         })
+                        // Ignore host-specific items if per_host is true
+                        .filter(|x| {
+                            if next.per_host.unwrap_or(false) {
+                                x.to_str()
+                                    .expect(&format!(
+                                    "Failed converting path to string: {}",
+                                    x.display(),
+                                ))
+                                    .contains(
+                                        &next
+                                            .hostname_sep
+                                            .to_owned()
+                                            .unwrap_or("@@".to_owned()),
+                                    )
+                                    .not()
+                            } else {
+                                true
+                            }
+                        })
+                        // Ignore names with exact match
                         .filter(|x| {
                             if let Some(ignored) = &next.ignored {
                                 if ignored.len() == 0 {
@@ -141,6 +162,7 @@ impl DTConfig {
                                 true
                             }
                         })
+                        // Convert to absolute paths
                         .map(|x| {
                             utils::to_absolute(&x).expect(&format!(
                                 "Failed converting to absolute path: {}",
@@ -165,29 +187,73 @@ pub struct LocalSyncConfig {
 
     /// Whether to check host-specific items in this group.
     ///
-    /// Default to `false`, which means sources are synced as-is.  When `per_host` is `true`, an
-    /// additional item with `@$(hostname)` appended to the original item name will be checked
-    /// first, before looking for the original item.  If the appended item is found, use this item
-    /// instead of the configured one.
+    /// Default to `false`, in which case host-specific sources are **ignored**.  Host-specific
+    /// sources are those sources whose name ends with pattern `${hostname_sep}$(hostname)`.  Where
+    /// `hostname_sep` is a configurable separator string.
+    ///
+    /// ## Example
+    ///
+    /// When the following directory structure exists:
+    ///
+    /// ```plain
+    /// ~/.ssh/
+    /// ├── authorized_keys
+    /// ├── authorized_keys@@sherlock
+    /// ├── authorized_keys@@watson
+    /// ├── config
+    /// └── config@sherlock
+    /// └── config@watson
+    /// ```
+    ///
+    /// On a machine with hostname set to `watson`, the below configuration (extraneous keys are
+    /// omitted here)
+    ///
+    /// ```toml [[local]]
+    /// ...
+    /// per_host = false
+    ///
+    /// basedir = "~/.ssh"
+    /// sources = ["config", "authorized_keys", "authorized_keys@@watson"]
+    /// target = "/tmp/ssh-synced"
+    /// ...
+    /// ```
+    ///
+    /// will result in the target directory being synced with:
+    ///
+    /// ```plain
+    /// /tmp/ssh-synced/
+    /// ├── authorized_keys
+    /// └── config
+    /// ```
+    ///
+    /// > Note that the "authorized_keys@@watson" item in the sources array is ignored!
+    ///
+    /// When `per_host` is `true`, an additional item with `${hostname_sep}$(hostname)` appended to
+    /// the original item name will be checked first, before looking for the original item.  If the
+    /// appended item is found, use this item instead of the configured one.
     ///
     /// ## Example
     ///
     /// On a machine with hostname set to `watson`, the below configuration (extraneous keys are
     /// omitted here)
     ///
-    /// ```toml
-    /// [[local]]
+    /// ```toml [[local]]
     /// ...
     /// per_host = true
+    /// hostname_sep = "@@"
+    ///
     /// basedir = "~/.ssh"
     /// sources = ["config"]
     /// target = "/tmp/sshconfig"
     /// ...
     /// ```
     ///
-    /// Will first look for a file at `~/.ssh/config@watson`, if this file exists, it will be
+    /// Will first look for a file at `~/.ssh/config@@watson`, if this file exists, it will be
     /// synced to `/tmp/sshconfig/config`.
     pub per_host: Option<bool>,
+
+    /// Separator for per_host settings, default to "@@".  See `per_host` for more details.
+    pub hostname_sep: Option<String>,
 
     /// The base directory of all source items.  This simplifies configuration files with common
     /// prefixes in `local.sources` array.
@@ -708,6 +774,30 @@ mod ignored_patterns {
             return Err(eyre!("Failed loading testing config"));
         }
 
+        Ok(())
+    }
+
+    #[test]
+    fn no_per_host_items() -> Result<(), Report> {
+        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/no_per_host_items.toml",
+        )?) {
+            for group in config.local {
+                assert_eq!(
+                    group.sources,
+                    vec![
+                        utils::to_absolute(PathBuf::from_str(
+                            "../testroot/items/no_per_host_items/authorized_keys"
+                        )?)?,
+                        utils::to_absolute(PathBuf::from_str(
+                            "../testroot/items/no_per_host_items/config"
+                        )?)?,
+                    ]
+                )
+            }
+        } else {
+            return Err(eyre!("Failed loading testing config"));
+        }
         Ok(())
     }
 }

@@ -1,0 +1,11 @@
+[[local]]
+name = "placeholder"
+per_host = true
+hostname_sep = "@@"
+
+basedir = "../testroot/items/no_per_host_items"
+sources = ["*"]
+target = "../testroot/items/no_per_host_items/target"
+
+allow_overwrite = true
+method = "Copy"

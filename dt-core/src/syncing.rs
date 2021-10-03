@@ -43,6 +43,7 @@ pub fn sync(config: &DTConfig) -> Result<(), Report> {
                 &group_staging,
                 &local.basedir,
                 local.per_host.unwrap_or(false),
+                &local.hostname_sep.as_ref().unwrap_or(&"@@".to_owned()),
             )?;
         }
     }
@@ -86,6 +87,7 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
                 &staging,
                 &local.basedir,
                 local.per_host.unwrap_or(false),
+                &local.hostname_sep.as_ref().unwrap_or(&"@@".to_owned()),
             )?;
         }
     }
@@ -111,6 +113,7 @@ fn sync_recursive(
     staging: &PathBuf,
     basedir: &PathBuf,
     per_host: bool,
+    hostname_sep: &str,
 ) -> Result<(), Report> {
     if !tparent.exists() {
         if dry {
@@ -148,7 +151,7 @@ fn sync_recursive(
                     spath.display(),
                 ))
                 .to_owned()
-                + "@"
+                + hostname_sep
                 + gethostname::gethostname()
                     .to_str()
                     .expect("Failed extracting string from `gethostname`"),
@@ -304,6 +307,7 @@ fn sync_recursive(
                 staging,
                 basedir,
                 per_host,
+                hostname_sep,
             )?;
         }
     }
