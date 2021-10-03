@@ -537,27 +537,34 @@ mod paths_expansion {
 
     #[test]
     fn basedir() -> Result<(), Report> {
-        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/basedir.toml",
-        )?) {
-            for group in config.local {
-                assert_eq!(
-                    group.sources,
-                    vec![
-                        utils::to_absolute(PathBuf::from_str(
-                            "../Cargo.lock"
-                        )?)?,
-                        utils::to_absolute(PathBuf::from_str(
-                            "../Cargo.toml"
-                        )?)?,
-                    ]
-                )
+        if let Ok(home) = std::env::var("HOME") {
+            if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+                "../testroot/configs/basedir.toml",
+            )?) {
+                let entries = std::fs::read_dir(&home)?
+                    .map(|x| x.expect("Failed reading dir entry"))
+                    .map(|x| {
+                        utils::to_absolute(x.path()).expect(&format!(
+                            "Failed converting to absolute path: {}",
+                            x.path().display(),
+                        ))
+                    })
+                    .collect::<Vec<_>>();
+                for local in &config.local {
+                    assert_eq!(entries.len(), local.sources.len());
+                    for s in &local.sources {
+                        assert!(entries.contains(s));
+                    }
+                }
+                Ok(())
+            } else {
+                Err(eyre!("Failed loading testing config"))
             }
         } else {
-            return Err(eyre!("Failed loading testing config"));
+            Err(eyre!(
+                "Set the `HOME` environment variable to complete this test"
+            ))
         }
-
-        Ok(())
     }
 }
 
