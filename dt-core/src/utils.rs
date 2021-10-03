@@ -1,8 +1,13 @@
+use color_eyre::Report;
 use path_clean::PathClean;
-use std::{
-    path::{Path, PathBuf},
-    str::FromStr,
-};
+use std::path::{Path, PathBuf};
+
+fn host_specific_suffix(hostname_sep: &str) -> Result<String, Report> {
+    Ok(hostname_sep.to_owned()
+        + gethostname::gethostname()
+            .to_str()
+            .expect("Failed getting hostname"))
+}
 
 pub fn to_absolute(path: impl AsRef<Path>) -> std::io::Result<PathBuf> {
     let path = path.as_ref();
@@ -20,7 +25,7 @@ pub fn to_absolute(path: impl AsRef<Path>) -> std::io::Result<PathBuf> {
 pub fn to_host_specific(
     path: impl AsRef<Path>,
     hostname_sep: &str,
-) -> std::io::Result<PathBuf> {
+) -> Result<PathBuf, Report> {
     let path = path.as_ref();
 
     let hs_filename = path
@@ -35,12 +40,32 @@ pub fn to_host_specific(
             path.display(),
         ))
         .to_owned()
-        + hostname_sep
-        + gethostname::gethostname()
-            .to_str()
-            .expect("Failed extracting string from `gethostname`");
+        + &host_specific_suffix(hostname_sep)?;
 
     Ok(path.with_file_name(hs_filename))
+}
+
+pub fn to_non_host_specific(
+    path: impl AsRef<Path>,
+    hostname_sep: &str,
+) -> Result<PathBuf, Report> {
+    let path = path.as_ref();
+    Ok(path.with_file_name(
+        path.file_name()
+            .expect(&format!(
+                "Failed extracting file name from path {}",
+                path.display(),
+            ))
+            .to_str()
+            .expect(&format!(
+                "Failed converting &OsStr to &str for path: {}",
+                path.display(),
+            ))
+            .split(hostname_sep)
+            // First item from separated filename
+            .nth(0)
+            .expect("Cannot get non-host-specific path"),
+    ))
 }
 
 // Author: Blurgy <gy@blurgy.xyz>

@@ -5,6 +5,8 @@ use serde::Deserialize;
 
 use super::utils;
 
+pub const DEFAULT_HOSTNAME_SEPARATOR: &str = "@@";
+
 /// The configuration object constructed from configuration file.
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct DTConfig {
@@ -128,24 +130,17 @@ impl DTConfig {
                                 s.display(),
                             ))
                         })
-                        // Ignore host-specific items if per_host is true
-                        .filter(|x| {
-                            if next.per_host.unwrap_or(false) {
-                                x.to_str()
-                                    .expect(&format!(
-                                    "Failed converting path to string: {}",
-                                    x.display(),
-                                ))
-                                    .contains(
-                                        &next
-                                            .hostname_sep
-                                            .to_owned()
-                                            .unwrap_or("@@".to_owned()),
-                                    )
-                                    .not()
-                            } else {
-                                true
-                            }
+                        // Make host-specific items non-host-specific
+                        .map(|x| {
+                            utils::to_non_host_specific(
+                                x,
+                                &next.hostname_sep.to_owned().unwrap_or(
+                                    DEFAULT_HOSTNAME_SEPARATOR.to_owned(),
+                                ),
+                            )
+                            .expect(
+                                "Error getting non-host-specific item name",
+                            )
                         })
                         // Ignore names with exact match
                         .filter(|x| {
@@ -172,6 +167,8 @@ impl DTConfig {
                         .collect();
                 next.sources.append(&mut s);
             }
+            next.sources.sort();
+            next.sources.dedup();
             ret.local.push(next);
         }
 
@@ -185,11 +182,13 @@ pub struct LocalSyncConfig {
     /// Name of this group, used as namespaces when staging.
     pub name: String,
 
-    /// Whether to check host-specific items in this group.
+    /// Separator for per-host settings, default to "@@".
     ///
-    /// Default to `false`, in which case host-specific sources are **ignored**.  Host-specific
-    /// sources are those sources whose name ends with pattern `${hostname_sep}$(hostname)`.  Where
-    /// `hostname_sep` is a configurable separator string.
+    /// Note: All items with names contains this separator will be ignored.
+    ///
+    /// An additional item with `${hostname_sep}$(hostname)` appended to the original item name
+    /// will be checked first, before looking for the original item.  If the appended item is found,
+    /// use this item instead of the configured one.
     ///
     /// ## Example
     ///
@@ -201,7 +200,7 @@ pub struct LocalSyncConfig {
     /// ├── authorized_keys@@sherlock
     /// ├── authorized_keys@@watson
     /// ├── config
-    /// └── config@sherlock
+    /// ├── config@sherlock
     /// └── config@watson
     /// ```
     ///
@@ -210,36 +209,6 @@ pub struct LocalSyncConfig {
     ///
     /// ```toml [[local]]
     /// ...
-    /// per_host = false
-    ///
-    /// basedir = "~/.ssh"
-    /// sources = ["config", "authorized_keys", "authorized_keys@@watson"]
-    /// target = "/tmp/ssh-synced"
-    /// ...
-    /// ```
-    ///
-    /// will result in the target directory being synced with:
-    ///
-    /// ```plain
-    /// /tmp/ssh-synced/
-    /// ├── authorized_keys
-    /// └── config
-    /// ```
-    ///
-    /// > Note that the "authorized_keys@@watson" item in the sources array is ignored!
-    ///
-    /// When `per_host` is `true`, an additional item with `${hostname_sep}$(hostname)` appended to
-    /// the original item name will be checked first, before looking for the original item.  If the
-    /// appended item is found, use this item instead of the configured one.
-    ///
-    /// ## Example
-    ///
-    /// On a machine with hostname set to `watson`, the below configuration (extraneous keys are
-    /// omitted here)
-    ///
-    /// ```toml [[local]]
-    /// ...
-    /// per_host = true
     /// hostname_sep = "@@"
     ///
     /// basedir = "~/.ssh"
@@ -248,11 +217,17 @@ pub struct LocalSyncConfig {
     /// ...
     /// ```
     ///
-    /// Will first look for a file at `~/.ssh/config@@watson`, if this file exists, it will be
-    /// synced to `/tmp/sshconfig/config`.
-    pub per_host: Option<bool>,
-
-    /// Separator for per_host settings, default to "@@".  See `per_host` for more details.
+    /// will result in the below target (`/tmp/sshconfig`):
+    ///
+    /// ```plain
+    /// /tmp/sshconfig/
+    /// ├── authorized_keys
+    /// ├── authorized_keys@@sherlock
+    /// ├── authorized_keys@@watson
+    /// ├── config
+    /// ├── config@sherlock
+    /// └── config@watson
+    /// ```
     pub hostname_sep: Option<String>,
 
     /// The base directory of all source items.  This simplifies configuration files with common

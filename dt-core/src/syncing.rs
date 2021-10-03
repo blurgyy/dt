@@ -42,8 +42,10 @@ pub fn sync(config: &DTConfig) -> Result<(), Report> {
                 ),
                 &group_staging,
                 &local.basedir,
-                local.per_host.unwrap_or(false),
-                &local.hostname_sep.as_ref().unwrap_or(&"@@".to_owned()),
+                &local
+                    .hostname_sep
+                    .as_ref()
+                    .unwrap_or(&DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
             )?;
         }
     }
@@ -86,8 +88,10 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
                 ),
                 &staging,
                 &local.basedir,
-                local.per_host.unwrap_or(false),
-                &local.hostname_sep.as_ref().unwrap_or(&"@@".to_owned()),
+                &local
+                    .hostname_sep
+                    .as_ref()
+                    .unwrap_or(&DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
             )?;
         }
     }
@@ -103,7 +107,7 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
 ///   - `allow_overwrite`: Whether overwrite existing files or not.
 ///   - `method`: A `SyncMethod` instance.
 ///   - `staging`: Path to staging directory.
-///   - `per_host`: Whether to check if host-specific item is present.
+///   - `hostname_sep`: Separator for per-host settings.
 fn sync_recursive(
     spath: &PathBuf,
     tparent: &PathBuf,
@@ -112,7 +116,6 @@ fn sync_recursive(
     method: SyncMethod,
     staging: &PathBuf,
     basedir: &PathBuf,
-    per_host: bool,
     hostname_sep: &str,
 ) -> Result<(), Report> {
     if tparent.exists().not() {
@@ -137,15 +140,13 @@ fn sync_recursive(
     let tpath = tparent.join(sname);
 
     // Next, update source path `spath` if `per_host` is set and a per-host item exists.
-    let spath = if per_host {
+    let spath = {
         let per_host_spath = utils::to_host_specific(spath, hostname_sep)?;
         if per_host_spath.exists() {
             per_host_spath
         } else {
             spath.to_owned()
         }
-    } else {
-        spath.to_owned()
     };
 
     // Finally, get the staging path with updated source path
@@ -289,7 +290,6 @@ fn sync_recursive(
                 method,
                 staging,
                 basedir,
-                per_host,
                 hostname_sep,
             )?;
         }
