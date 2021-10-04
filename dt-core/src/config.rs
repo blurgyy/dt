@@ -529,19 +529,14 @@ mod paths_expansion {
     #[test]
     fn tilde() -> Result<(), Report> {
         if let Ok(home) = std::env::var("HOME") {
-            if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+            let config = DTConfig::from_pathbuf(PathBuf::from_str(
                 "../testroot/configs/expand_tilde.toml",
-            )?) {
-                for group in &config.local {
-                    assert_eq!(group.basedir.to_str(), Some(home.as_str()));
-                    assert_eq!(group.target.to_str(), Some(home.as_str()));
-                }
-                Ok(())
-            } else {
-                Err(eyre!(
-                    "This config should be loaded because target is a directory"
-                ))
+            )?)?;
+            for group in &config.local {
+                assert_eq!(group.basedir.to_str(), Some(home.as_str()));
+                assert_eq!(group.target.to_str(), Some(home.as_str()));
             }
+            Ok(())
         } else {
             Err(eyre!(
                 "Set the `HOME` environment variable to complete this test"
@@ -551,24 +546,17 @@ mod paths_expansion {
 
     #[test]
     fn glob() -> Result<(), Report> {
-        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+        let config = DTConfig::from_pathbuf(PathBuf::from_str(
             "../testroot/configs/expand_glob.toml",
-        )?) {
-            for group in &config.local {
-                assert_eq!(
-                    vec![
-                        utils::to_absolute(PathBuf::from_str(
-                            "../Cargo.lock"
-                        )?)?,
-                        utils::to_absolute(PathBuf::from_str(
-                            "../Cargo.toml"
-                        )?)?,
-                    ],
-                    group.sources
-                );
-            }
-        } else {
-            return Err(eyre!("Failed loading testing config"));
+        )?)?;
+        for group in &config.local {
+            assert_eq!(
+                vec![
+                    utils::to_absolute(PathBuf::from_str("../Cargo.lock")?)?,
+                    utils::to_absolute(PathBuf::from_str("../Cargo.toml")?)?,
+                ],
+                group.sources
+            );
         }
         Ok(())
     }
@@ -576,30 +564,25 @@ mod paths_expansion {
     #[test]
     fn tilde_with_glob() -> Result<(), Report> {
         if let Ok(home) = std::env::var("HOME") {
-            if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+            let config = DTConfig::from_pathbuf(PathBuf::from_str(
                 "../testroot/configs/expand_tilde_with_glob.toml",
-            )?) {
-                let entries = std::fs::read_dir(&home)?
-                    .map(|x| x.expect("Failed reading dir entry"))
-                    .map(|x| {
-                        utils::to_absolute(x.path()).expect(&format!(
-                            "Failed converting to absolute path: {}",
-                            x.path().display(),
-                        ))
-                    })
-                    .collect::<Vec<_>>();
-                for group in &config.local {
-                    assert_eq!(entries.len(), group.sources.len());
-                    for s in &group.sources {
-                        assert!(entries.contains(s));
-                    }
+            )?)?;
+            let entries = std::fs::read_dir(&home)?
+                .map(|x| x.expect("Failed reading dir entry"))
+                .map(|x| {
+                    utils::to_absolute(x.path()).expect(&format!(
+                        "Failed converting to absolute path: {}",
+                        x.path().display(),
+                    ))
+                })
+                .collect::<Vec<_>>();
+            for group in &config.local {
+                assert_eq!(entries.len(), group.sources.len());
+                for s in &group.sources {
+                    assert!(entries.contains(s));
                 }
-                Ok(())
-            } else {
-                Err(eyre!(
-                    "This config should be loaded because target is a directory"
-                ))
             }
+            Ok(())
         } else {
             Err(eyre!(
                 "Set the `HOME` environment variable to complete this test"
@@ -610,28 +593,25 @@ mod paths_expansion {
     #[test]
     fn basedir() -> Result<(), Report> {
         if let Ok(home) = std::env::var("HOME") {
-            if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+            let config = DTConfig::from_pathbuf(PathBuf::from_str(
                 "../testroot/configs/basedir.toml",
-            )?) {
-                let entries = std::fs::read_dir(&home)?
-                    .map(|x| x.expect("Failed reading dir entry"))
-                    .map(|x| {
-                        utils::to_absolute(x.path()).expect(&format!(
-                            "Failed converting to absolute path: {}",
-                            x.path().display(),
-                        ))
-                    })
-                    .collect::<Vec<_>>();
-                for group in &config.local {
-                    assert_eq!(entries.len(), group.sources.len());
-                    for s in &group.sources {
-                        assert!(entries.contains(s));
-                    }
+            )?)?;
+            let entries = std::fs::read_dir(&home)?
+                .map(|x| x.expect("Failed reading dir entry"))
+                .map(|x| {
+                    utils::to_absolute(x.path()).expect(&format!(
+                        "Failed converting to absolute path: {}",
+                        x.path().display(),
+                    ))
+                })
+                .collect::<Vec<_>>();
+            for group in &config.local {
+                assert_eq!(entries.len(), group.sources.len());
+                for s in &group.sources {
+                    assert!(entries.contains(s));
                 }
-                Ok(())
-            } else {
-                Err(eyre!("Failed loading testing config"))
             }
+            Ok(())
         } else {
             Err(eyre!(
                 "Set the `HOME` environment variable to complete this test"
@@ -642,22 +622,19 @@ mod paths_expansion {
     #[test]
     fn staging() -> Result<(), Report> {
         if let Ok(home) = std::env::var("HOME") {
-            if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+            let config = DTConfig::from_pathbuf(PathBuf::from_str(
                 "../testroot/configs/staging.toml",
-            )?) {
-                assert_eq!(
-                    config.global.unwrap().staging.unwrap().to_str().unwrap(),
-                    PathBuf::from_str(&home)?
-                        .join(".cache")
-                        .join("dt")
-                        .join("staging")
-                        .to_str()
-                        .unwrap(),
-                );
-                Ok(())
-            } else {
-                Err(eyre!("Failed loading testing config"))
-            }
+            )?)?;
+            assert_eq!(
+                config.global.unwrap().staging.unwrap().to_str().unwrap(),
+                PathBuf::from_str(&home)?
+                    .join(".cache")
+                    .join("dt")
+                    .join("staging")
+                    .to_str()
+                    .unwrap(),
+            );
+            Ok(())
         } else {
             Err(eyre!(
                 "Set the `HOME` environment variable to complete this test"
@@ -702,7 +679,7 @@ mod paths_expansion {
 
 #[cfg(test)]
 mod ignored_patterns {
-    use color_eyre::{eyre::eyre, Report};
+    use color_eyre::Report;
     use std::path::PathBuf;
     use std::str::FromStr;
 
@@ -712,22 +689,19 @@ mod ignored_patterns {
 
     #[test]
     fn empty_ignored_array() -> Result<(), Report> {
-        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+        let config = DTConfig::from_pathbuf(PathBuf::from_str(
             "../testroot/configs/empty_ignored_array.toml",
-        )?) {
-            for group in &config.local {
-                let expected_sources = vec![utils::to_absolute(
-                    PathBuf::from_str("../testroot/README.md")?,
-                )?];
-                assert_eq!(group.sources, expected_sources);
-                assert_eq!(
-                    group.target,
-                    utils::to_absolute(PathBuf::from_str(".")?)?,
-                );
-                assert_eq!(group.ignored, Some(Vec::<String>::new()));
-            }
-        } else {
-            return Err(eyre!("Failed loading testing config"));
+        )?)?;
+        for group in &config.local {
+            let expected_sources = vec![utils::to_absolute(
+                PathBuf::from_str("../testroot/README.md")?,
+            )?];
+            assert_eq!(group.sources, expected_sources);
+            assert_eq!(
+                group.target,
+                utils::to_absolute(PathBuf::from_str(".")?)?,
+            );
+            assert_eq!(group.ignored, Some(Vec::<String>::new()));
         }
 
         Ok(())
@@ -735,20 +709,17 @@ mod ignored_patterns {
 
     #[test]
     fn empty_source_array() -> Result<(), Report> {
-        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+        let config = DTConfig::from_pathbuf(PathBuf::from_str(
             "../testroot/configs/empty_source_array.toml",
-        )?) {
-            for group in &config.local {
-                let expected_sources: Vec<PathBuf> = vec![];
-                assert_eq!(group.sources, expected_sources);
-                assert_eq!(
-                    group.target,
-                    utils::to_absolute(PathBuf::from_str(".")?)?,
-                );
-                assert_eq!(group.ignored, Some(vec!["README.md".to_owned()]));
-            }
-        } else {
-            return Err(eyre!("Failed loading testing config"));
+        )?)?;
+        for group in &config.local {
+            let expected_sources: Vec<PathBuf> = vec![];
+            assert_eq!(group.sources, expected_sources);
+            assert_eq!(
+                group.target,
+                utils::to_absolute(PathBuf::from_str(".")?)?,
+            );
+            assert_eq!(group.ignored, Some(vec!["README.md".to_owned()]));
         }
 
         Ok(())
@@ -756,23 +727,20 @@ mod ignored_patterns {
 
     #[test]
     fn partial_filename() -> Result<(), Report> {
-        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+        let config = DTConfig::from_pathbuf(PathBuf::from_str(
             "../testroot/configs/partial_filename.toml",
-        )?) {
-            for group in &config.local {
-                let expected_sources = vec![
-                    utils::to_absolute(PathBuf::from_str("../Cargo.lock")?)?,
-                    utils::to_absolute(PathBuf::from_str("../Cargo.toml")?)?,
-                ];
-                assert_eq!(group.sources, expected_sources);
-                assert_eq!(
-                    group.target,
-                    utils::to_absolute(PathBuf::from_str(".")?)?
-                );
-                assert_eq!(group.ignored, Some(vec![".lock".to_owned()]));
-            }
-        } else {
-            return Err(eyre!("Failed loading testing config"));
+        )?)?;
+        for group in &config.local {
+            let expected_sources = vec![
+                utils::to_absolute(PathBuf::from_str("../Cargo.lock")?)?,
+                utils::to_absolute(PathBuf::from_str("../Cargo.toml")?)?,
+            ];
+            assert_eq!(group.sources, expected_sources);
+            assert_eq!(
+                group.target,
+                utils::to_absolute(PathBuf::from_str(".")?)?
+            );
+            assert_eq!(group.ignored, Some(vec![".lock".to_owned()]));
         }
 
         Ok(())
@@ -780,25 +748,19 @@ mod ignored_patterns {
 
     #[test]
     fn regular_ignore() -> Result<(), Report> {
-        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+        let config = DTConfig::from_pathbuf(PathBuf::from_str(
             "../testroot/configs/regular_ignore.toml",
-        )?) {
-            for group in &config.local {
-                let expected_sources = vec![utils::to_absolute(
-                    PathBuf::from_str("../Cargo.lock")?,
-                )?];
-                assert_eq!(group.sources, expected_sources);
-                assert_eq!(
-                    group.target,
-                    utils::to_absolute(PathBuf::from_str(".")?)?,
-                );
-                assert_eq!(
-                    group.ignored,
-                    Some(vec!["Cargo.toml".to_owned()])
-                );
-            }
-        } else {
-            return Err(eyre!("Failed loading testing config"));
+        )?)?;
+        for group in &config.local {
+            let expected_sources = vec![utils::to_absolute(
+                PathBuf::from_str("../Cargo.lock")?,
+            )?];
+            assert_eq!(group.sources, expected_sources);
+            assert_eq!(
+                group.target,
+                utils::to_absolute(PathBuf::from_str(".")?)?,
+            );
+            assert_eq!(group.ignored, Some(vec!["Cargo.toml".to_owned()]));
         }
 
         Ok(())
@@ -806,25 +768,23 @@ mod ignored_patterns {
 
     #[test]
     fn no_per_host_items() -> Result<(), Report> {
-        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+        let config = DTConfig::from_pathbuf(PathBuf::from_str(
             "../testroot/configs/no_per_host_items.toml",
-        )?) {
-            for group in config.local {
-                assert_eq!(
-                    group.sources,
-                    vec![
-                        utils::to_absolute(PathBuf::from_str(
-                            "../testroot/items/no_per_host_items/authorized_keys"
-                        )?)?,
-                        utils::to_absolute(PathBuf::from_str(
-                            "../testroot/items/no_per_host_items/config"
-                        )?)?,
-                    ]
-                )
-            }
-        } else {
-            return Err(eyre!("Failed loading testing config"));
+        )?)?;
+        for group in config.local {
+            assert_eq!(
+                group.sources,
+                vec![
+                    utils::to_absolute(PathBuf::from_str(
+                        "../testroot/items/no_per_host_items/authorized_keys"
+                    )?)?,
+                    utils::to_absolute(PathBuf::from_str(
+                        "../testroot/items/no_per_host_items/config"
+                    )?)?,
+                ]
+            )
         }
+
         Ok(())
     }
 }
@@ -833,25 +793,22 @@ mod ignored_patterns {
 mod overriding_global_config {
     use std::{path::PathBuf, str::FromStr};
 
-    use color_eyre::{eyre::eyre, Report};
+    use color_eyre::Report;
 
     use super::{DTConfig, SyncMethod};
 
     #[test]
     fn overriding_allow_overwrite_no_global() -> Result<(), Report> {
-        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+        let config = DTConfig::from_pathbuf(PathBuf::from_str(
             "../testroot/configs/overriding_allow_overwrite_no_global.toml",
-        )?) {
-            for group in config.local {
-                assert_eq!(
-                    group.get_allow_overwrite(
-                        &config.global.to_owned().unwrap_or_default()
-                    ),
-                    true,
-                );
-            }
-        } else {
-            return Err(eyre!("Failed loading testing config"));
+        )?)?;
+        for group in config.local {
+            assert_eq!(
+                group.get_allow_overwrite(
+                    &config.global.to_owned().unwrap_or_default()
+                ),
+                true,
+            );
         }
 
         Ok(())
@@ -859,19 +816,16 @@ mod overriding_global_config {
 
     #[test]
     fn overriding_allow_overwrite_with_global() -> Result<(), Report> {
-        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+        let config = DTConfig::from_pathbuf(PathBuf::from_str(
             "../testroot/configs/overriding_allow_overwrite_with_global.toml",
-        )?) {
-            for group in config.local {
-                assert_eq!(
-                    group.get_allow_overwrite(
-                        &config.global.to_owned().unwrap_or_default()
-                    ),
-                    false,
-                );
-            }
-        } else {
-            return Err(eyre!("Failed loading testing config"));
+        )?)?;
+        for group in config.local {
+            assert_eq!(
+                group.get_allow_overwrite(
+                    &config.global.to_owned().unwrap_or_default()
+                ),
+                false,
+            );
         }
 
         Ok(())
@@ -879,19 +833,16 @@ mod overriding_global_config {
 
     #[test]
     fn overriding_method_no_global() -> Result<(), Report> {
-        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+        let config = DTConfig::from_pathbuf(PathBuf::from_str(
             "../testroot/configs/overriding_method_no_global.toml",
-        )?) {
-            for group in config.local {
-                assert_eq!(
-                    group.get_method(
-                        &config.global.to_owned().unwrap_or_default(),
-                    ),
-                    SyncMethod::Copy,
-                )
-            }
-        } else {
-            return Err(eyre!("Failed loading testing config"));
+        )?)?;
+        for group in config.local {
+            assert_eq!(
+                group.get_method(
+                    &config.global.to_owned().unwrap_or_default(),
+                ),
+                SyncMethod::Copy,
+            )
         }
 
         Ok(())
@@ -899,19 +850,16 @@ mod overriding_global_config {
 
     #[test]
     fn overriding_method_with_global() -> Result<(), Report> {
-        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+        let config = DTConfig::from_pathbuf(PathBuf::from_str(
             "../testroot/configs/overriding_method_with_global.toml",
-        )?) {
-            for group in config.local {
-                assert_eq!(
-                    group.get_method(
-                        &config.global.to_owned().unwrap_or_default(),
-                    ),
-                    SyncMethod::Symlink,
-                )
-            }
-        } else {
-            return Err(eyre!("Failed loading testing config"));
+        )?)?;
+        for group in config.local {
+            assert_eq!(
+                group.get_method(
+                    &config.global.to_owned().unwrap_or_default(),
+                ),
+                SyncMethod::Symlink,
+            )
         }
 
         Ok(())
@@ -920,51 +868,46 @@ mod overriding_global_config {
     #[test]
     fn overriding_both_allow_overwrite_and_method_no_global(
     ) -> Result<(), Report> {
-        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+        let config= DTConfig::from_pathbuf(PathBuf::from_str(
             "../testroot/configs/overriding_both_allow_overwrite_and_method_no_global.toml",
-        )?) {
-            for group in config.local {
-                assert_eq!(
-                    group.get_method(
-                        &config.global.to_owned().unwrap_or_default()
-                    ),
-                    SyncMethod::Copy,
-                );
-                assert_eq!(
-                    group.get_allow_overwrite(
-                        &config.global.to_owned().unwrap_or_default()
-                    ),
-                    true,
-                );
-            }
-        } else {
-            return Err(eyre!("Failed loading testing config"));
+        )?) ?;
+        for group in config.local {
+            assert_eq!(
+                group.get_method(
+                    &config.global.to_owned().unwrap_or_default()
+                ),
+                SyncMethod::Copy,
+            );
+            assert_eq!(
+                group.get_allow_overwrite(
+                    &config.global.to_owned().unwrap_or_default()
+                ),
+                true,
+            );
         }
+
         Ok(())
     }
 
     #[test]
     fn overriding_both_allow_overwrite_and_method_with_global(
     ) -> Result<(), Report> {
-        if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
+        let config= DTConfig::from_pathbuf(PathBuf::from_str(
             "../testroot/configs/overriding_both_allow_overwrite_and_method_with_global.toml",
-        )?) {
-            for group in config.local {
-                assert_eq!(
-                    group.get_method(
-                        &config.global.to_owned().unwrap_or_default()
-                    ),
-                    SyncMethod::Symlink,
-                );
-                assert_eq!(
-                    group.get_allow_overwrite(
-                        &config.global.to_owned().unwrap_or_default()
-                    ),
-                    false,
-                );
-            }
-        } else {
-            return Err(eyre!("Failed loading testing config"));
+        )?) ?;
+        for group in config.local {
+            assert_eq!(
+                group.get_method(
+                    &config.global.to_owned().unwrap_or_default()
+                ),
+                SyncMethod::Symlink,
+            );
+            assert_eq!(
+                group.get_allow_overwrite(
+                    &config.global.to_owned().unwrap_or_default()
+                ),
+                false,
+            );
         }
 
         Ok(())
