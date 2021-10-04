@@ -110,13 +110,16 @@ fn validate_pre_expansion(config: &DTConfig) -> Result<(), Report> {
         if group.target.exists() && !group.target.is_dir() {
             return Err(eyre!("Target path exists and is not a directory"));
         }
-        for i in &group.ignored {
-            if i.contains(&"/".to_owned()) {
-                return Err(eyre!(
-                    "Ignored pattern contains slash, this is not allowed"
-                ));
-            }
+        if group.ignored.is_some() {
+            todo!("`ignored` array works poorly and I decided to implement it in the future");
         }
+        // for i in &group.ignored { // This is WRONG because group.ignored is an Option<>
+        // if i.contains(&"/".to_owned()) {
+        // return Err(eyre!(
+        // "Ignored pattern contains slash, this is not allowed"
+        // ));
+        // }
+        // }
     }
     Ok(())
 }
