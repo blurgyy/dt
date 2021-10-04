@@ -30,6 +30,8 @@
       has this key set to `true`
 - [x] Make `local.per_host` default to `true`, or remove this from config
 - [x] Add group name to logging message
+- [ ] Do not touch filesystem when parsing config for faster execution, only
+      query filesystem when syncing
 
 > Author: Blurgy <gy@blurgy.xyz>
 > Date:   Sep 29 2021, 00:18 [CST]
