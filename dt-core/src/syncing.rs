@@ -20,8 +20,8 @@ pub fn sync(config: &DTConfig) -> Result<(), Report> {
         std::fs::create_dir_all(staging)?;
     }
 
-    for local in &config.local {
-        let group_staging = staging.join(PathBuf::from_str(&local.name)?);
+    for group in &config.local {
+        let group_staging = staging.join(PathBuf::from_str(&group.name)?);
         if group_staging.exists().not() {
             log::debug!(
                 "Creating non-existing staging directory {}",
@@ -29,21 +29,21 @@ pub fn sync(config: &DTConfig) -> Result<(), Report> {
             );
             std::fs::create_dir_all(&group_staging)?;
         }
-        for spath in &local.sources {
+        for spath in &group.sources {
             sync_recursive(
                 spath,
-                &local.target,
+                &group.target,
                 false,
-                local.get_allow_overwrite(
+                group.get_allow_overwrite(
                     &config.global.to_owned().unwrap_or_default(),
                 ),
-                local.get_method(
+                group.get_method(
                     &config.global.to_owned().unwrap_or_default(),
                 ),
                 &group_staging,
-                &local.name,
-                &local.basedir,
-                &local
+                &group.name,
+                &group.basedir,
+                &group
                     .hostname_sep
                     .as_ref()
                     .unwrap_or(&DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
@@ -67,8 +67,8 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
         log::error!("Staging root seems to exist and is not a directory");
     }
 
-    for local in &config.local {
-        let group_staging = staging.join(PathBuf::from_str(&local.name)?);
+    for group in &config.local {
+        let group_staging = staging.join(PathBuf::from_str(&group.name)?);
         if group_staging.exists().not() {
             log::info!("Staging directory does not exist, will be automatically created when syncing");
         } else if staging.is_dir().not() {
@@ -76,21 +76,21 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
                 "Staging directory seems to exist and is not a directory"
             )
         }
-        for spath in &local.sources {
+        for spath in &group.sources {
             sync_recursive(
                 spath,
-                &local.target,
+                &group.target,
                 true,
-                local.get_allow_overwrite(
+                group.get_allow_overwrite(
                     &config.global.to_owned().unwrap_or_default(),
                 ),
-                local.get_method(
+                group.get_method(
                     &config.global.to_owned().unwrap_or_default(),
                 ),
                 &group_staging,
-                &local.name,
-                &local.basedir,
-                &local
+                &group.name,
+                &group.basedir,
+                &group
                     .hostname_sep
                     .as_ref()
                     .unwrap_or(&DEFAULT_HOSTNAME_SEPARATOR.to_owned()),

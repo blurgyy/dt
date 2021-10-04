@@ -532,9 +532,9 @@ mod paths_expansion {
             if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
                 "../testroot/configs/expand_tilde.toml",
             )?) {
-                for local in &config.local {
-                    assert_eq!(local.basedir.to_str(), Some(home.as_str()));
-                    assert_eq!(local.target.to_str(), Some(home.as_str()));
+                for group in &config.local {
+                    assert_eq!(group.basedir.to_str(), Some(home.as_str()));
+                    assert_eq!(group.target.to_str(), Some(home.as_str()));
                 }
                 Ok(())
             } else {
@@ -554,7 +554,7 @@ mod paths_expansion {
         if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
             "../testroot/configs/expand_glob.toml",
         )?) {
-            for local in &config.local {
+            for group in &config.local {
                 assert_eq!(
                     vec![
                         utils::to_absolute(PathBuf::from_str(
@@ -564,7 +564,7 @@ mod paths_expansion {
                             "../Cargo.toml"
                         )?)?,
                     ],
-                    local.sources
+                    group.sources
                 );
             }
         } else {
@@ -588,9 +588,9 @@ mod paths_expansion {
                         ))
                     })
                     .collect::<Vec<_>>();
-                for local in &config.local {
-                    assert_eq!(entries.len(), local.sources.len());
-                    for s in &local.sources {
+                for group in &config.local {
+                    assert_eq!(entries.len(), group.sources.len());
+                    for s in &group.sources {
                         assert!(entries.contains(s));
                     }
                 }
@@ -622,9 +622,9 @@ mod paths_expansion {
                         ))
                     })
                     .collect::<Vec<_>>();
-                for local in &config.local {
-                    assert_eq!(entries.len(), local.sources.len());
-                    for s in &local.sources {
+                for group in &config.local {
+                    assert_eq!(entries.len(), group.sources.len());
+                    for s in &group.sources {
                         assert!(entries.contains(s));
                     }
                 }
@@ -842,9 +842,9 @@ mod overriding_global_config {
         if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
             "../testroot/configs/overriding_allow_overwrite_no_global.toml",
         )?) {
-            for local in config.local {
+            for group in config.local {
                 assert_eq!(
-                    local.get_allow_overwrite(
+                    group.get_allow_overwrite(
                         &config.global.to_owned().unwrap_or_default()
                     ),
                     true,
@@ -862,9 +862,9 @@ mod overriding_global_config {
         if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
             "../testroot/configs/overriding_allow_overwrite_with_global.toml",
         )?) {
-            for local in config.local {
+            for group in config.local {
                 assert_eq!(
-                    local.get_allow_overwrite(
+                    group.get_allow_overwrite(
                         &config.global.to_owned().unwrap_or_default()
                     ),
                     false,
@@ -882,9 +882,9 @@ mod overriding_global_config {
         if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
             "../testroot/configs/overriding_method_no_global.toml",
         )?) {
-            for local in config.local {
+            for group in config.local {
                 assert_eq!(
-                    local.get_method(
+                    group.get_method(
                         &config.global.to_owned().unwrap_or_default(),
                     ),
                     SyncMethod::Copy,
@@ -902,9 +902,9 @@ mod overriding_global_config {
         if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
             "../testroot/configs/overriding_method_with_global.toml",
         )?) {
-            for local in config.local {
+            for group in config.local {
                 assert_eq!(
-                    local.get_method(
+                    group.get_method(
                         &config.global.to_owned().unwrap_or_default(),
                     ),
                     SyncMethod::Symlink,
@@ -923,15 +923,15 @@ mod overriding_global_config {
         if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
             "../testroot/configs/overriding_both_allow_overwrite_and_method_no_global.toml",
         )?) {
-            for local in config.local {
+            for group in config.local {
                 assert_eq!(
-                    local.get_method(
+                    group.get_method(
                         &config.global.to_owned().unwrap_or_default()
                     ),
                     SyncMethod::Copy,
                 );
                 assert_eq!(
-                    local.get_allow_overwrite(
+                    group.get_allow_overwrite(
                         &config.global.to_owned().unwrap_or_default()
                     ),
                     true,
@@ -949,15 +949,15 @@ mod overriding_global_config {
         if let Ok(config) = DTConfig::from_pathbuf(PathBuf::from_str(
             "../testroot/configs/overriding_both_allow_overwrite_and_method_with_global.toml",
         )?) {
-            for local in config.local {
+            for group in config.local {
                 assert_eq!(
-                    local.get_method(
+                    group.get_method(
                         &config.global.to_owned().unwrap_or_default()
                     ),
                     SyncMethod::Symlink,
                 );
                 assert_eq!(
-                    local.get_allow_overwrite(
+                    group.get_allow_overwrite(
                         &config.global.to_owned().unwrap_or_default()
                     ),
                     false,
