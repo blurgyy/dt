@@ -41,6 +41,7 @@ pub fn sync(config: &DTConfig) -> Result<(), Report> {
                     &config.global.to_owned().unwrap_or_default(),
                 ),
                 &group_staging,
+                &local.name,
                 &local.basedir,
                 &local
                     .hostname_sep
@@ -87,6 +88,7 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
                     &config.global.to_owned().unwrap_or_default(),
                 ),
                 &group_staging,
+                &local.name,
                 &local.basedir,
                 &local
                     .hostname_sep
@@ -115,17 +117,23 @@ fn sync_recursive(
     allow_overwrite: bool,
     method: SyncMethod,
     staging: &PathBuf,
+    group_name: &str,
     basedir: &PathBuf,
     hostname_sep: &str,
 ) -> Result<(), Report> {
     if tparent.exists().not() {
         if dry {
             log::info!(
-                "DRYRUN> Stopping at non-existing target directory {}",
+                "DRYRUN [{}]> Stopping at non-existing target directory {}",
+                group_name,
                 tparent.display(),
             );
         } else {
-            log::debug!("Creating target directory {}", tparent.display());
+            log::debug!(
+                "SYNC::CREATE [{}]> {}",
+                group_name,
+                tparent.display()
+            );
             std::fs::create_dir_all(tparent)?;
         }
     }
@@ -156,7 +164,8 @@ fn sync_recursive(
         if tpath.is_dir() {
             if dry {
                 log::error!(
-                    "DRYRUN> A directory ({}) exists at the target path of a source file ({})",
+                    "DRYRUN [{}]> A directory ({}) exists at the target path of a source file ({})",
+                    group_name,
                     tpath.display(),
                     spath.display(),
                 );
@@ -175,29 +184,38 @@ fn sync_recursive(
             if tpath.exists() {
                 log::log!(
                     overwrite_log_level,
-                    "DRYRUN> Target path ({}) exists",
+                    "DRYRUN [{}]> Target path ({}) exists",
+                    group_name,
                     tpath.display(),
                 );
             }
-            log::info!("DRYRUN> {} -> {}", spath.display(), tpath.display());
+            log::info!(
+                "DRYRUN [{}]> {} -> {}",
+                group_name,
+                spath.display(),
+                tpath.display()
+            );
         } else {
             if tpath.exists() && !allow_overwrite {
                 log::log!(
                     overwrite_log_level,
-                    "SYNC::SKIP> Target path ({}) exists",
+                    "SYNC::SKIP [{}]> Target path ({}) exists",
+                    group_name,
                     tpath.display(),
                 );
             } else {
                 // Allows overwrite in this block.
                 if method == SyncMethod::Copy {
                     log::debug!(
-                        "SYNC::COPY> {} => {}",
+                        "SYNC::COPY [{}]> {} => {}",
+                        group_name,
                         spath.display(),
                         tpath.display()
                     );
                     match std::fs::remove_file(&tpath) {
                         Ok(_) => log::trace!(
-                            "SYNC::OVERWRITE> {}",
+                            "SYNC::OVERWRITE [{}]> {}",
+                            group_name,
                             tpath.display()
                         ),
                         _ => {}
@@ -206,14 +224,16 @@ fn sync_recursive(
                 } else if method == SyncMethod::Symlink {
                     // Staging
                     log::debug!(
-                        "SYNC::STAGE> {} => {}",
+                        "SYNC::STAGE [{}]> {} => {}",
+                        group_name,
                         spath.display(),
                         staging_path.display(),
                     );
 
                     match std::fs::remove_file(&staging_path) {
                         Ok(_) => log::trace!(
-                            "SYNC::OVERWRITE> {}",
+                            "SYNC::OVERWRITE [{}]> {}",
+                            group_name,
                             staging_path.display(),
                         ),
                         _ => {}
@@ -222,14 +242,16 @@ fn sync_recursive(
 
                     // Symlinking
                     log::debug!(
-                        "SYNC::SYMLINK> {} => {}",
+                        "SYNC::SYMLINK [{}]> {} => {}",
+                        group_name,
                         staging_path.display(),
                         tpath.display(),
                     );
                     match std::fs::remove_file(&tpath) {
                         Ok(_) => {
                             log::trace!(
-                                "SYNC::OVERWRITE> {}",
+                                "SYNC::OVERWRITE [{}]> {}",
+                                group_name,
                                 tpath.display(),
                             );
                         }
@@ -243,7 +265,8 @@ fn sync_recursive(
         if tpath.is_file() {
             if dry {
                 log::error!(
-                    "DRYRUN> A file ({}) exists at the target path of a source directory ({})",
+                    "DRYRUN [{}]> A file ({}) exists at the target path of a source directory ({})",
+                    group_name,
                     tpath.display(),
                     spath.display(),
                 );
@@ -263,7 +286,8 @@ fn sync_recursive(
         {
             if dry {
                 log::info!(
-                    "DRYRUN> Stopping recursion at non-existing directory {}",
+                    "DRYRUN [{}]> Stopping recursion at non-existing directory {}",
+                    group_name,
                     if tpath.exists().not() {
                         tpath.display()
                     } else {
@@ -276,13 +300,18 @@ fn sync_recursive(
                     && staging_path.exists().not()
                 {
                     log::debug!(
-                        "SYNC::STAGE::CREATE> {}",
+                        "SYNC::STAGE::CREATE [{}]> {}",
+                        group_name,
                         staging_path.display(),
                     );
                     std::fs::create_dir_all(staging_path)?;
                 }
                 if tpath.exists().not() {
-                    log::debug!("SYNC::CREATE> {}", tpath.display());
+                    log::debug!(
+                        "SYNC::CREATE [{}]> {}",
+                        group_name,
+                        tpath.display()
+                    );
                     std::fs::create_dir_all(&tpath)?;
                 }
             }
@@ -297,6 +326,7 @@ fn sync_recursive(
                 allow_overwrite,
                 method,
                 staging,
+                group_name,
                 basedir,
                 hostname_sep,
             )?;
