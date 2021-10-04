@@ -2,9 +2,7 @@ use color_eyre::Report;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use dt_core::utils;
-
-use dt_core::config::DTConfig;
+use dt_core::{config::DTConfig, utils};
 
 #[test]
 fn empty_ignored_array() -> Result<(), Report> {

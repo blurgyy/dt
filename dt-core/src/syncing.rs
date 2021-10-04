@@ -4,8 +4,156 @@ use color_eyre::{eyre::eyre, Report};
 
 use crate::{config::*, utils};
 
+/// Expand tilde and globs in "sources" and manifest new config object.
+fn expand(config: &DTConfig) -> Result<DTConfig, Report> {
+    validate_pre_expansion(&config)?;
+
+    let globbing_options = glob::MatchOptions {
+        case_sensitive: true,
+        require_literal_separator: true,
+        require_literal_leading_dot: true,
+    };
+    let mut ret = DTConfig {
+        global: match &config.global {
+            Some(global) => Some(GlobalConfig {
+                staging: match &global.staging {
+                    Some(staging) => Some(utils::to_absolute(staging)?),
+                    None => GlobalConfig::default().staging,
+                },
+                ..global.to_owned()
+            }),
+            None => Some(GlobalConfig::default()),
+        },
+        local: vec![],
+    };
+    for original in &config.local {
+        let mut next = LocalSyncConfig {
+            basedir: utils::to_absolute(&original.basedir)?,
+            sources: vec![],
+            target: utils::to_absolute(&original.target)?,
+            ..original.to_owned()
+        };
+        for s in &original.sources {
+            let s = next.basedir.join(s);
+            let mut s =
+                glob::glob_with(s.to_str().unwrap(), globbing_options)?
+                    // Extract value from Result<PathBuf>
+                    .map(|x| {
+                        x.expect(&format!(
+                            "Failed globbing source path {}",
+                            s.display(),
+                        ))
+                    })
+                    // Make host-specific items non-host-specific
+                    .map(|x| {
+                        utils::to_non_host_specific(
+                            x,
+                            &next.hostname_sep.to_owned().unwrap_or(
+                                DEFAULT_HOSTNAME_SEPARATOR.to_owned(),
+                            ),
+                        )
+                        .expect("Error getting non-host-specific item name")
+                    })
+                    // Ignore names with exact match
+                    .filter(|x| {
+                        if let Some(ignored) = &next.ignored {
+                            if ignored.len() == 0 {
+                                true
+                            } else {
+                                ignored.iter().any(|y| {
+                                    x.iter().all(|z| z.to_str().unwrap() != y)
+                                })
+                            }
+                        } else {
+                            true
+                        }
+                    })
+                    // Convert to absolute paths
+                    .map(|x| {
+                        utils::to_absolute(&x).expect(&format!(
+                            "Failed converting to absolute path: {}",
+                            x.display(),
+                        ))
+                    })
+                    .collect();
+            next.sources.append(&mut s);
+        }
+        next.sources.sort();
+        next.sources.dedup();
+        ret.local.push(next);
+    }
+
+    validate_post_expansion(&ret)?;
+
+    Ok(ret)
+}
+
+fn validate_pre_expansion(config: &DTConfig) -> Result<(), Report> {
+    let mut group_name_rec: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
+    for group in &config.local {
+        if let Some(_) = group_name_rec.get(&group.name) {
+            return Err(eyre!("Duplicated group name: {}", group.name));
+        }
+        group_name_rec.insert(group.name.to_owned());
+        for s in &group.sources {
+            if let Some(strpath) = s.to_str() {
+                if strpath == ".*" || strpath.contains("/.*") {
+                    return Err(eyre!(
+                            "Do not use globbing patterns like '.*', because it also matches curent directory (.) and parent directory (..)"
+                        ));
+                }
+            } else {
+                return Err(eyre!("Invalide unicode encountered in sources"));
+            }
+        }
+        if group.target.exists() && !group.target.is_dir() {
+            return Err(eyre!("Target path exists and is not a directory"));
+        }
+        for i in &group.ignored {
+            if i.contains(&"/".to_owned()) {
+                return Err(eyre!(
+                    "Ignored pattern contains slash, this is not allowed"
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_post_expansion(config: &DTConfig) -> Result<(), Report> {
+    for group in &config.local {
+        if utils::to_host_specific(
+            &group.basedir,
+            &group
+                .hostname_sep
+                .as_ref()
+                .unwrap_or(&DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
+        )?
+        .is_dir()
+        .not()
+            && utils::to_non_host_specific(
+                &group.basedir,
+                &group
+                    .hostname_sep
+                    .as_ref()
+                    .unwrap_or(&DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
+            )?
+            .is_dir()
+            .not()
+        {
+            return Err(eyre!(
+                "Configured basedir {} is invalid",
+                group.basedir.display(),
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Syncs items specified in configuration.
 pub fn sync(config: &DTConfig) -> Result<(), Report> {
+    let config = expand(&config)?;
     let staging = &config
         .global
         .to_owned()
@@ -333,6 +481,82 @@ fn sync_recursive(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod globbing {
+    use std::{path::PathBuf, str::FromStr};
+
+    use color_eyre::{eyre::eyre, Report};
+
+    use crate::{config::*, utils};
+
+    use super::expand;
+
+    #[test]
+    fn except_dot_asterisk_glob() -> Result<(), Report> {
+        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/syncing/globbing-except_dot_asterisk_glob.toml",
+        )?)?) {
+            assert_eq!(
+                msg.to_string(),
+                "Do not use globbing patterns like '.*', because it also matches curent directory (.) and parent directory (..)",
+            );
+            Ok(())
+        } else {
+            Err(eyre!("This config should not be loaded because it contains bad globs (.* and /.*)"))
+        }
+    }
+
+    #[test]
+    fn glob() -> Result<(), Report> {
+        let config = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/syncing/globbing-expand_glob.toml",
+        )?)?)?;
+        for group in &config.local {
+            assert_eq!(
+                group.sources,
+                vec![
+                    utils::to_absolute(PathBuf::from_str("../Cargo.lock")?)?,
+                    utils::to_absolute(PathBuf::from_str("../Cargo.toml")?)?,
+                ],
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn sorting_and_deduping() -> Result<(), Report> {
+        let config = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/syncing/globbing-sorting_and_deduping.toml",
+        )?)?)?;
+        for group in config.local {
+            assert_eq!(
+                group.sources,
+                vec![
+                    utils::to_absolute(PathBuf::from_str(
+                        "../testroot/items/sorting_and_deduping/A-a"
+                    )?)?,
+                    utils::to_absolute(PathBuf::from_str(
+                        "../testroot/items/sorting_and_deduping/A-b"
+                    )?)?,
+                    utils::to_absolute(PathBuf::from_str(
+                        "../testroot/items/sorting_and_deduping/A-c"
+                    )?)?,
+                    utils::to_absolute(PathBuf::from_str(
+                        "../testroot/items/sorting_and_deduping/B-a"
+                    )?)?,
+                    utils::to_absolute(PathBuf::from_str(
+                        "../testroot/items/sorting_and_deduping/B-b"
+                    )?)?,
+                    utils::to_absolute(PathBuf::from_str(
+                        "../testroot/items/sorting_and_deduping/B-c"
+                    )?)?,
+                ]
+            );
+        }
+        Ok(())
+    }
 }
 
 // Author: Blurgy <gy@blurgy.xyz>
