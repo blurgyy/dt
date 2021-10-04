@@ -26,84 +26,52 @@ impl DTConfig {
 
     /// Loads configuration from string.
     fn from_str(s: &str) -> Result<Self, Report> {
-        let ret: Self = toml::from_str(s)?;
-        ret.validate_pre_expansion()?;
-        let ret = ret.expand()?;
-        match ret.validate_post_expansion() {
-            Ok(()) => Ok(ret),
-            Err(e) => Err(e),
-        }
+        let mut ret = toml::from_str::<Self>(s)?;
+        ret.expand_tilde();
+
+        Ok(ret)
     }
 
-    fn validate_pre_expansion(self: &Self) -> Result<(), Report> {
-        let mut group_name_rec: std::collections::HashSet<String> =
-            std::collections::HashSet::new();
-        for group in &self.local {
-            if let Some(_) = group_name_rec.get(&group.name) {
-                return Err(eyre!("Duplicated group name: {}", group.name));
-            }
-            group_name_rec.insert(group.name.to_owned());
-            for s in &group.sources {
-                if let Some(strpath) = s.to_str() {
-                    if strpath == ".*" || strpath.contains("/.*") {
-                        return Err(eyre!(
-                            "Do not use globbing patterns like '.*', because it also matches curent directory (.) and parent directory (..)"
-                        ));
-                    }
-                } else {
-                    return Err(eyre!(
-                        "Invalide unicode encountered in sources"
-                    ));
-                }
-            }
-            if group.target.exists() && !group.target.is_dir() {
-                return Err(eyre!(
-                    "Target path exists and is not a directory"
-                ));
-            }
-            for i in &group.ignored {
-                if i.contains(&"/".to_owned()) {
-                    return Err(eyre!(
-                        "Ignored pattern contains slash, this is not allowed"
-                    ));
-                }
-            }
-        }
-        Ok(())
-    }
-
-    fn validate_post_expansion(self: &Self) -> Result<(), Report> {
-        for group in &self.local {
-            if utils::to_host_specific(
-                &group.basedir,
-                &group
-                    .hostname_sep
-                    .as_ref()
-                    .unwrap_or(&DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
-            )?
-            .is_dir()
-            .not()
-                && utils::to_non_host_specific(
-                    &group.basedir,
-                    &group
-                        .hostname_sep
-                        .as_ref()
-                        .unwrap_or(&DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
-                )?
-                .is_dir()
-                .not()
-            {
-                return Err(eyre!(
-                    "Configured basedir {} is invalid",
-                    group.basedir.display(),
+    fn expand_tilde(&mut self) {
+        // Expand tilde in `global.staging`
+        if let Some(ref mut global) = self.global {
+            if let Some(ref mut staging) = global.staging {
+                *staging = PathBuf::from_str(&shellexpand::tilde(
+                    staging.to_str().unwrap(),
+                ))
+                .expect(&format!(
+                    "Failed expanding tilde in `global.staging`: {}",
+                    staging.display(),
                 ));
             }
         }
-        Ok(())
+
+        // Expand tilde in fields of `local`
+        for ref mut group in &mut self.local {
+            // `local.basedir`
+            group.basedir = PathBuf::from_str(&shellexpand::tilde(
+                group.basedir.to_str().unwrap(),
+            ))
+            .expect(&format!(
+                "Failed expanding tilde in `local.basedir`: {}",
+                group.basedir.display(),
+            ));
+
+            // `local.target`
+            group.target = PathBuf::from_str(&shellexpand::tilde(
+                group.target.to_str().unwrap(),
+            ))
+            .expect(&format!(
+                "Failed expanding tilde in `local.target`: {}",
+                group.target.display(),
+            ));
+        }
     }
 
     /// Expand tilde and globs in "sources" and manifest new config object.
-    fn expand(&self) -> Result<Self, Report> {
+    pub fn expand(&self) -> Result<Self, Report> {
+        self.validate_pre_expansion()?;
+
         let globbing_options = glob::MatchOptions {
             case_sensitive: true,
             require_literal_separator: true,
@@ -190,7 +158,76 @@ impl DTConfig {
             ret.local.push(next);
         }
 
+        self.validate_post_expansion()?;
+
         Ok(ret)
+    }
+
+    fn validate_pre_expansion(self: &Self) -> Result<(), Report> {
+        let mut group_name_rec: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+        for group in &self.local {
+            if let Some(_) = group_name_rec.get(&group.name) {
+                return Err(eyre!("Duplicated group name: {}", group.name));
+            }
+            group_name_rec.insert(group.name.to_owned());
+            for s in &group.sources {
+                if let Some(strpath) = s.to_str() {
+                    if strpath == ".*" || strpath.contains("/.*") {
+                        return Err(eyre!(
+                            "Do not use globbing patterns like '.*', because it also matches curent directory (.) and parent directory (..)"
+                        ));
+                    }
+                } else {
+                    return Err(eyre!(
+                        "Invalide unicode encountered in sources"
+                    ));
+                }
+            }
+            if group.target.exists() && !group.target.is_dir() {
+                return Err(eyre!(
+                    "Target path exists and is not a directory"
+                ));
+            }
+            for i in &group.ignored {
+                if i.contains(&"/".to_owned()) {
+                    return Err(eyre!(
+                        "Ignored pattern contains slash, this is not allowed"
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_post_expansion(self: &Self) -> Result<(), Report> {
+        for group in &self.local {
+            if utils::to_host_specific(
+                &group.basedir,
+                &group
+                    .hostname_sep
+                    .as_ref()
+                    .unwrap_or(&DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
+            )?
+            .is_dir()
+            .not()
+                && utils::to_non_host_specific(
+                    &group.basedir,
+                    &group
+                        .hostname_sep
+                        .as_ref()
+                        .unwrap_or(&DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
+                )?
+                .is_dir()
+                .not()
+            {
+                return Err(eyre!(
+                    "Configured basedir {} is invalid",
+                    group.basedir.display(),
+                ));
+            }
+        }
+        Ok(())
     }
 }
 
@@ -384,27 +421,10 @@ pub struct GlobalConfig {
 impl Default for GlobalConfig {
     fn default() -> Self {
         let default_staging: PathBuf;
-        if let Ok(xdg_cache_home) = std::env::var("XDG_CACHE_HOME") {
-            log::debug!(
-                "Using environment variable XDG_CACHE_HOME to determine staging directory"
-            );
-            default_staging = PathBuf::from_str(&xdg_cache_home)
-                .expect("Failed constructing default staging directory from xdg_cache_home")
-                .join("dt")
-                .join("staging");
-        } else if let Ok(home) = std::env::var("HOME") {
-            log::debug!(
-                "Using environment variable HOME to determine staging directory"
-            );
-            default_staging = PathBuf::from_str(&home)
-                .expect(
-                    "Failed constructing default staging directory from home",
-                )
-                .join(".cache")
-                .join("dt")
-                .join("staging");
+        if let Some(cache_dir) = dirs::cache_dir() {
+            default_staging = cache_dir.join("dt").join("staging");
         } else {
-            panic!("Cannot infer staging directory, set either XDG_CACHE_HOME or HOME to solve this.");
+            panic!("Cannot infer default staging directory, set either XDG_CACHE_HOME or HOME to solve this.");
         }
         GlobalConfig {
             staging: Some(default_staging),
@@ -432,364 +452,6 @@ impl Default for SyncMethod {
 }
 
 #[cfg(test)]
-mod validating {
-    use std::{path::PathBuf, str::FromStr};
-
-    use color_eyre::{eyre::eyre, Report};
-
-    use super::DTConfig;
-
-    #[test]
-    fn s_file_t_file() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/s_file_t_file.toml",
-        )?) {
-            assert_eq!(
-                msg.to_string(),
-                "Target path exists and is not a directory",
-            );
-            Ok(())
-        } else {
-            Err(eyre!(
-                "This config should not be loaded because target is not a directory",
-            ))
-        }
-    }
-
-    #[test]
-    fn s_file_t_dir() -> Result<(), Report> {
-        if let Ok(_config) = DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/s_file_t_dir.toml",
-        )?) {
-            Ok(())
-        } else {
-            Err(eyre!(
-                "This config should be loaded because target is a directory"
-            ))
-        }
-    }
-
-    #[test]
-    fn s_dir_t_dir() -> Result<(), Report> {
-        if let Ok(_config) = DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/s_dir_t_dir.toml",
-        )?) {
-            Ok(())
-        } else {
-            Err(eyre!(
-                "This config should be loaded because target is a directory"
-            ))
-        }
-    }
-
-    #[test]
-    fn s_dir_t_file() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/s_dir_t_file.toml",
-        )?) {
-            assert_eq!(
-                msg.to_string(),
-                "Target path exists and is not a directory",
-            );
-            Ok(())
-        } else {
-            Err(eyre!(
-                "This config should not be loaded because target is not a directory",
-            ))
-        }
-    }
-}
-
-#[cfg(test)]
-mod paths_expansion {
-    use std::path::PathBuf;
-    use std::str::FromStr;
-
-    use color_eyre::{eyre::eyre, Report};
-
-    use crate::utils;
-
-    use super::DTConfig;
-
-    #[test]
-    fn except_dot_asterisk_glob() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/except_dot_asterisk_glob.toml",
-        )?) {
-            assert_eq!(
-                msg.to_string(),
-                "Do not use globbing patterns like '.*', because it also matches curent directory (.) and parent directory (..)",
-            );
-            Ok(())
-        } else {
-            Err(eyre!("This config should not be loaded because it contains bad globs (.* and /.*)"))
-        }
-    }
-
-    #[test]
-    fn tilde() -> Result<(), Report> {
-        if let Ok(home) = std::env::var("HOME") {
-            let config = DTConfig::from_pathbuf(PathBuf::from_str(
-                "../testroot/configs/expand_tilde.toml",
-            )?)?;
-            for group in &config.local {
-                assert_eq!(group.basedir.to_str(), Some(home.as_str()));
-                assert_eq!(group.target.to_str(), Some(home.as_str()));
-            }
-            Ok(())
-        } else {
-            Err(eyre!(
-                "Set the `HOME` environment variable to complete this test"
-            ))
-        }
-    }
-
-    #[test]
-    fn glob() -> Result<(), Report> {
-        let config = DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/expand_glob.toml",
-        )?)?;
-        for group in &config.local {
-            assert_eq!(
-                vec![
-                    utils::to_absolute(PathBuf::from_str("../Cargo.lock")?)?,
-                    utils::to_absolute(PathBuf::from_str("../Cargo.toml")?)?,
-                ],
-                group.sources
-            );
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn tilde_with_glob() -> Result<(), Report> {
-        if let Ok(home) = std::env::var("HOME") {
-            let config = DTConfig::from_pathbuf(PathBuf::from_str(
-                "../testroot/configs/expand_tilde_with_glob.toml",
-            )?)?;
-            let entries = std::fs::read_dir(&home)?
-                .map(|x| x.expect("Failed reading dir entry"))
-                .map(|x| {
-                    utils::to_absolute(x.path()).expect(&format!(
-                        "Failed converting to absolute path: {}",
-                        x.path().display(),
-                    ))
-                })
-                .collect::<Vec<_>>();
-            for group in &config.local {
-                assert_eq!(entries.len(), group.sources.len());
-                for s in &group.sources {
-                    assert!(entries.contains(s));
-                }
-            }
-            Ok(())
-        } else {
-            Err(eyre!(
-                "Set the `HOME` environment variable to complete this test"
-            ))
-        }
-    }
-
-    #[test]
-    fn basedir() -> Result<(), Report> {
-        if let Ok(home) = std::env::var("HOME") {
-            let config = DTConfig::from_pathbuf(PathBuf::from_str(
-                "../testroot/configs/basedir.toml",
-            )?)?;
-            let entries = std::fs::read_dir(&home)?
-                .map(|x| x.expect("Failed reading dir entry"))
-                .map(|x| {
-                    utils::to_absolute(x.path()).expect(&format!(
-                        "Failed converting to absolute path: {}",
-                        x.path().display(),
-                    ))
-                })
-                .collect::<Vec<_>>();
-            for group in &config.local {
-                assert_eq!(entries.len(), group.sources.len());
-                for s in &group.sources {
-                    assert!(entries.contains(s));
-                }
-            }
-            Ok(())
-        } else {
-            Err(eyre!(
-                "Set the `HOME` environment variable to complete this test"
-            ))
-        }
-    }
-
-    #[test]
-    fn staging() -> Result<(), Report> {
-        if let Ok(home) = std::env::var("HOME") {
-            let config = DTConfig::from_pathbuf(PathBuf::from_str(
-                "../testroot/configs/staging.toml",
-            )?)?;
-            assert_eq!(
-                config.global.unwrap().staging.unwrap().to_str().unwrap(),
-                PathBuf::from_str(&home)?
-                    .join(".cache")
-                    .join("dt")
-                    .join("staging")
-                    .to_str()
-                    .unwrap(),
-            );
-            Ok(())
-        } else {
-            Err(eyre!(
-                "Set the `HOME` environment variable to complete this test"
-            ))
-        }
-    }
-
-    #[test]
-    fn sorting_and_deduping() -> Result<(), Report> {
-        let config = DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/sorting_and_deduping.toml",
-        )?)?;
-        for group in config.local {
-            assert_eq!(group.sources.len(), 6);
-            assert_eq!(
-                group.sources,
-                vec![
-                    utils::to_absolute(PathBuf::from_str(
-                        "../testroot/items/sorting_and_deduping/A-a"
-                    )?)?,
-                    utils::to_absolute(PathBuf::from_str(
-                        "../testroot/items/sorting_and_deduping/A-b"
-                    )?)?,
-                    utils::to_absolute(PathBuf::from_str(
-                        "../testroot/items/sorting_and_deduping/A-c"
-                    )?)?,
-                    utils::to_absolute(PathBuf::from_str(
-                        "../testroot/items/sorting_and_deduping/B-a"
-                    )?)?,
-                    utils::to_absolute(PathBuf::from_str(
-                        "../testroot/items/sorting_and_deduping/B-b"
-                    )?)?,
-                    utils::to_absolute(PathBuf::from_str(
-                        "../testroot/items/sorting_and_deduping/B-c"
-                    )?)?,
-                ]
-            );
-        }
-        Ok(())
-    }
-}
-
-#[cfg(test)]
-mod ignored_patterns {
-    use color_eyre::Report;
-    use std::path::PathBuf;
-    use std::str::FromStr;
-
-    use crate::utils;
-
-    use super::DTConfig;
-
-    #[test]
-    fn empty_ignored_array() -> Result<(), Report> {
-        let config = DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/empty_ignored_array.toml",
-        )?)?;
-        for group in &config.local {
-            let expected_sources = vec![utils::to_absolute(
-                PathBuf::from_str("../testroot/README.md")?,
-            )?];
-            assert_eq!(group.sources, expected_sources);
-            assert_eq!(
-                group.target,
-                utils::to_absolute(PathBuf::from_str(".")?)?,
-            );
-            assert_eq!(group.ignored, Some(Vec::<String>::new()));
-        }
-
-        Ok(())
-    }
-
-    #[test]
-    fn empty_source_array() -> Result<(), Report> {
-        let config = DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/empty_source_array.toml",
-        )?)?;
-        for group in &config.local {
-            let expected_sources: Vec<PathBuf> = vec![];
-            assert_eq!(group.sources, expected_sources);
-            assert_eq!(
-                group.target,
-                utils::to_absolute(PathBuf::from_str(".")?)?,
-            );
-            assert_eq!(group.ignored, Some(vec!["README.md".to_owned()]));
-        }
-
-        Ok(())
-    }
-
-    #[test]
-    fn partial_filename() -> Result<(), Report> {
-        let config = DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/partial_filename.toml",
-        )?)?;
-        for group in &config.local {
-            let expected_sources = vec![
-                utils::to_absolute(PathBuf::from_str("../Cargo.lock")?)?,
-                utils::to_absolute(PathBuf::from_str("../Cargo.toml")?)?,
-            ];
-            assert_eq!(group.sources, expected_sources);
-            assert_eq!(
-                group.target,
-                utils::to_absolute(PathBuf::from_str(".")?)?
-            );
-            assert_eq!(group.ignored, Some(vec![".lock".to_owned()]));
-        }
-
-        Ok(())
-    }
-
-    #[test]
-    fn regular_ignore() -> Result<(), Report> {
-        let config = DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/regular_ignore.toml",
-        )?)?;
-        for group in &config.local {
-            let expected_sources = vec![utils::to_absolute(
-                PathBuf::from_str("../Cargo.lock")?,
-            )?];
-            assert_eq!(group.sources, expected_sources);
-            assert_eq!(
-                group.target,
-                utils::to_absolute(PathBuf::from_str(".")?)?,
-            );
-            assert_eq!(group.ignored, Some(vec!["Cargo.toml".to_owned()]));
-        }
-
-        Ok(())
-    }
-
-    #[test]
-    fn no_per_host_items() -> Result<(), Report> {
-        let config = DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/no_per_host_items.toml",
-        )?)?;
-        for group in config.local {
-            assert_eq!(
-                group.sources,
-                vec![
-                    utils::to_absolute(PathBuf::from_str(
-                        "../testroot/items/no_per_host_items/authorized_keys"
-                    )?)?,
-                    utils::to_absolute(PathBuf::from_str(
-                        "../testroot/items/no_per_host_items/config"
-                    )?)?,
-                ]
-            )
-        }
-
-        Ok(())
-    }
-}
-
-#[cfg(test)]
 mod overriding_global_config {
     use std::{path::PathBuf, str::FromStr};
 
@@ -798,9 +460,9 @@ mod overriding_global_config {
     use super::{DTConfig, SyncMethod};
 
     #[test]
-    fn overriding_allow_overwrite_no_global() -> Result<(), Report> {
+    fn allow_overwrite_no_global() -> Result<(), Report> {
         let config = DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/overriding_allow_overwrite_no_global.toml",
+            "../testroot/configs/config/overriding_global_config-allow_overwrite_no_global.toml",
         )?)?;
         for group in config.local {
             assert_eq!(
@@ -815,9 +477,9 @@ mod overriding_global_config {
     }
 
     #[test]
-    fn overriding_allow_overwrite_with_global() -> Result<(), Report> {
+    fn allow_overwrite_with_global() -> Result<(), Report> {
         let config = DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/overriding_allow_overwrite_with_global.toml",
+            "../testroot/configs/config/overriding_global_config-allow_overwrite_with_global.toml",
         )?)?;
         for group in config.local {
             assert_eq!(
@@ -832,9 +494,9 @@ mod overriding_global_config {
     }
 
     #[test]
-    fn overriding_method_no_global() -> Result<(), Report> {
+    fn method_no_global() -> Result<(), Report> {
         let config = DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/overriding_method_no_global.toml",
+            "../testroot/configs/config/overriding_global_config-method_no_global.toml",
         )?)?;
         for group in config.local {
             assert_eq!(
@@ -849,9 +511,9 @@ mod overriding_global_config {
     }
 
     #[test]
-    fn overriding_method_with_global() -> Result<(), Report> {
+    fn method_with_global() -> Result<(), Report> {
         let config = DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/overriding_method_with_global.toml",
+            "../testroot/configs/config/overriding_global_config-method_with_global.toml",
         )?)?;
         for group in config.local {
             assert_eq!(
@@ -866,11 +528,10 @@ mod overriding_global_config {
     }
 
     #[test]
-    fn overriding_both_allow_overwrite_and_method_no_global(
-    ) -> Result<(), Report> {
+    fn both_allow_overwrite_and_method_no_global() -> Result<(), Report> {
         let config= DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/overriding_both_allow_overwrite_and_method_no_global.toml",
-        )?) ?;
+            "../testroot/configs/config/overriding_global_config-both_allow_overwrite_and_method_no_global.toml",
+        )?)?;
         for group in config.local {
             assert_eq!(
                 group.get_method(
@@ -890,11 +551,10 @@ mod overriding_global_config {
     }
 
     #[test]
-    fn overriding_both_allow_overwrite_and_method_with_global(
-    ) -> Result<(), Report> {
+    fn both_allow_overwrite_and_method_with_global() -> Result<(), Report> {
         let config= DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/overriding_both_allow_overwrite_and_method_with_global.toml",
-        )?) ?;
+            "../testroot/configs/config/overriding_global_config-both_allow_overwrite_and_method_with_global.toml",
+        )?)?;
         for group in config.local {
             assert_eq!(
                 group.get_method(
@@ -909,6 +569,30 @@ mod overriding_global_config {
                 false,
             );
         }
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tilde_expansion {
+    use std::{path::PathBuf, str::FromStr};
+
+    use color_eyre::Report;
+
+    use super::DTConfig;
+
+    #[test]
+    fn all() -> Result<(), Report> {
+        let config = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/config/tilde_expansion-all.toml",
+        )?)?;
+        assert_eq!(config.global.unwrap().staging, dirs::home_dir());
+        config.local.iter().all(|group| {
+            assert_eq!(Some(group.to_owned().basedir), dirs::home_dir());
+            assert_eq!(Some(group.to_owned().target), dirs::home_dir());
+            true
+        });
 
         Ok(())
     }
