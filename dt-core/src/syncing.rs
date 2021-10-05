@@ -158,25 +158,7 @@ fn validate_post_expansion(config: &DTConfig) -> Result<(), Report> {
             ));
         }
 
-        if utils::to_host_specific(
-            &group.basedir,
-            &group
-                .hostname_sep
-                .as_ref()
-                .unwrap_or(&DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
-        )?
-        .is_dir()
-        .not()
-            && utils::to_non_host_specific(
-                &group.basedir,
-                &group
-                    .hostname_sep
-                    .as_ref()
-                    .unwrap_or(&DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
-            )?
-            .is_dir()
-            .not()
-        {
+        if group.basedir.is_dir().not() {
             return Err(eyre!(
                 "Configured basedir {} is invalid",
                 group.basedir.display(),
@@ -189,6 +171,7 @@ fn validate_post_expansion(config: &DTConfig) -> Result<(), Report> {
 /// Syncs items specified in configuration.
 pub fn sync(config: &DTConfig) -> Result<(), Report> {
     let config = expand(&config)?;
+
     let staging = &config
         .global
         .to_owned()
@@ -238,6 +221,8 @@ pub fn sync(config: &DTConfig) -> Result<(), Report> {
 
 /// Show changes to be made according to configuration, without actually syncing items.
 pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
+    let config = expand(config)?;
+
     let staging = &config
         .global
         .to_owned()
