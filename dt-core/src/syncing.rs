@@ -93,7 +93,7 @@ fn validate_pre_expansion(config: &DTConfig) -> Result<(), Report> {
         std::collections::HashSet::new();
     for group in &config.local {
         if let Some(_) = group_name_rec.get(&group.name) {
-            return Err(eyre!("Duplicated group name: {}", group.name));
+            return Err(eyre!("Duplicated local group name: {}", group.name));
         }
         group_name_rec.insert(group.name.to_owned());
         for s in &group.sources {
@@ -106,9 +106,6 @@ fn validate_pre_expansion(config: &DTConfig) -> Result<(), Report> {
             } else {
                 return Err(eyre!("Invalide unicode encountered in sources"));
             }
-        }
-        if group.target.exists() && !group.target.is_dir() {
-            return Err(eyre!("Target path exists and is not a directory"));
         }
         if group.ignored.is_some() {
             todo!("`ignored` array works poorly and I decided to implement it in the future");
@@ -126,6 +123,19 @@ fn validate_pre_expansion(config: &DTConfig) -> Result<(), Report> {
 
 fn validate_post_expansion(config: &DTConfig) -> Result<(), Report> {
     for group in &config.local {
+        if group.basedir == group.target {
+            return Err(eyre!(
+                "Group [{}]: base directory and its target are the same",
+                group.name,
+            ));
+        }
+        // Target exists and is not a directory
+        if group.target.exists() && !group.target.is_dir() {
+            return Err(eyre!(
+                "Group [{}]: target path exists and is not a directory",
+                group.name,
+            ));
+        }
         if utils::to_host_specific(
             &group.basedir,
             &group
@@ -487,14 +497,107 @@ fn sync_recursive(
 }
 
 #[cfg(test)]
-mod globbing {
-    use std::{path::PathBuf, str::FromStr};
+mod invalid_configs {
+    use std::{ops::Not, path::PathBuf, str::FromStr};
 
     use color_eyre::{eyre::eyre, Report};
 
-    use crate::{config::*, utils};
+    use crate::config::DTConfig;
 
     use super::expand;
+
+    #[test]
+    fn target_is_file_relative() -> Result<(), Report> {
+        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/syncing/invalid_configs-target_is_file_relative.toml",
+        )?)?) {
+            assert_eq!(
+                msg.to_string(),
+                "Group [target path is relative]: target path exists and is not a directory",
+            );
+            Ok(())
+        } else {
+            Err(eyre!(
+                "This config should not be loaded because target is not a directory",
+            ))
+        }
+    }
+
+    #[test]
+    fn target_is_file_absolute() -> Result<(), Report> {
+        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/syncing/invalid_configs-target_is_file_absolute.toml",
+        )?)?) {
+            assert_eq!(
+                msg.to_string(),
+                "Group [target path is absolute]: target path exists and is not a directory",
+            );
+            Ok(())
+        } else {
+            Err(eyre!(
+                "This config should not be loaded because target is not a directory",
+            ))
+        }
+    }
+
+    #[test]
+    fn target_is_file_has_tilde() -> Result<(), Report> {
+        // setup
+        let filepath = dirs::home_dir()
+            .unwrap()
+            .join("d6a8e0bc1647c38548432ccfa1d79355");
+        assert!(filepath.exists().not());
+        std::fs::write(&filepath, "Created by `dt` when testing")?;
+
+        // Read config (expected to fail)
+        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/syncing/invalid_configs-target_is_file_has_tilde.toml",
+        )?)?) {
+            assert_eq!(
+                msg.to_string(),
+                "Group [target contains tilde to be expanded]: target path exists and is not a directory",
+            );
+        } else {
+            return Err(eyre!(
+                "This config should not be loaded because target is not a directory",
+            ));
+        }
+
+        // clean up
+        std::fs::remove_file(filepath)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn basedir_is_target() -> Result<(), Report> {
+        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/syncing/invalid_configs-basedir_is_target.toml",
+        )?)?) {
+            assert_eq!(
+                msg.to_string(),
+                "Group [basedir is target]: base directory and its target are the same",
+            );
+            Ok(())
+        } else {
+            Err(eyre!(""))
+        }
+    }
+
+    #[test]
+    fn same_names_in_multiple_locals() -> Result<(), Report> {
+        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/syncing/invalid_configs-same_names_in_multiple_locals.toml",
+        )?)?) {
+            assert_eq!(
+                msg.to_string(),
+                "Duplicated local group name: wubba lubba dub dub",
+            );
+            Ok(())
+        } else {
+            Err(eyre!(""))
+        }
+    }
 
     #[test]
     fn except_dot_asterisk_glob() -> Result<(), Report> {
@@ -510,6 +613,17 @@ mod globbing {
             Err(eyre!("This config should not be loaded because it contains bad globs (.* and /.*)"))
         }
     }
+}
+
+#[cfg(test)]
+mod globbing {
+    use std::{path::PathBuf, str::FromStr};
+
+    use color_eyre::Report;
+
+    use crate::{config::*, utils};
+
+    use super::expand;
 
     #[test]
     fn glob() -> Result<(), Report> {

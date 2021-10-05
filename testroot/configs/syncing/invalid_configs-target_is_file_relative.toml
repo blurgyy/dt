@@ -1,0 +1,5 @@
+[[local]]
+name = "target path is relative"
+basedir = "."
+sources = ["../testroot/README.md"]
+target = "../testroot/README.md"

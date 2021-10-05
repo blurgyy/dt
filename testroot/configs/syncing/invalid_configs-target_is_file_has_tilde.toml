@@ -1,0 +1,5 @@
+[[local]]
+name = "target contains tilde to be expanded"
+basedir = "~"
+sources = []
+target = "~/d6a8e0bc1647c38548432ccfa1d79355"
