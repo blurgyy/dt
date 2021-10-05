@@ -209,10 +209,9 @@ pub fn sync(config: &DTConfig) -> Result<(), Report> {
                 &group_staging,
                 &group.name,
                 &group.basedir,
-                &group
-                    .hostname_sep
-                    .as_ref()
-                    .unwrap_or(&DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
+                &group.get_hostname_sep(
+                    &config.global.to_owned().unwrap_or_default(),
+                ),
             )?;
         }
     }
@@ -258,10 +257,9 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
                 &group_staging,
                 &group.name,
                 &group.basedir,
-                &group
-                    .hostname_sep
-                    .as_ref()
-                    .unwrap_or(&DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
+                &group.get_hostname_sep(
+                    &config.global.to_owned().unwrap_or_default(),
+                ),
             )?;
         }
     }

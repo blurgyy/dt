@@ -1,0 +1,8 @@
+[global]
+hostname_sep = "@-@"
+
+[[local]]
+name = "hostname_sep fall back to global"
+basedir = "~"
+sources = []
+target = "."

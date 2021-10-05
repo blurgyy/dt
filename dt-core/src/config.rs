@@ -204,7 +204,7 @@ impl LocalSyncConfig {
     pub fn get_allow_overwrite(&self, global_config: &GlobalConfig) -> bool {
         match self.allow_overwrite {
             Some(allow_overwrite) => allow_overwrite,
-            _ => global_config.allow_overwrite,
+            _ => global_config.allow_overwrite.unwrap_or_default(),
         }
     }
 
@@ -212,7 +212,18 @@ impl LocalSyncConfig {
     pub fn get_method(&self, global_config: &GlobalConfig) -> SyncMethod {
         match self.method {
             Some(method) => method,
-            _ => global_config.method,
+            _ => global_config.method.unwrap_or_default(),
+        }
+    }
+
+    /// Gets the `method` key from a `LocalSyncConfig` object, falls back to the `method` from provided global config.
+    pub fn get_hostname_sep(&self, global_config: &GlobalConfig) -> String {
+        match &self.hostname_sep {
+            Some(hostname_sep) => hostname_sep.to_owned(),
+            _ => global_config
+                .hostname_sep
+                .to_owned()
+                .unwrap_or(DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
         }
     }
 }
@@ -240,7 +251,7 @@ pub struct GlobalConfig {
     /// - `Symlink`
     ///
     /// When `method` is `Copy`, the above `staging` setting will be disabled.
-    pub method: SyncMethod,
+    pub method: Option<SyncMethod>,
 
     /// Whether to allow overwriting existing files.
     ///
@@ -248,7 +259,10 @@ pub struct GlobalConfig {
     /// errors/warnings will be omitted when the target file exists; otherwise reports error and
     /// skips the existing item.  Using dry run to spot the existing files before syncing is
     /// recommended.
-    pub allow_overwrite: bool,
+    pub allow_overwrite: Option<bool>,
+
+    /// Default value when `LocalSyncConfig::hostname_sep` is not set.
+    pub hostname_sep: Option<String>,
 }
 
 impl Default for GlobalConfig {
@@ -261,8 +275,9 @@ impl Default for GlobalConfig {
         }
         GlobalConfig {
             staging: Some(default_staging),
-            method: SyncMethod::Symlink,
-            allow_overwrite: false,
+            method: Some(SyncMethod::default()),
+            allow_overwrite: Some(bool::default()),
+            hostname_sep: Some(DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
         }
     }
 }
@@ -400,6 +415,40 @@ mod overriding_global_config {
                     &config.global.to_owned().unwrap_or_default()
                 ),
                 false,
+            );
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn hostname_sep_no_global() -> Result<(), Report> {
+        let config = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/config/overriding_global_config-hostname_sep_no_global.toml"
+        )?)?;
+        for group in config.local {
+            assert_eq!(
+                group.get_hostname_sep(
+                    &config.global.to_owned().unwrap_or_default()
+                ),
+                "@-@",
+            );
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn hostname_sep_with_global() -> Result<(), Report> {
+        let config = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/config/overriding_global_config-hostname_sep_with_global.toml"
+        )?)?;
+        for group in config.local {
+            assert_eq!(
+                group.get_hostname_sep(
+                    &config.global.to_owned().unwrap_or_default()
+                ),
+                "@-@",
             );
         }
 
