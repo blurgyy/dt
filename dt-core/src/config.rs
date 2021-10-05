@@ -112,13 +112,10 @@ pub struct LocalSyncConfig {
     ///
     /// ```plain
     /// /tmp/sshconfig/
-    /// ├── authorized_keys
-    /// ├── authorized_keys@@sherlock
-    /// ├── authorized_keys@@watson
-    /// ├── config
-    /// ├── config@sherlock
-    /// └── config@watson
+    /// └── config
     /// ```
+    ///
+    /// Where `/tmp/sshconfig/config` mirrors the content of `~/.ssh/config@watson`.
     pub hostname_sep: Option<String>,
 
     /// The base directory of all source items.  This simplifies configuration files with common
