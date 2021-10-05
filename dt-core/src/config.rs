@@ -1,9 +1,7 @@
-use std::{ops::Not, panic, path::PathBuf, str::FromStr};
+use std::{panic, path::PathBuf, str::FromStr};
 
-use color_eyre::{eyre::eyre, Report};
+use color_eyre::Report;
 use serde::Deserialize;
-
-use super::utils;
 
 pub const DEFAULT_HOSTNAME_SEPARATOR: &str = "@@";
 
