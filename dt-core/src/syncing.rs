@@ -580,7 +580,7 @@ mod invalid_configs {
             );
             Ok(())
         } else {
-            Err(eyre!(""))
+            Err(eyre!("This config should not be loaded because basedir and target are the same"))
         }
     }
 
@@ -595,7 +595,7 @@ mod invalid_configs {
             );
             Ok(())
         } else {
-            Err(eyre!(""))
+            Err(eyre!("This config should not be loaded because there are multiple local groups share the same name"))
         }
     }
 
