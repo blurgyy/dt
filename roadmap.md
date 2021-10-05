@@ -1,5 +1,7 @@
 # Roadmap
 
+## Core
+
 - [x] Expand tilde and globs in source paths
 - [x] Add ignore patterns to LocalSyncConfig
 - [x] Add [global] section to config file, which defines global settings like
@@ -33,6 +35,10 @@
 - [x] Do not touch filesystem when parsing config for faster execution, only
       query filesystem when syncing
 - [ ] Warn about items without a source in the staging directory
+
+## CLI
+
+- [ ] Find config in `$XDG_CONFIG_HOME/dt/config.toml` by default
 
 > Author: Blurgy <gy@blurgy.xyz>
 > Date:   Sep 29 2021, 00:18 [CST]
