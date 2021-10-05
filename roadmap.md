@@ -30,8 +30,9 @@
       has this key set to `true`
 - [x] Make `local.per_host` default to `true`, or remove this from config
 - [x] Add group name to logging message
-- [ ] Do not touch filesystem when parsing config for faster execution, only
+- [x] Do not touch filesystem when parsing config for faster execution, only
       query filesystem when syncing
+- [ ] Warn about items without a source in the staging directory
 
 > Author: Blurgy <gy@blurgy.xyz>
 > Date:   Sep 29 2021, 00:18 [CST]
