@@ -37,10 +37,20 @@
 - [ ] Warn about items without a source in the staging directory
 - [ ] Add `global.per_host` and `global.hostname_sep` as default value,
       overrided by group configs
+- [ ] Deny sources that start with "./" or "../" or similar
+- [ ] Define group type (like one of "General", "App", "Dropin"), to define
+      priority when syncing (priority order: Dropin > App > General), so that
+      user won't have to carefully separate configurations of specific
+      applications from its parent directory (like separating `~/.ssh` (which
+      will be of type "App") from `~` (which will be of type "General"), or
+      separating `~/.config/nvim` from `~/.config`)
+- [ ] Recursively expand all sources in function `syncing::expand`
 
 ## CLI
 
 - [ ] Find config in `$XDG_CONFIG_HOME/dt/config.toml` by default
+- [ ] Add command line option to specify which group to sync via passing name
+      of the group
 
 > Author: Blurgy <gy@blurgy.xyz>
 > Date:   Sep 29 2021, 00:18 [CST]
