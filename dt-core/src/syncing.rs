@@ -291,8 +291,8 @@ fn sync_recursive(
 ) -> Result<(), Report> {
     if tparent.exists().not() {
         if dry {
-            log::info!(
-                "DRYRUN [{}]> Stopping at non-existing target directory {}",
+            log::warn!(
+                "DRYRUN [{}]> Non-existing target directory {}",
                 group_name,
                 tparent.display(),
             );
@@ -453,8 +453,8 @@ fn sync_recursive(
             || method == SyncMethod::Symlink && staging_path.exists().not()
         {
             if dry {
-                log::info!(
-                    "DRYRUN [{}]> Stopping recursion at non-existing directory {}",
+                log::warn!(
+                    "DRYRUN [{}]> Non-existing directory: {}",
                     group_name,
                     if tpath.exists().not() {
                         tpath.display()
@@ -462,7 +462,6 @@ fn sync_recursive(
                         staging_path.display()
                     },
                 );
-                return Ok(());
             } else {
                 if method == SyncMethod::Symlink
                     && staging_path.exists().not()
