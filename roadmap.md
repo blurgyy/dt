@@ -35,6 +35,8 @@
 - [x] Do not touch filesystem when parsing config for faster execution, only
       query filesystem when syncing
 - [ ] Warn about items without a source in the staging directory
+- [ ] Add `global.per_host` and `global.hostname_sep` as default value,
+      overrided by group configs
 
 ## CLI
 
