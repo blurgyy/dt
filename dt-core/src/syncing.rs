@@ -33,6 +33,19 @@ fn expand(config: &DTConfig) -> Result<DTConfig, Report> {
             target: utils::to_absolute(&original.target)?,
             ..original.to_owned()
         };
+
+        // Check for host-specific basedir
+        let host_specific_basedir = utils::to_host_specific(
+            &next.basedir,
+            &next
+                .hostname_sep
+                .to_owned()
+                .unwrap_or(DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
+        )?;
+        if host_specific_basedir.exists() {
+            next.basedir = host_specific_basedir;
+        }
+
         for s in &original.sources {
             let s = next.basedir.join(s);
             let mut s =
@@ -123,19 +136,28 @@ fn validate_pre_expansion(config: &DTConfig) -> Result<(), Report> {
 
 fn validate_post_expansion(config: &DTConfig) -> Result<(), Report> {
     for group in &config.local {
+        if group.basedir.exists().not() {
+            return Err(eyre!(
+                "Group [{}]: base directory ({}) does not exist",
+                group.name,
+                group.basedir.display(),
+            ));
+        }
+
         if group.basedir == group.target {
             return Err(eyre!(
                 "Group [{}]: base directory and its target are the same",
                 group.name,
             ));
         }
-        // Target exists and is not a directory
+
         if group.target.exists() && !group.target.is_dir() {
             return Err(eyre!(
                 "Group [{}]: target path exists and is not a directory",
                 group.name,
             ));
         }
+
         if utils::to_host_specific(
             &group.basedir,
             &group
@@ -502,7 +524,7 @@ mod invalid_configs {
 
     use color_eyre::{eyre::eyre, Report};
 
-    use crate::config::DTConfig;
+    use crate::{config::DTConfig, utils};
 
     use super::expand;
 
@@ -596,6 +618,29 @@ mod invalid_configs {
             Ok(())
         } else {
             Err(eyre!("This config should not be loaded because there are multiple local groups share the same name"))
+        }
+    }
+
+    #[test]
+    fn non_existing_basedir() -> Result<(), Report> {
+        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/syncing/invalid_configs-non_existing_basedir.toml"
+        )?)?) {
+            assert_eq!(
+                msg.to_string(),
+                format!(
+                    "Group [non-existing basedir]: base directory ({}) does not exist",
+                    utils::to_absolute(
+                        PathBuf::from_str(
+                            "../e52e04c1d71dd984b145ae3bfa5a2fa2"
+                        )?
+                    )?
+                    .display(),
+                ),
+            );
+            Ok(())
+        } else {
+            Err(eyre!(""))
         }
     }
 
