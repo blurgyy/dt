@@ -355,8 +355,14 @@ fn sync_core(
     };
 
     // First, get target path (without the per-host suffix).
-    let sname = spath.file_name().unwrap();
-    let tpath = tparent.join(sname);
+    let tpath = tparent.join(
+        utils::to_non_host_specific(spath, hostname_sep)?
+            .strip_prefix(basedir)?,
+    );
+    std::fs::create_dir_all(tpath.parent().expect(&format!(
+        "Structrue of target directory could not be created at {}",
+        tpath.display(),
+    )))?;
 
     // No need to check host-specific source item here, because source path is assumed to be
     // host-specific if possible.
@@ -367,6 +373,10 @@ fn sync_core(
         utils::to_non_host_specific(spath, hostname_sep)?
             .strip_prefix(basedir)?,
     );
+    std::fs::create_dir_all(staging_path.parent().expect(&format!(
+        "Structrue of staging directory could not be created at {}",
+        staging_path.display(),
+    )))?;
 
     if spath.is_file() {
         if tpath.is_dir() {
@@ -449,12 +459,6 @@ fn sync_core(
                     std::fs::copy(spath, &staging_path)?;
 
                     // Symlinking
-                    log::debug!(
-                        "SYNC::SYMLINK [{}]> {} => {}",
-                        group_name,
-                        staging_path.display(),
-                        tpath.display(),
-                    );
                     match std::fs::remove_file(&tpath) {
                         Ok(_) => {
                             log::trace!(
@@ -465,6 +469,12 @@ fn sync_core(
                         }
                         _ => {}
                     }
+                    log::debug!(
+                        "SYNC::SYMLINK [{}]> {} => {}",
+                        group_name,
+                        staging_path.display(),
+                        tpath.display(),
+                    );
                     std::os::unix::fs::symlink(staging_path, tpath)?;
                 }
             }
