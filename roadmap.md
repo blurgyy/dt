@@ -43,7 +43,7 @@
       applications from its parent directory (like separating `~/.ssh` (which
       will be of type "App") from `~` (which will be of type "General"), or
       separating `~/.config/nvim` from `~/.config`)
-- [ ] Recursively expand all sources in function `syncing::expand`
+- [x] Recursively expand all sources in function `syncing::expand`
 
 ## CLI
 

@@ -8,11 +8,6 @@ use crate::{config::*, utils};
 fn expand(config: &DTConfig) -> Result<DTConfig, Report> {
     validate_pre_expansion(&config)?;
 
-    let globbing_options = glob::MatchOptions {
-        case_sensitive: true,
-        require_literal_separator: true,
-        require_literal_leading_dot: true,
-    };
     let mut ret = DTConfig {
         global: match &config.global {
             Some(global) => Some(GlobalConfig {
@@ -48,47 +43,13 @@ fn expand(config: &DTConfig) -> Result<DTConfig, Report> {
 
         for s in &original.sources {
             let s = next.basedir.join(s);
-            let mut s =
-                glob::glob_with(s.to_str().unwrap(), globbing_options)?
-                    // Extract value from Result<PathBuf>
-                    .map(|x| {
-                        x.expect(&format!(
-                            "Failed globbing source path {}",
-                            s.display(),
-                        ))
-                    })
-                    // Make host-specific items non-host-specific
-                    .map(|x| {
-                        utils::to_non_host_specific(
-                            x,
-                            &next.hostname_sep.to_owned().unwrap_or(
-                                DEFAULT_HOSTNAME_SEPARATOR.to_owned(),
-                            ),
-                        )
-                        .expect("Error getting non-host-specific item name")
-                    })
-                    // Ignore names with exact match
-                    .filter(|x| {
-                        if let Some(ignored) = &next.ignored {
-                            if ignored.len() == 0 {
-                                true
-                            } else {
-                                ignored.iter().any(|y| {
-                                    x.iter().all(|z| z.to_str().unwrap() != y)
-                                })
-                            }
-                        } else {
-                            true
-                        }
-                    })
-                    // Convert to absolute paths
-                    .map(|x| {
-                        utils::to_absolute(&x).expect(&format!(
-                            "Failed converting to absolute path: {}",
-                            x.display(),
-                        ))
-                    })
-                    .collect();
+            let mut s = expand_recursive(
+                &s,
+                &next.get_hostname_sep(
+                    &config.global.to_owned().unwrap_or_default(),
+                ),
+                true,
+            )?;
             next.sources.append(&mut s);
         }
         next.sources.sort();
@@ -96,9 +57,84 @@ fn expand(config: &DTConfig) -> Result<DTConfig, Report> {
         ret.local.push(next);
     }
 
+    dbg!(&ret);
+
     validate_post_expansion(&ret)?;
 
     Ok(ret)
+}
+
+fn expand_recursive(
+    path: &PathBuf,
+    hostname_sep: &str,
+    do_glob: bool,
+) -> Result<Vec<PathBuf>, Report> {
+    if do_glob {
+        let globbing_options = glob::MatchOptions {
+            case_sensitive: true,
+            require_literal_separator: true,
+            require_literal_leading_dot: true,
+        };
+
+        let initial: Vec<PathBuf> =
+            glob::glob_with(path.to_str().unwrap(), globbing_options)?
+                // Extract value from Result<PathBuf>
+                .map(|x| {
+                    x.expect(&format!(
+                        "Failed globbing source path {}",
+                        path.display(),
+                    ))
+                })
+                // Make host-specific items non-host-specific
+                .map(|x| {
+                    utils::to_non_host_specific(x, hostname_sep)
+                        .expect("Error getting non-host-specific item name")
+                })
+                // Convert to absolute paths
+                .map(|x| {
+                    utils::to_absolute(&x).expect(&format!(
+                        "Failed converting to absolute path: {}",
+                        x.display(),
+                    ))
+                })
+                .collect();
+
+        let mut ret: Vec<PathBuf> = Vec::new();
+        for p in initial {
+            if p.is_file() {
+                ret.push(p);
+            } else if p.is_dir() {
+                ret.append(&mut expand_recursive(&p, hostname_sep, false)?);
+            } else {
+                unimplemented!();
+            }
+        }
+
+        Ok(ret)
+    } else {
+        let initial: Vec<PathBuf> = std::fs::read_dir(path)?
+            .map(|x| {
+                x.expect(&format!(
+                    "Cannot read dir properly: {}",
+                    path.display()
+                ))
+                .path()
+            })
+            .collect();
+
+        let mut ret: Vec<PathBuf> = Vec::new();
+        for p in initial {
+            if p.is_file() {
+                ret.push(p);
+            } else if p.is_dir() {
+                ret.append(&mut expand_recursive(&p, hostname_sep, false)?);
+            } else {
+                unimplemented!();
+            }
+        }
+
+        Ok(ret)
+    }
 }
 
 fn validate_pre_expansion(config: &DTConfig) -> Result<(), Report> {
@@ -661,8 +697,27 @@ mod globbing {
             assert_eq!(
                 group.sources,
                 vec![
-                    utils::to_absolute(PathBuf::from_str("../Cargo.lock")?)?,
-                    utils::to_absolute(PathBuf::from_str("../Cargo.toml")?)?,
+                    utils::to_absolute(PathBuf::from_str(
+                        "../dt-cli/Cargo.toml"
+                    )?)?,
+                    utils::to_absolute(PathBuf::from_str(
+                        "../dt-cli/src/main.rs"
+                    )?)?,
+                    utils::to_absolute(PathBuf::from_str(
+                        "../dt-core/Cargo.toml"
+                    )?)?,
+                    utils::to_absolute(PathBuf::from_str(
+                        "../dt-core/src/config.rs"
+                    )?)?,
+                    utils::to_absolute(PathBuf::from_str(
+                        "../dt-core/src/lib.rs"
+                    )?)?,
+                    utils::to_absolute(PathBuf::from_str(
+                        "../dt-core/src/syncing.rs"
+                    )?)?,
+                    utils::to_absolute(PathBuf::from_str(
+                        "../dt-core/src/utils.rs"
+                    )?)?,
                 ],
             );
         }
