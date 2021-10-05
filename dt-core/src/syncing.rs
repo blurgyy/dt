@@ -673,7 +673,7 @@ mod globbing {
     #[test]
     fn glob() -> Result<(), Report> {
         let config = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/syncing/globbing-expand_glob.toml",
+            "../testroot/configs/syncing/globbing-glob.toml",
         )?)?)?;
         for group in &config.local {
             assert_eq!(

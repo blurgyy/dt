@@ -1,5 +1,5 @@
 [[local]]
 name = "placeholder"
-basedir = "."
-sources = ["../Cargo.*"]
+basedir = ".."
+sources = ["Cargo.*"]
 target = "../testroot"
