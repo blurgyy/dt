@@ -57,8 +57,6 @@ fn expand(config: &DTConfig) -> Result<DTConfig, Report> {
         ret.local.push(next);
     }
 
-    dbg!(&ret);
-
     validate_post_expansion(&ret)?;
 
     Ok(ret)
@@ -85,10 +83,17 @@ fn expand_recursive(
                         path.display(),
                     ))
                 })
-                // Make host-specific items non-host-specific
+                // Filter out paths that are meant for other hosts
+                .filter(|x| utils::is_for_other_host(x, hostname_sep).not())
+                // Make items host-specific wherever possible
                 .map(|x| {
-                    utils::to_non_host_specific(x, hostname_sep)
-                        .expect("Error getting non-host-specific item name")
+                    let hspath = utils::to_host_specific(&x, hostname_sep)
+                        .expect("Error getting host-specific item name");
+                    if hspath.exists() {
+                        hspath
+                    } else {
+                        x
+                    }
                 })
                 // Convert to absolute paths
                 .map(|x| {
@@ -101,12 +106,16 @@ fn expand_recursive(
 
         let mut ret: Vec<PathBuf> = Vec::new();
         for p in initial {
+            assert!(p.exists());
             if p.is_file() {
                 ret.push(p);
             } else if p.is_dir() {
                 ret.append(&mut expand_recursive(&p, hostname_sep, false)?);
             } else {
-                unimplemented!();
+                unimplemented!(
+                    "Unimplemented file type.  Metadata: {:#?}",
+                    p.metadata()?
+                );
             }
         }
 
@@ -149,7 +158,7 @@ fn validate_pre_expansion(config: &DTConfig) -> Result<(), Report> {
             if let Some(strpath) = s.to_str() {
                 if strpath == ".*" || strpath.contains("/.*") {
                     return Err(eyre!(
-                            "Do not use globbing patterns like '.*', because it also matches curent directory (.) and parent directory (..)"
+                            "Do not use globbing patterns like '.*', because it also matches current directory (.) and parent directory (..)"
                         ));
                 }
             } else {
@@ -232,7 +241,7 @@ pub fn sync(config: &DTConfig) -> Result<(), Report> {
             std::fs::create_dir_all(&group_staging)?;
         }
         for spath in &group.sources {
-            sync_recursive(
+            sync_core(
                 spath,
                 &group.target,
                 false,
@@ -280,7 +289,7 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
             )
         }
         for spath in &group.sources {
-            sync_recursive(
+            sync_core(
                 spath,
                 &group.target,
                 true,
@@ -302,17 +311,17 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
     Ok(())
 }
 
-/// Recursively syncs `spath` to a directory `tparent`.
+/// Syncs `spath` to a directory `tparent`, being aware of its base directory.
 ///
 /// Args:
-///   - `spath`: Path to source item.
+///   - `spath`: Path to source item, assumed to exist, and is already host-specific if possible.
 ///   - `tparent`: Path to the parent dir of the disired sync destination.
 ///   - `dry`: Whether to issue a dry run.
 ///   - `allow_overwrite`: Whether overwrite existing files or not.
 ///   - `method`: A `SyncMethod` instance.
 ///   - `staging`: Path to staging directory.
 ///   - `hostname_sep`: Separator for per-host settings.
-fn sync_recursive(
+fn sync_core(
     spath: &PathBuf,
     tparent: &PathBuf,
     dry: bool,
@@ -349,18 +358,15 @@ fn sync_recursive(
     let sname = spath.file_name().unwrap();
     let tpath = tparent.join(sname);
 
-    // Next, update source path `spath` if `per_host` is set and a per-host item exists.
-    let spath = {
-        let per_host_spath = utils::to_host_specific(spath, hostname_sep)?;
-        if per_host_spath.exists() {
-            per_host_spath
-        } else {
-            spath.to_owned()
-        }
-    };
+    // No need to check host-specific source item here, because source path is assumed to be
+    // host-specific if possible.
 
-    // Finally, get the staging path with updated source path
-    let staging_path = staging.join(spath.strip_prefix(basedir)?);
+    // Finally, get the staging path with source path (staging path does not have host-specific
+    // suffix).
+    let staging_path = staging.join(
+        utils::to_non_host_specific(spath, hostname_sep)?
+            .strip_prefix(basedir)?,
+    );
 
     if spath.is_file() {
         if tpath.is_dir() {
@@ -517,21 +523,6 @@ fn sync_recursive(
                 }
             }
         }
-
-        for item in std::fs::read_dir(spath)? {
-            let item = item?;
-            sync_recursive(
-                &item.path(),
-                &tpath,
-                dry,
-                allow_overwrite,
-                method,
-                staging,
-                group_name,
-                basedir,
-                hostname_sep,
-            )?;
-        }
     }
     Ok(())
 }
@@ -669,7 +660,7 @@ mod invalid_configs {
         )?)?) {
             assert_eq!(
                 msg.to_string(),
-                "Do not use globbing patterns like '.*', because it also matches curent directory (.) and parent directory (..)",
+                "Do not use globbing patterns like '.*', because it also matches current directory (.) and parent directory (..)",
             );
             Ok(())
         } else {
