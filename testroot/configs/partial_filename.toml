@@ -1,6 +1,0 @@
-[[local]]
-name = "placeholder"
-basedir = "."
-sources = ["../Cargo.lock", "../Cargo.toml"]
-target = "."
-ignored = [".lock"]

@@ -1,6 +1,0 @@
-[[local]]
-name = "placeholder"
-basedir = "."
-sources = []
-target = "."
-ignored = ["README.md"]

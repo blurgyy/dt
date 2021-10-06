@@ -1,9 +1,0 @@
-[[local]]
-name = "placeholder"
-# Explanation:
-#   - "*":      All files without leading dot.
-#   - ".[!.]*": All files with a single leading dot.
-#   - "..?*":   All files with double (or more) leading dots.
-basedir = "~"
-sources = ["*", ".[!.]*", "..?*"]
-target = "../testroot"

@@ -1,5 +1,0 @@
-[[local]]
-name = "placeholder"
-basedir = "."
-sources = ["../testroot/README.md"]
-target = "../testroot/README.md"
