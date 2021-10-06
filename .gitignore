@@ -1,0 +1,7 @@
+node_modules
+/docs/.vitepress/dist
+
+*.log
+
+# Author: Blurgy <gy@blurgy.xyz>
+# Date:   Oct 06 2021, 13:16 [CST]
