@@ -1,6 +1,6 @@
 # DT
 
-[![release](https://github.com/blurgyy/dt/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/blurgyy/dt/actions/workflows/release.yml)
+[![release](https://github.com/blurgyy/dt/actions/workflows/release.yml/badge.svg)](https://github.com/blurgyy/dt/actions/workflows/release.yml)
 [![tests](https://github.com/blurgyy/dt/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/blurgyy/dt/actions/workflows/unit-tests.yml)
 [![docs](https://github.com/blurgyy/dt/actions/workflows/publish.yml/badge.svg)](https://github.com/blurgyy/dt/actions/workflows/publish.yml)
 
