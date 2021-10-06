@@ -15,4 +15,4 @@ config file.
 
 ## Configuration
 
-See the [hands-on guide](/config/) for creating a configuration file.
+See the [hands-on guide](/config/guide/) for creating a configuration file.

@@ -28,7 +28,7 @@ The syncing method.  Available values are:
 
 If omitted, uses `Symlink`.  When `method` is set to `Copy`, the
 [`staging`](#staging) setting will be disabled.  For more details, see
-[Syncing Methods](/config/syncing-methods).
+[Syncing Methods](/config/guide/syncing-methods).
 
 ### `allow_overwrite`
 
@@ -196,7 +196,7 @@ Whether to allow overwriting existing files, overrides the [global
 `allow_overwrite`](#allow-overwrite) key.
 
 :::warning Dead symlinks
-Dead symlinks are treated as non-existing, and are always overwrited
+Dead symlinks are treated as non-existant, and are always overwrited
 (regardless of this option).
 :::
 
