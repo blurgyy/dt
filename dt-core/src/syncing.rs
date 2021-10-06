@@ -85,16 +85,6 @@ fn expand_recursive(
                 })
                 // Filter out paths that are meant for other hosts
                 .filter(|x| utils::is_for_other_host(x, hostname_sep).not())
-                // Make items host-specific wherever possible
-                .map(|x| {
-                    let hspath = utils::to_host_specific(&x, hostname_sep)
-                        .expect("Error getting host-specific item name");
-                    if hspath.exists() {
-                        hspath
-                    } else {
-                        x
-                    }
-                })
                 // Convert to absolute paths
                 .map(|x| {
                     utils::to_absolute(&x).expect(&format!(
@@ -129,6 +119,7 @@ fn expand_recursive(
                 ))
                 .path()
             })
+            .filter(|x| utils::is_for_other_host(x, hostname_sep).not())
             .collect();
 
         let mut ret: Vec<PathBuf> = Vec::new();

@@ -14,7 +14,7 @@ fn host_specific_suffix(hostname_sep: &str) -> Result<String, Report> {
 /// A host-specific item is considered for another machine, when its filename contains only 1
 /// `hostname_sep`, and after the `hostname_sep` should not be current machine's hostname.
 ///
-/// A non-host-specific item is always considered not for another machine.
+/// A non-host-specific item is always considered **not** for another machine.
 ///
 /// An item with filename containing more than 1 `hostname_sep` causes this function to panic.
 pub fn is_for_other_host(path: impl AsRef<Path>, hostname_sep: &str) -> bool {
@@ -39,7 +39,8 @@ pub fn is_for_other_host(path: impl AsRef<Path>, hostname_sep: &str) -> bool {
         path.display(),
     );
 
-    splitted.last() == gethostname::gethostname().to_str().as_ref()
+    splitted.len() > 1
+        && splitted.last() != gethostname::gethostname().to_str().as_ref()
 }
 
 /// Convert a path relative to the current directory to an absolute one.
