@@ -3,10 +3,10 @@ on:
     branches:
       - main
 
-name: Run unit tests in all workspaces
+name: tests
 
 jobs:
-  build_and_release:
+  unit-test:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code

@@ -3,10 +3,10 @@ on:
     tags:
       - 'v*.*.*'
 
-name: Build and release dt-cli
+name: release
 
 jobs:
-  build_and_release:
+  build-and-release:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
