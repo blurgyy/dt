@@ -33,7 +33,9 @@ impl DTConfig {
     fn validate(self) -> Result<Self, Report> {
         for group in &self.local {
             if group.name.contains("/") {
-                return Err(eyre!("Group name cannot include '/' character"));
+                return Err(eyre!(
+                    "Group name cannot include the '/' character"
+                ));
             }
             if group.sources.iter().any(|s| s.starts_with("../")) {
                 return Err(eyre!(
@@ -494,6 +496,60 @@ mod tilde_expansion {
         });
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod validation {
+    use std::{path::PathBuf, str::FromStr};
+
+    use color_eyre::{eyre::eyre, Report};
+
+    use super::DTConfig;
+
+    #[test]
+    fn slash_in_group_name() -> Result<(), Report> {
+        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/config/validation-slash_in_group_name.toml",
+        )?) {
+            assert_eq!(
+                msg.to_string(),
+                "Group name cannot include the '/' character",
+            );
+            Ok(())
+        } else {
+            Err(eyre!("This config should not be loaded because a group name contains slash"))
+        }
+    }
+
+    #[test]
+    fn source_item_referencing_parent() -> Result<(), Report> {
+        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/config/validation-source_item_referencing_parent.toml",
+        )?) {
+            assert_eq!(
+                msg.to_string(),
+                "Source item cannot reference parent directory",
+            );
+            Ok(())
+        } else {
+            Err(eyre!("This config should not be loaded because a source item references parent directory"))
+        }
+    }
+
+    #[test]
+    fn source_item_is_absolute() -> Result<(), Report> {
+        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/config/validation-source_item_is_absolute.toml",
+        )?) {
+            assert_eq!(
+                msg.to_string(),
+                "Source item cannot be an absolute path",
+            );
+            Ok(())
+        } else {
+            Err(eyre!("This config should not be loaded because a source item is an absolute path"))
+        }
     }
 }
 

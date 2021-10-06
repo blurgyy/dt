@@ -1,0 +1,5 @@
+[[local]]
+name = "source item references parent dir"
+basedir = "."
+sources = ["../Cargo.toml"]
+target = "target"
