@@ -1,0 +1,30 @@
+name: Publish documentation
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          submodules: true
+          fetch-depth: 0
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: lts/*
+      - run: yarn
+      - run: yarn build
+      - name: Deploy documentation
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/.vitepress/dist
+
+# Author: Blurgy <gy@blurgy.xyz>
+# Date:   Sep 15 2021, 11:19 [CST]
