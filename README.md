@@ -7,12 +7,6 @@ provides a CLI tool [`dt-cli`](./dt-cli), built with backend [`dt-core`](./dt-co
 
 The command line interface `dt-cli` takes a path to the configuration file as
 argument and issues the syncing process defined in the configuration file.
-Passing `-d|--dry-run` to `dt-cli` will show changes to be made without
-actually making those changes, for example:
-
-```shell
-$ dt-cli path/to/config --dry-run
-```
 
 ### Example
 
@@ -27,10 +21,21 @@ sources = ["*init.vim"]
 target = "~/.config/nvim"
 ```
 
-**Stop here if you don't know what you are doing, or have not backed up
+**STOP HERE if you don't know what you are doing, or have not backed up
 existing files under `~/.config/nvim`.**
 
-Call `dt-cli` with path to above configuration file as argument to sync it.
+Run `dt-cli` with path to above configuration file:
+
+```shell
+$ dt-cli path/to/config
+```
+
+Passing `-d|--dry-run` to `dt-cli` will show changes to be made without
+actually making those changes, for example:
+
+```shell
+$ dt-cli path/to/config --dry-run
+```
 
 For more detailed usage, see <https://dt-cli-docs.blurgy.xyz/>, for details
 about `dt-core`, see <https://docs.rs/dt-core/latest/dt_core/>.
