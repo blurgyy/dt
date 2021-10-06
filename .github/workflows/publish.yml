@@ -26,6 +26,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: main
           publish_dir: ./docs/.vitepress/dist
+          destination_dir: docs
 
 # Author: Blurgy <gy@blurgy.xyz>
 # Date:   Sep 15 2021, 11:19 [CST]
