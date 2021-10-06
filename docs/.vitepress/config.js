@@ -4,7 +4,7 @@ module.exports = {
   description: "Documentations for dt-cli <https://github.com/blurgyy/dt>",
 
   themeConfig: {
-    repo: "blurgyy/dt-docs",
+    repo: "blurgyy/dt-cli-docs",
     docsDir: "docs",
     nav: [
       {text: "dt-cli", link: "/"},
