@@ -30,13 +30,16 @@ jobs:
     - name: Generate changelog
       id: changelog
       run: |
-        prev_tag=$(git describe --abbrev=0 --tags ${{ github.ref }}^)
-        log=$(git log --oneline --decorate=no $prev_tag..${{ github.ref }})
-        log="${log//'%'/'%25'}"
-        log="${log//'~'/\\~}"
-        log="${log//$'\n'/'%0A'}"
-        log="${log//$'\r'/'%0D'}"
-        echo "::set-output name=value::$log"
+        if prev_tag=$(git describe --abbrev=0 --tags ${{ github.ref }}^); then
+          log=$(git log --oneline --decorate=no $prev_tag..${{ github.ref }})
+          log="${log//'%'/'%25'}"
+          log="${log//'~'/\\~}"
+          log="${log//$'\n'/'%0A'}"
+          log="${log//$'\r'/'%0D'}"
+          echo "::set-output name=value::$log"
+        else
+          echo "::set-output name=value::log generation failed"
+        fi
     - name: Strip debug symbols
       id: strip
       run: |
