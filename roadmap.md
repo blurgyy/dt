@@ -44,11 +44,11 @@
       will be of type "App") from `~` (which will be of type "General"), or
       separating `~/.config/nvim` from `~/.config`)
 - [x] Recursively expand all sources in function `syncing::expand`
-- [ ] Add README.md
+- [x] Add README.md
 
 ## CLI
 
-- [ ] Find config in `$XDG_CONFIG_HOME/dt/config.toml` by default
+- [ ] Find config in `$XDG_CONFIG_HOME/dt/cli.toml` by default
 - [ ] Add command line option to specify which group to sync via passing name
       of the group
 
