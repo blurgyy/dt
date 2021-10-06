@@ -154,17 +154,6 @@ fn validate_pre_expansion(config: &DTConfig) -> Result<(), Report> {
             return Err(eyre!("Duplicated local group name: {}", group.name));
         }
         group_name_rec.insert(group.name.to_owned());
-        for s in &group.sources {
-            if let Some(strpath) = s.to_str() {
-                if strpath == ".*" || strpath.contains("/.*") {
-                    return Err(eyre!(
-                            "Do not use globbing patterns like '.*', because it also matches current directory (.) and parent directory (..)"
-                        ));
-                }
-            } else {
-                return Err(eyre!("Invalide unicode encountered in sources"));
-            }
-        }
         if group.ignored.is_some() {
             todo!("`ignored` array works poorly and I decided to implement it in the future");
         }
@@ -657,21 +646,6 @@ mod invalid_configs {
             Ok(())
         } else {
             Err(eyre!(""))
-        }
-    }
-
-    #[test]
-    fn except_dot_asterisk_glob() -> Result<(), Report> {
-        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/syncing/invalid_configs-except_dot_asterisk_glob.toml",
-        )?)?) {
-            assert_eq!(
-                msg.to_string(),
-                "Do not use globbing patterns like '.*', because it also matches current directory (.) and parent directory (..)",
-            );
-            Ok(())
-        } else {
-            Err(eyre!("This config should not be loaded because it contains bad globs (.* and /.*)"))
         }
     }
 }

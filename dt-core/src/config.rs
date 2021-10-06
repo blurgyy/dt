@@ -45,6 +45,14 @@ impl DTConfig {
             if group.sources.iter().any(|s| s.starts_with("/")) {
                 return Err(eyre!("Source item cannot be an absolute path"));
             }
+            if group.sources.iter().any(|s| {
+                let s = s.to_str().unwrap();
+                s == ".*" || s.contains("/.*")
+            }) {
+                return Err(eyre!(
+                    "Do not use globbing patterns like '.*', because it also matches current directory (.) and parent directory (..)"
+                ));
+            }
         }
         Ok(self)
     }
@@ -549,6 +557,21 @@ mod validation {
             Ok(())
         } else {
             Err(eyre!("This config should not be loaded because a source item is an absolute path"))
+        }
+    }
+
+    #[test]
+    fn except_dot_asterisk_glob() -> Result<(), Report> {
+        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/config/validation-except_dot_asterisk_glob.toml",
+        )?) {
+            assert_eq!(
+                msg.to_string(),
+                "Do not use globbing patterns like '.*', because it also matches current directory (.) and parent directory (..)",
+            );
+            Ok(())
+        } else {
+            Err(eyre!("This config should not be loaded because it contains bad globs (.* and /.*)"))
         }
     }
 }
