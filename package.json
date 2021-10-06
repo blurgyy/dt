@@ -1,0 +1,17 @@
+{
+  "name": "dt-cli-docs",
+  "version": "0.1.0",
+  "description": "Documentations for dt-cli <https://github.com/blurgyy/dt>",
+  "main": "index.js",
+  "repository": "https://github.com/blurgyy/dt-cli-docs",
+  "author": "Gaoyang Zhang <gy@blurgy.xyz>",
+  "license": "MIT OR Apache 2.0",
+  "devDependencies": {
+    "vitepress": "^0.19.2"
+  },
+  "scripts": {
+    "dev": "vitepress dev docs --host --mpa",
+    "build": "vitepress build docs --mpa",
+    "serve": "vitepress serve docs --host"
+  }
+}
