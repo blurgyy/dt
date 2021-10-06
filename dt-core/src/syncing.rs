@@ -664,6 +664,9 @@ mod expansion {
                         "../dt-cli/Cargo.toml"
                     )?)?,
                     utils::to_absolute(PathBuf::from_str(
+                        "../dt-cli/README.md",
+                    )?)?,
+                    utils::to_absolute(PathBuf::from_str(
                         "../dt-cli/src/main.rs"
                     )?)?,
                     utils::to_absolute(PathBuf::from_str(
