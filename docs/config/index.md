@@ -1,6 +1,6 @@
 # Basics
 
-Configurations are composed with "groups".  A "local" group is added to the
+Configurations are composed with **groups**.  A `local` group is added to the
 configuration file by adding a `[[local]]` section.
 
 Assuming your configuration files for `Neovim` reside in `~/dotfiles/nvim`,
@@ -27,6 +27,6 @@ This content causes `dt-cli` to perform the following steps:
    directory (`~/.config/nvim`), abort if a target file already exists.
 
 :::tip
-Aborting on existing targets is almost **never** what you want.  Read on for a
-better solution!
+Aborting on existing target files is almost **never** what you want.  Read on
+for a better solution!
 :::

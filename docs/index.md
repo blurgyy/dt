@@ -2,7 +2,7 @@
 
 ## Synopsis
 
-`dt-cli` is a highly customizable dotfiles manager.
+`dt-cli` is a highly customizable dotfile manager.
 
 ## Usage
 
@@ -15,4 +15,4 @@ config file.
 
 ## Configuration
 
-See the [hands-on guide](/config/) for writing a configuration file.
+See the [hands-on guide](/config/) for creating a configuration file.

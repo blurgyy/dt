@@ -61,6 +61,9 @@ specified.  Listing all overridable configs and their default values here:
 - `hostname_sep`: `"@@"`
 - `method`: `"Symlink"`
 
+References to those keys can be found at [Key
+References](/config/key-references).
+
 :::tip
 So far we have not explained why does `dt-cli` sync files in such a (somewhat
 complex) manner.  You might ask:

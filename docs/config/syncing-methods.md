@@ -1,12 +1,12 @@
 # Syncing methods
 
 Until the last section, no comments has been given on the **stage** ->
-**symlink** process.  This section explains all the details a user wants to
-know about this (somewhat complex) syncing process.
+**symlink** steps.  This section explains all the details a user wants to
+know about this process.
 
 :::tip
 If you are interested in all the details of the process, I refer you to the
-`dt_core::syncing::sync_core` implementation
+implementation of `dt_core::syncing::sync_core`
 [here](https://github.com/blurgyy/dt/blob/main/dt-core/src/syncing.rs).
 :::
 
@@ -43,7 +43,7 @@ _staging_ step:
 ## Overriding
 
 You can always override the default syncing method to `Copy` conveniently by
-setting:
+adding `method = "Copy"` to the `[global]` section:
 
 ```toml
 [global]
