@@ -38,6 +38,12 @@ pub fn is_for_other_host(path: impl AsRef<Path>, hostname_sep: &str) -> bool {
         hostname_sep,
         path.display(),
     );
+    assert!(
+        splitted.first().unwrap().len() > 0,
+        "hostname_sep ({}) appears to be a prefix os this path: {}",
+        hostname_sep,
+        path.display(),
+    );
 
     splitted.len() > 1
         && splitted.last() != gethostname::gethostname().to_str().as_ref()
@@ -95,20 +101,37 @@ pub fn to_non_host_specific(
     hostname_sep: &str,
 ) -> Result<PathBuf, Report> {
     let path = path.as_ref();
+
+    let filename = path
+        .file_name()
+        .expect(&format!(
+            "Failed extracting file name from path {}",
+            path.display(),
+        ))
+        .to_str()
+        .expect(&format!(
+            "Failed converting &OsStr to &str for path: {}",
+            path.display(),
+        ));
+    let splitted: Vec<_> = filename.split(hostname_sep).collect();
+
+    assert!(
+        splitted.len() <= 2,
+        "There appears to be more than 1 occurrences of hostname_sep ({}) in this path: {}",
+        hostname_sep,
+        path.display(),
+    );
+    assert!(
+        splitted.first().unwrap().len() > 0,
+        "hostname_sep ({}) appears to be a prefix os this path: {}",
+        hostname_sep,
+        path.display(),
+    );
+
     Ok(path.with_file_name(
-        path.file_name()
-            .expect(&format!(
-                "Failed extracting file name from path {}",
-                path.display(),
-            ))
-            .to_str()
-            .expect(&format!(
-                "Failed converting &OsStr to &str for path: {}",
-                path.display(),
-            ))
-            .split(hostname_sep)
+        splitted
             // First item from separated filename
-            .nth(0)
+            .first()
             .expect("Cannot get non-host-specific path"),
     ))
 }
