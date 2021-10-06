@@ -32,8 +32,8 @@ existing files under `~/.config/nvim`.**
 
 Call `dt-cli` with path to above configuration file as argument to sync it.
 
-For more detailed usage, see <https://dt.blurgy.xyz/>, for details about
-`dt-core`, see <https://docs.rs/dt-core/latest/dt_core/>.
+For more detailed usage, see <https://dt-cli-docs.blurgy.xyz/>, for details
+about `dt-core`, see <https://docs.rs/dt-core/latest/dt_core/>.
 
 ## Install
 
