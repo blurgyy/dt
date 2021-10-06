@@ -44,7 +44,7 @@
       will be of type "App") from `~` (which will be of type "General"), or
       separating `~/.config/nvim` from `~/.config`)
 - [x] Recursively expand all sources in function `syncing::expand`
-- [ ] Add unit tests for host-specific items in paths expansion
+- [ ] Add README.md
 
 ## CLI
 
