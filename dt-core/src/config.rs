@@ -100,13 +100,82 @@ pub struct LocalSyncConfig {
     /// Name of this group, used as namespaces when staging.
     pub name: String,
 
-    /// Separator for per-host settings, default to "@@".
+    /// The base directory of all source items.  This simplifies configuration files with common
+    /// prefixes in `local.sources` array.
     ///
-    /// Note: All items with names contains this separator will be ignored.
+    /// ## Example
+    ///
+    /// For a directory structure like:
+    ///
+    /// ```plain
+    /// dt/
+    /// ├── dt-core/
+    /// │  └── src/
+    /// │     └── config.rs
+    /// ├── dt-cli/
+    /// │  └── src/
+    /// │     └── main.rs
+    /// └── README.md
+    /// ```
+    ///
+    /// Consider the following config file:
+    ///
+    /// ```toml
+    /// [[local]]
+    /// basedir = "dt/dt-cli"
+    /// sources = ["*"]
+    /// target = "."
+    /// ```
+    ///
+    /// It will only sync `src/main.rs` to the configured target directory (in this case, the
+    /// directory where `dt` is being executed).
+    pub basedir: PathBuf,
+
+    /// Paths (relative to `basedir`) to the items to be synced.
+    pub sources: Vec<PathBuf>,
+
+    /// The path of the parent dir of the final synced items.
+    ///
+    /// ## Example
+    ///
+    /// ```toml
+    /// source = ["/source/file"]
+    /// target = "/tar/get"
+    /// ```
+    ///
+    /// will sync "/source/file" to "/tar/get/file" (creating non-existing directories along the way), while
+    ///
+    /// ```toml
+    /// source = ["/source/dir"]
+    /// target = "/tar/get/dir"
+    /// ```
+    ///
+    /// will sync "source/dir" to "/tar/get/dir/dir" (creating non-existing directories along the way).
+    pub target: PathBuf,
+
+    /// (Optional) Ignored names.
+    ///
+    /// ## Example
+    ///
+    /// Consider the following ignored setting:
+    ///
+    /// ```toml
+    /// ignored = [".git"]
+    /// ```
+    ///
+    /// With this setting, all files or directories with their basename as ".git" will be skipped.
+    ///
+    /// Cannot contain slash in any of the patterns.
+    pub ignored: Option<Vec<String>>,
+
+    /// (Optional) Separator for per-host settings, default to `@@`.
     ///
     /// An additional item with `${hostname_sep}$(hostname)` appended to the original item name
     /// will be checked first, before looking for the original item.  If the appended item is found,
     /// use this item instead of the configured one.
+    ///
+    /// Also ignores items that are meant for other hosts by checking if the string after
+    /// `hostname_sep` matches current machine's hostname.
     ///
     /// ## Example
     ///
@@ -144,74 +213,6 @@ pub struct LocalSyncConfig {
     ///
     /// Where `/tmp/sshconfig/config` mirrors the content of `~/.ssh/config@watson`.
     pub hostname_sep: Option<String>,
-
-    /// The base directory of all source items.  This simplifies configuration files with common
-    /// prefixes in `local.sources` array.
-    ///
-    /// ## Example
-    ///
-    /// For a directory structure like:
-    ///
-    /// ```plain
-    /// dt/
-    /// ├── dt-core/
-    /// │  └── src/
-    /// │     └── config.rs
-    /// ├── dt-cli/
-    /// │  └── src/
-    /// │     └── main.rs
-    /// └── README.md
-    /// ```
-    ///
-    /// Consider the following config file:
-    ///
-    /// ```toml
-    /// [[local]]
-    /// basedir = "dt/dt-cli"
-    /// sources = ["*"]
-    /// target = "."
-    /// ```
-    ///
-    /// It will only sync `src/main.rs` to the configured target directory (in this case, the
-    /// directory where `dt` is being executed).
-    pub basedir: PathBuf,
-
-    /// Paths (relative to `basedir`) to the items to be synced.
-    pub sources: Vec<PathBuf>,
-
-    /// The absolute path of the parent dir of the final synced items.
-    ///
-    /// ## Example
-    ///
-    /// ```toml
-    /// source = ["/source/file"]
-    /// target = "/tar/get"
-    /// ```
-    ///
-    /// will sync "/source/file" to "/tar/get/file" (creating non-existing directories along the way), while
-    ///
-    /// ```toml
-    /// source = ["/source/dir"]
-    /// target = "/tar/get/dir"
-    /// ```
-    ///
-    /// will sync "source/dir" to "/tar/get/dir/dir" (creating non-existing directories along the way).
-    pub target: PathBuf,
-
-    /// (Optional) Ignored names.
-    ///
-    /// ## Example
-    ///
-    /// Consider the following ignored setting:
-    ///
-    /// ```toml
-    /// ignored = [".git"]
-    /// ```
-    ///
-    /// With this setting, all files or directories with their basename as ".git" will be skipped.
-    ///
-    /// Cannot contain slash in any of the patterns.
-    pub ignored: Option<Vec<String>>,
 
     /// (Optional) Whether to allow overwriting existing files.  Dead symlinks are treated as
     /// non-existing, and are always overwrited (regardless of this option).
