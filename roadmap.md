@@ -36,7 +36,7 @@
       query filesystem when syncing
 - [ ] Warn about items without a source in the staging directory
 - [x] Add `global.hostname_sep` as default value, overrided by group configs
-- [ ] Deny sources that start with "./" or "../" or similar
+- [x] Deny sources that start with "./" or "../" or similar
 - [ ] Define group type (like one of "General", "App", "Dropin"), to define
       priority when syncing (priority order: Dropin > App > General), so that
       user won't have to carefully separate configurations of specific

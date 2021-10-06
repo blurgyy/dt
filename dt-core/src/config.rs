@@ -1,6 +1,6 @@
 use std::{panic, path::PathBuf, str::FromStr};
 
-use color_eyre::Report;
+use color_eyre::{eyre::eyre, Report};
 use serde::Deserialize;
 
 pub const DEFAULT_HOSTNAME_SEPARATOR: &str = "@@";
@@ -27,7 +27,24 @@ impl DTConfig {
         let mut ret = toml::from_str::<Self>(s)?;
         ret.expand_tilde();
 
-        Ok(ret)
+        ret.validate()
+    }
+
+    fn validate(self) -> Result<Self, Report> {
+        for group in &self.local {
+            if group.name.contains("/") {
+                return Err(eyre!("Group name cannot include '/' character"));
+            }
+            if group.sources.iter().any(|s| s.starts_with("../")) {
+                return Err(eyre!(
+                    "Source item cannot reference parent directory",
+                ));
+            }
+            if group.sources.iter().any(|s| s.starts_with("/")) {
+                return Err(eyre!("Source item cannot be an absolute path"));
+            }
+        }
+        Ok(self)
     }
 
     fn expand_tilde(&mut self) {
