@@ -2,6 +2,7 @@
 
 [![release](https://github.com/blurgyy/dt/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/blurgyy/dt/actions/workflows/release.yml)
 [![tests](https://github.com/blurgyy/dt/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/blurgyy/dt/actions/workflows/unit-tests.yml)
+[![docs](https://github.com/blurgyy/dt/actions/workflows/publish.yml/badge.svg)](https://github.com/blurgyy/dt/actions/workflows/publish.yml)
 
 `DT` allows you to sync/populate configuration files at will.  It currently
 provides a CLI tool [`dt-cli`](./dt-cli), built with backend [`dt-core`](./dt-core).
