@@ -364,9 +364,6 @@ fn sync_core(
         tpath.display(),
     )))?;
 
-    // No need to check host-specific source item here, because source path is assumed to be
-    // host-specific if possible.
-
     // Finally, get the staging path with source path (staging path does not have host-specific
     // suffix).
     let staging_path = staging.join(
@@ -666,7 +663,7 @@ mod invalid_configs {
     #[test]
     fn except_dot_asterisk_glob() -> Result<(), Report> {
         if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/syncing/globbing-except_dot_asterisk_glob.toml",
+            "../testroot/configs/syncing/invalid_configs-except_dot_asterisk_glob.toml",
         )?)?) {
             assert_eq!(
                 msg.to_string(),
@@ -680,7 +677,7 @@ mod invalid_configs {
 }
 
 #[cfg(test)]
-mod globbing {
+mod expansion {
     use std::{path::PathBuf, str::FromStr};
 
     use color_eyre::Report;
@@ -692,7 +689,7 @@ mod globbing {
     #[test]
     fn glob() -> Result<(), Report> {
         let config = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/syncing/globbing-glob.toml",
+            "../testroot/configs/syncing/expansion-glob.toml",
         )?)?)?;
         for group in &config.local {
             assert_eq!(
@@ -728,7 +725,7 @@ mod globbing {
     #[test]
     fn sorting_and_deduping() -> Result<(), Report> {
         let config = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/syncing/globbing-sorting_and_deduping.toml",
+            "../testroot/configs/syncing/expansion-sorting_and_deduping.toml",
         )?)?)?;
         for group in config.local {
             assert_eq!(
