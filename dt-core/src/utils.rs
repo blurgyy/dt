@@ -32,7 +32,12 @@ pub fn is_for_other_host(path: impl AsRef<Path>, hostname_sep: &str) -> bool {
         ));
     let splitted: Vec<_> = filename.split(hostname_sep).collect();
 
-    assert!(splitted.len() <= 2);
+    assert!(
+        splitted.len() <= 2,
+        "There appears to be more than 1 occurrences of hostname_sep ({}) in this path: {}",
+        hostname_sep,
+        path.display(),
+    );
 
     splitted.last() == gethostname::gethostname().to_str().as_ref()
 }
