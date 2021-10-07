@@ -45,7 +45,7 @@
       separating `~/.config/nvim` from `~/.config`)
 - [x] Recursively expand all sources in function `syncing::expand`
 - [x] Add README.md
-- [ ] Do not remove host-specific suffix in staging directory
+- [x] Do not remove host-specific suffix in staging directory
 
 ## CLI
 
