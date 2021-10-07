@@ -35,8 +35,7 @@ target = "~/.config/Code - OSS/"
 After syncing with this config, the **target item** `~/.config/Code -
 OSS/User/settins.json` will be a symlink of the **staged item**
 `~/.cache/dt/staging/VSCode/User/settings.json`, where the **staged item**
-mirrors the content of the **source item**
-`~/dt/VSCode/User/settings.json`.
+mirrors the content of the **source item** `~/dt/VSCode/User/settings.json`.
 
 ## Overriding Default Behaviours
 
