@@ -150,7 +150,8 @@ pub struct LocalGroup {
     /// target = "/tar/get/dir"
     /// ```
     ///
-    /// will sync "source/dir" to "/tar/get/dir/dir" (creating non-existing directories along the way).
+    /// will sync "source/dir" to "/tar/get/dir/dir" (creating non-existing directories along the
+    /// way).
     pub target: PathBuf,
 
     /// (Optional) Ignored names.
@@ -228,7 +229,8 @@ pub struct LocalGroup {
 }
 
 impl LocalGroup {
-    /// Gets the `allow_overwrite` key from a `LocalSyncConfig` object, falls back to the `allow_overwrite` from provided global config.
+    /// Gets the `allow_overwrite` key from a `LocalSyncConfig` object, falls back to the
+    /// `allow_overwrite` from provided global config.
     pub fn get_allow_overwrite(&self, global_config: &GlobalConfig) -> bool {
         match self.allow_overwrite {
             Some(allow_overwrite) => allow_overwrite,
@@ -236,7 +238,8 @@ impl LocalGroup {
         }
     }
 
-    /// Gets the `method` key from a `LocalSyncConfig` object, falls back to the `method` from provided global config.
+    /// Gets the `method` key from a `LocalSyncConfig` object, falls back to the `method` from
+    /// provided global config.
     pub fn get_method(&self, global_config: &GlobalConfig) -> SyncMethod {
         match self.method {
             Some(method) => method,
@@ -244,7 +247,8 @@ impl LocalGroup {
         }
     }
 
-    /// Gets the `method` key from a `LocalSyncConfig` object, falls back to the `method` from provided global config.
+    /// Gets the `method` key from a `LocalSyncConfig` object, falls back to the `method` from
+    /// provided global config.
     pub fn get_hostname_sep(&self, global_config: &GlobalConfig) -> String {
         match &self.hostname_sep {
             Some(hostname_sep) => hostname_sep.to_owned(),
