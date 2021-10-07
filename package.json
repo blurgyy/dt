@@ -11,7 +11,7 @@
   },
   "scripts": {
     "dev": "vitepress dev docs --host --mpa",
-    "build": "vitepress build docs --mpa",
+    "build": "vitepress build docs --mpa && echo dt-cli-docs.blurgy.xyz >docs/.vitepress/dist/CNAME",
     "serve": "vitepress serve docs --host"
   }
 }
