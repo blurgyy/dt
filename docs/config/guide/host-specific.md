@@ -65,9 +65,14 @@ the terminal emulator.  When your configs are maintained under the `~/dt`
 directory, and you are using Alacritty (for example):
 
 ```plain
-~/dt/alacritty
-├── alacritty.yml@@laptop
-└── alacritty.yml@@workstation
+~/dt/
+├── alacritty/
+│   ├── alacritty.yml@@laptop
+│   └── alacritty.yml@@workstation
+├── nvim/
+│   ├── init.vim
+│   └── ...
+└── ...
 ```
 
 You want to sync all stuff under the directory `~/dt` to `~/.config`, you can
@@ -86,9 +91,9 @@ target = "~/.config"
 ```
 
 :::info Note
-Note that we did not specifically reference the `alacritty` directory anywhere,
-because `dt-cli` will recursively expand directories **and automatically
-handle host-specific items in the expanded paths**.
+Note that we did not specifically reference the `alacritty` directory anywhere
+in the above config, because `dt-cli` will recursively expand directories
+**and automatically handle host-specific items in the expanded paths**.
 :::
 
 :::warning
