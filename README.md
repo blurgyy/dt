@@ -1,5 +1,6 @@
 # DT
 
+[![license: MIT OR Apache 2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache%202.0-blue.svg)](./LICENSE)
 [![release](https://github.com/blurgyy/dt/actions/workflows/release.yml/badge.svg)](https://github.com/blurgyy/dt/actions/workflows/release.yml)
 [![tests](https://github.com/blurgyy/dt/actions/workflows/tests.yml/badge.svg)](https://github.com/blurgyy/dt/actions/workflows/tests.yml)
 [![docs](https://github.com/blurgyy/dt/actions/workflows/docs.yml/badge.svg)](https://dt-cli-docs.blurgy.xyz/)
@@ -46,16 +47,22 @@ about `dt-core`, see <https://docs.rs/dt-core/latest/dt_core/>.
 
 ## Install
 
-To install `dt-cli`, you can:
+`dt-cli` is in the AUR, installed with your favorite package manager:
+
+```shell
+$ paru -S dt-cli
+```
+
+Alternative ways of installing `dt-cli` include:
 
 - Download pre-built executables from GitHub: <https://github.com/blurgyy/dt/releases/latest>
-- Or install from <https://crates.io>:
+- Install from <https://crates.io>:
   
   ```shell
   $ cargo install dt-cli
   ```
   
-- Or build from source:
+- Build from source:
   
   ```shell
   $ git clone github.com:blurgyy/dt.git
