@@ -47,15 +47,21 @@ about `dt-core`, see <https://docs.rs/dt-core/latest/dt_core/>.
 
 ## Install
 
-`dt-cli` is in the AUR, installed with your favorite package manager:
+### AUR
+
+`dt-cli` is in the [AUR](https://aur.archlinux.org/packages/dt-cli/), you can
+install it with your favorite package manager:
 
 ```shell
 $ paru -S dt-cli
 ```
 
-Alternative ways of installing `dt-cli` include:
+### Alternative Ways
 
-- Download pre-built executables from GitHub: <https://github.com/blurgyy/dt/releases/latest>
+Alternatively, you can:
+
+- Download latest pre-built executables from GitHub:
+  <https://github.com/blurgyy/dt/releases/latest>
 - Install from <https://crates.io>:
   
   ```shell
