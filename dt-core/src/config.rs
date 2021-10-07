@@ -12,7 +12,7 @@ pub struct DTConfig {
     pub global: Option<GlobalConfig>,
 
     /// Local items groups.
-    pub local: Vec<LocalSyncConfig>,
+    pub local: Vec<LocalGroup>,
 }
 
 impl DTConfig {
@@ -96,8 +96,8 @@ impl DTConfig {
 
 /// Configures how local items (files/directories) are synced.
 #[derive(Default, Clone, Deserialize, Debug)]
-pub struct LocalSyncConfig {
-    /// Name of this group, used as namespaces when staging.
+pub struct LocalGroup {
+    /// Name of this group, used as namespace in staging root directory.
     pub name: String,
 
     /// The base directory of all source items.  This simplifies configuration files with common
@@ -227,7 +227,7 @@ pub struct LocalSyncConfig {
     // replace_end: String,
 }
 
-impl LocalSyncConfig {
+impl LocalGroup {
     /// Gets the `allow_overwrite` key from a `LocalSyncConfig` object, falls back to the `allow_overwrite` from provided global config.
     pub fn get_allow_overwrite(&self, global_config: &GlobalConfig) -> bool {
         match self.allow_overwrite {

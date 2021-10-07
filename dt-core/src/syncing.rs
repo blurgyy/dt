@@ -22,7 +22,7 @@ fn expand(config: &DTConfig) -> Result<DTConfig, Report> {
         local: vec![],
     };
     for original in &config.local {
-        let mut next = LocalSyncConfig {
+        let mut next = LocalGroup {
             basedir: utils::to_absolute(&original.basedir)?,
             sources: vec![],
             target: utils::to_absolute(&original.target)?,
