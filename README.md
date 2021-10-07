@@ -15,12 +15,12 @@ argument and issues the syncing process defined in the configuration file.
 ### Example
 
 A minimal working configuration file to sync all files that matches
-`*init.vim` from `~/myDotfiles/nvim` to `~/.config/nvim` can be written as:
+`*init.vim` from `~/dt/nvim` to `~/.config/nvim` can be written as:
 
 ```toml
 [[local]]
 name = "Neovim Configs"
-basedir = "~/myDotfiles/nvim"
+basedir = "~/dt/nvim"
 sources = ["*init.vim"]
 target = "~/.config/nvim"
 ```
