@@ -38,7 +38,7 @@ OSS/User/settins.json` will be a symlink of the **staged item**
 mirrors the content of the **source item**
 `~/dt/VSCode/User/settings.json`.
 
-## Overriding default behaviours
+## Overriding Default Behaviours
 
 But what if we exceptionally want the `VSCode` group to **not** overwrite the
 target file if it already exists?  No worries, here is the recipe of

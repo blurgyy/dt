@@ -1,4 +1,4 @@
-# Syncing methods
+# Syncing Methods
 
 Until the last section, no comments has been given on the **stage** ->
 **symlink** steps.  This section explains all the details a user wants to

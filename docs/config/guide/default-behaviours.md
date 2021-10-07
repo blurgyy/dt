@@ -1,4 +1,4 @@
-# Defining default behaviours
+# Defining Default Behaviours
 
 Note that when syncing our configuration files for `Neovim` in the [basic
 config](/config/guide/), `dt-cli` _aborts_ on existing target files.  When
