@@ -3,12 +3,12 @@
 Syncing only one group is boring.  We can also add more groups.
 
 Assuming your configuration files for `VSCode` lies at
-`~/dotfiles/VSCode/User/settings.json`, the group for syncing this file can be:
+`~/dt/VSCode/User/settings.json`, the group for syncing this file can be:
 
 ```toml
 [[local]]
 name = "VSCode"
-basedir = "~/dotfiles/VSCode"
+basedir = "~/dt/VSCode"
 sources = ["User/settings.json"]
 target = "~/.config/Code - OSS/"
 ```
@@ -22,12 +22,12 @@ allow_overwrite = true
 
 [[local]]
 name = "Neovim"
-basedir = "~/dotfiles/nvim"
+basedir = "~/dt/nvim"
 sources = ["*init.vim"]
 target = "~/.config/nvim"
 [[local]]
 name = "VSCode"
-basedir = "~/dotfiles/VSCode"
+basedir = "~/dt/VSCode"
 sources = ["User/settings.json"]
 target = "~/.config/Code - OSS/"
 ```
@@ -36,7 +36,7 @@ After syncing with this config, the **target item** `~/.config/Code -
 OSS/User/settins.json` will be a symlink of the **staged item**
 `~/.cache/dt/staging/VSCode/User/settings.json`, where the **staged item**
 mirrors the content of the **source item**
-`~/dotfiles/VSCode/User/settings.json`.
+`~/dt/VSCode/User/settings.json`.
 
 ## Overriding default behaviours
 
@@ -47,7 +47,7 @@ overriding a default behaviour for the `VSCode` group:
 ```toml{7}
 [[local]]
 name = "VSCode"
-basedir = "~/dotfiles/VSCode"
+basedir = "~/dt/VSCode"
 sources = ["User/settings.json"]
 target = "~/.config/Code - OSS/"
 

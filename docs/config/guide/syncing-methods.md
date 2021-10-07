@@ -33,7 +33,12 @@ I have chosen `Symlink` to be the default behaviour of `dt-cli`.  The added
 _staging_ step:
 
 - Makes it possible to organize sources according to their group
-  [`names`](/config/key-references#name), which `Copy` does not.
+  [`name`](/config/key-references#name)s, which `Copy` does not.
+  :::tip
+  This means it allows human-readable directory structures, because groups are
+  organized by your given [`name`](/config/key-references#name)s.  You can
+  also create a git repository at the staging root directory if you want,
+  :::
 - Makes it possible to control permission of organized items from system-level
   `sources` which you shouldn't directly modify.
 - When the target and source are the same (by accident), `Copy` does not
@@ -47,5 +52,12 @@ adding `method = "Copy"` to the `[global]` section:
 
 ```toml
 [global]
+method = "Copy"
+```
+
+Or specify the syncing method for a given group similarly:
+
+```toml
+[[local]]
 method = "Copy"
 ```

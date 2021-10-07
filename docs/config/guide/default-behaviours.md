@@ -15,7 +15,7 @@ allow_overwrite = true
 
 [[local]]
 name = "Neovim"
-basedir = "~/dotfiles/nvim"
+basedir = "~/dt/nvim"
 sources = ["*init.vim"]
 target = "~/.config/nvim"
 ```

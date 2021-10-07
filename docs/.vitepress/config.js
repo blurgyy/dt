@@ -20,7 +20,7 @@ module.exports = {
               link: "/config/guide/",
             },
             {
-              text: "Defining default behaviours",
+              text: "Defining Default Behaviours",
               link: "/config/guide/default-behaviours",
             },
             {
@@ -28,8 +28,12 @@ module.exports = {
               link: "/config/guide/groups",
             },
             {
-              text: "Syncing methods",
-              link: "/config/guide/syncing-methods"
+              text: "Syncing Methods",
+              link: "/config/guide/syncing-methods",
+            },
+            {
+              text: "Host-specific Config",
+              link: "/config/guide/host-specific",
             },
           ],
         },
@@ -39,19 +43,10 @@ module.exports = {
         },
       ],
       "/": [
-        {text: "Getting started", link: "/"},
+        {text: "Getting Started", link: "/"},
         {
           text: "Host-specific Syncing",
-          children: [
-            {
-              text: "Introduction",
-              link: "/host-specific/",
-            },
-            {
-              text: "Hostname Suffix",
-              link: "/host-specific/suffix"
-            },
-          ],
+          link: "/host-specific",
         },
       ],
     }

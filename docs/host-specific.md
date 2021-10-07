@@ -1,4 +1,6 @@
-# Introduction
+# Host-specific Syncing
+
+## Introduction
 
 > With more _servers_ there must also come more _configuration files_.
 
@@ -28,3 +30,26 @@ categorized into 3 types:
 if no `Current` item exists, `dt-cli` finds `General` items and sync them.
 Items of type `Other` are ignored for current machine.
 :::
+
+## Hostname Suffix
+
+A **hostname suffix** comprises of a **hostname separator** and a
+**hostname**:
+
+- Hostname separator: Defined in configuration file as `hostname_sep`,
+  [globally](/config/key-references#hostname-sep) or
+  [per-group](/config/key-references#hostname-sep-1).
+- Hostname: Current machine's hostname.
+
+:::warning Multiple Occurances of <code>hostname_sep</code>
+To eliminate ambiguity, the hostname separator should appear at most once
+in any of the source items.  Multiple occurances of the hostname separator
+will cause `dt-cli` to panic.
+:::
+
+The default value (when not configured) for `hostname_sep` is `@@`.  If a
+directory is marked as host-specific, all of its children will only be synced
+when the directory is for current machine.
+
+For configuration of host-specific syncing, see the [hands-on guide on how to
+configure host-specific syncing](/config/guide/host-specific).
