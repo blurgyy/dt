@@ -15,7 +15,6 @@ module.exports = {
       "/config/": [
         {
           text: "Hands-on Guide",
-          link: "/config/guide/",
           children: [
             {
               text: "Basics",
