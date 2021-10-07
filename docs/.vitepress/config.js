@@ -8,7 +8,7 @@ module.exports = {
     docsDir: "docs",
     nav: [
       {text: "dt-cli", link: "/"},
-      {text: "Config", link: "/config/guide/"},
+      {text: "Guide", link: "/config/guide/"},
       {text: "Key References", link: "/config/key-references"},
     ],
     sidebar: {
