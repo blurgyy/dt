@@ -9,11 +9,13 @@ module.exports = {
     nav: [
       {text: "dt-cli", link: "/"},
       {text: "Config", link: "/config/guide/"},
+      {text: "Key References", link: "/config/key-references"},
     ],
     sidebar: {
       "/config/": [
         {
           text: "Hands-on Guide",
+          link: "/config/guide/",
           children: [
             {
               text: "Basics",
