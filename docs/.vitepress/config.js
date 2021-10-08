@@ -10,7 +10,7 @@ module.exports = {
       {
         text: "dt-cli",
         link: "/",
-        activeMatch: "^/|^/host-specific.html$|^/contributing.html$",
+        activeMatch: "^/$|^/host-specific$|^/contributing$",
       },
       {text: "Guide", link: "/config/guide/"},
       {text: "Key References", link: "/config/key-references"},
