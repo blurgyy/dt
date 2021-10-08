@@ -9,7 +9,7 @@
 `dt-cli` takes a configuration file and issues syncing process defined in the
 config file.  For example, a config file lies at `~/.config/dt/cli.toml`, use
 
-```sh
+```shell
 $ dt-cli ~/.config/dt/cli.toml
 ```
 
