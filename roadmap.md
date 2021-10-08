@@ -46,6 +46,7 @@
 - [x] Recursively expand all sources in function `syncing::expand`
 - [x] Add README.md
 - [x] Do not remove host-specific suffix in staging directory
+- [ ] Warn when a group's `target` is inside another group's `basedir`
 
 ## CLI
 
