@@ -35,6 +35,19 @@ impl DTConfig {
         let mut group_name_rec: std::collections::HashSet<String> =
             std::collections::HashSet::new();
         for group in &self.local {
+            // Empty group name
+            if group.name.is_empty() {
+                return Err(eyre!("Empty group name"));
+            }
+            // Empty basedir
+            if group.basedir.to_str().unwrap().is_empty() {
+                return Err(eyre!("Group [{}]: empty basedir", group.name));
+            }
+            // Empty target
+            if group.target.to_str().unwrap().is_empty() {
+                return Err(eyre!("Group [{}]: empty target", group.name));
+            }
+
             // Duplicated group name
             if group_name_rec.get(&group.name).is_some() {
                 return Err(eyre!(
@@ -580,9 +593,48 @@ mod validation {
     use super::DTConfig;
 
     #[test]
+    fn empty_group_name() -> Result<(), Report> {
+        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/config/validation-empty_group_name.toml",
+        )?) {
+            assert_eq!(msg.to_string(), "Empty group name");
+            Ok(())
+        } else {
+            Err(eyre!("This config should not be loaded because a group's name is empty"))
+        }
+    }
+
+    #[test]
+    fn empty_basedir() -> Result<(), Report> {
+        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/config/validation-empty_basedir.toml",
+        )?) {
+            assert_eq!(
+                msg.to_string(),
+                "Group [empty basedir]: empty basedir",
+            );
+            Ok(())
+        } else {
+            Err(eyre!("This config should not be loaded because a group's basedir is empty"))
+        }
+    }
+
+    #[test]
+    fn empty_target() -> Result<(), Report> {
+        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/config/validation-empty_target.toml",
+        )?) {
+            assert_eq!(msg.to_string(), "Group [empty target]: empty target");
+            Ok(())
+        } else {
+            Err(eyre!("This config should not be loaded because a group's basedir is empty"))
+        }
+    }
+
+    #[test]
     fn same_names_in_multiple_local_groups() -> Result<(), Report> {
         if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/syncing/invalid_configs-same_names_in_multiple_locals.toml",
+            "../testroot/configs/config/validation-same_names_in_multiple_locals.toml",
         )?) {
             assert_eq!(
                 msg.to_string(),

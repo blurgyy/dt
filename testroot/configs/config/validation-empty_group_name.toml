@@ -1,0 +1,5 @@
+[[local]]
+name = ""
+basedir = "~"
+sources = []
+target = "."

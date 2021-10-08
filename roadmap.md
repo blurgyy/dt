@@ -47,6 +47,8 @@
 - [x] Add README.md
 - [x] Do not remove host-specific suffix in staging directory
 - [ ] Warn when a group's `target` is inside another group's `basedir`
+- [ ] Set maximum recursion depth when expanding sources
+- [x] Deny empty `name`/`basedir`/`target`
 
 ## CLI
 
