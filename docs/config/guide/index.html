@@ -6,7 +6,10 @@
     <title>Basics | dt-cli</title>
     <meta name="description" content="Documentations for dt-cli <https://github.com/blurgyy/dt>">
     <link rel="stylesheet" href="/assets/style.d82f6ee1.css">
-    
+    <link rel="modulepreload" href="/assets/Home.b85bb71b.js">
+    <link rel="modulepreload" href="/assets/app.0e8b29b6.js">
+    <link rel="modulepreload" href="/assets/config_guide_index.md.a16cdc40.lean.js">
+    <link rel="modulepreload" href="/assets/app.0e8b29b6.js">
     <meta name="twitter:title" content="Basics | dt-cli">
     <meta property="og:title" content="Basics | dt-cli">
   </head>
@@ -17,8 +20,8 @@
 <span class="token key property">sources</span> <span class="token punctuation">=</span> <span class="token punctuation">[</span><span class="token string">&quot;*init.vim&quot;</span><span class="token punctuation">]</span>
 <span class="token key property">target</span> <span class="token punctuation">=</span> <span class="token string">&quot;~/.config/nvim&quot;</span>
 </code></pre></div><p>This content causes <code>dt-cli</code> to perform the following steps:</p><ol><li>Create a &quot;staging&quot; directory at <code>~/.cache/dt/staging</code> (which is the default staging location);</li><li>Create the group&#39;s staging directory at <code>~/.cache/dt/staging/Neovim</code>;</li><li>Find all items (recursively if an item is a directory) that matches glob <code>~/dt/nvim/*init.vim</code> and store them in the <code>sources</code> array;</li><li>For each item in the <code>sources</code> array, first copy it to the group&#39;s staging directory (<code>~/.cache/dt/staging/Neovim</code>), then symlink it to the target directory (<code>~/.config/nvim</code>), abort if a target file already exists.</li></ol><div class="tip custom-block"><p class="custom-block-title">TIP</p><p>Details of above steps are explained in the <a href="./syncing-methods.html">Syncing Methods</a> section.</p></div><div class="warning custom-block"><p class="custom-block-title">WARNING</p><p>Aborting on existing target files is probably not what you want. Read on for a better solution!</p></div></div></div><footer class="page-footer" data-v-7eddb2c4 data-v-fb8d84c6><div class="edit" data-v-fb8d84c6><div class="edit-link" data-v-fb8d84c6 data-v-1ed99556><!----></div></div><div class="updated" data-v-fb8d84c6><!----></div></footer><div class="next-and-prev-link" data-v-7eddb2c4 data-v-38ede35f><div class="container" data-v-38ede35f><div class="prev" data-v-38ede35f><!----></div><div class="next" data-v-38ede35f><a class="link" href="/config/guide/default-behaviours" data-v-38ede35f><span class="text" data-v-38ede35f>Defining Default Behaviours</span><svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 24 24" class="icon icon-next" data-v-38ede35f><path d="M19.9,12.4c0.1-0.2,0.1-0.5,0-0.8c-0.1-0.1-0.1-0.2-0.2-0.3l-7-7c-0.4-0.4-1-0.4-1.4,0s-0.4,1,0,1.4l5.3,5.3H5c-0.6,0-1,0.4-1,1s0.4,1,1,1h11.6l-5.3,5.3c-0.4,0.4-0.4,1,0,1.4c0.2,0.2,0.5,0.3,0.7,0.3s0.5-0.1,0.7-0.3l7-7C19.8,12.6,19.9,12.5,19.9,12.4z"></path></svg></a></div></div></div><!--[--><!--]--></div></main></div><!----><!--]--></div>
-    
-    
+    <script>__VP_HASH_MAP__ = JSON.parse("{\"config_guide_default-behaviours.md\":\"f2114d22\",\"config_guide_groups.md\":\"57efddf6\",\"config_guide_host-specific.md\":\"59b22357\",\"config_guide_index.md\":\"a16cdc40\",\"config_guide_syncing-methods.md\":\"0650b276\",\"config_key-references.md\":\"53ce84be\",\"contributing.md\":\"d57caa4f\",\"host-specific.md\":\"76a0a1b5\",\"index.md\":\"d35ca392\",\"installation.md\":\"2313a2b9\"}")</script>
+    <script type="module" async src="/assets/app.0e8b29b6.js"></script>
     
   </body>
 </html>
