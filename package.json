@@ -7,7 +7,7 @@
   "author": "Gaoyang Zhang <gy@blurgy.xyz>",
   "license": "MIT OR Apache 2.0",
   "devDependencies": {
-    "vitepress": "^0.19.2"
+    "vitepress": "^0.20.0"
   },
   "scripts": {
     "dev": "vitepress dev docs --host --mpa",
