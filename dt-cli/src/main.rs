@@ -19,12 +19,20 @@ struct Args {
         long
     )]
     dry_run: bool,
+
+    #[structopt(
+        help = "Increase logging verbosity",
+        short,
+        long,
+        parse(from_occurrences)
+    )]
+    verbose: u8,
 }
 
 fn main() -> Result<(), Report> {
-    setup()?;
-
     let opt = Args::from_args();
+    setup(opt.verbose)?;
+
     let config: DTConfig = DTConfig::from_pathbuf(opt.config_path)?;
     if opt.dry_run {
         syncing::dry_sync(&config)?;
@@ -35,9 +43,14 @@ fn main() -> Result<(), Report> {
     Ok(())
 }
 
-fn setup() -> Result<(), Report> {
-    if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "info");
+fn setup(verbosity: u8) -> Result<(), Report> {
+    match verbosity {
+        0 => std::env::set_var(
+            "RUST_LOG",
+            std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_owned()),
+        ),
+        1 => std::env::set_var("RUST_LOG", "debug"),
+        _ => std::env::set_var("RUST_LOG", "trace"),
     }
 
     pretty_env_logger::init();
