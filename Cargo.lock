@@ -173,6 +173,7 @@ name = "dt-cli"
 version = "0.1.0"
 dependencies = [
  "color-eyre",
+ "dirs",
  "dt-core",
  "log",
  "pretty_env_logger",

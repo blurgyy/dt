@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{ops::Not, path::PathBuf};
 
 use color_eyre::Report;
 use structopt::StructOpt;
@@ -10,8 +10,8 @@ use dt_core::{config::DTConfig, syncing};
     global_settings(&[structopt::clap::AppSettings::ColoredHelp])
 )]
 struct Args {
-    #[structopt(help = "Path to config file", parse(from_os_str))]
-    config_path: PathBuf,
+    #[structopt(help = "Path to config file", short, long)]
+    config_path: Option<PathBuf>,
 
     #[structopt(
         help = "Show changes to be made without actually syncing files",
@@ -33,7 +33,9 @@ fn main() -> Result<(), Report> {
     let opt = Args::from_args();
     setup(opt.verbose)?;
 
-    let config: DTConfig = DTConfig::from_pathbuf(opt.config_path)?;
+    let config: DTConfig = DTConfig::from_pathbuf(
+        opt.config_path.unwrap_or(default_config_path()?),
+    )?;
     if opt.dry_run {
         syncing::dry_sync(&config)?;
     } else {
@@ -57,6 +59,22 @@ fn setup(verbosity: u8) -> Result<(), Report> {
     color_eyre::install()?;
 
     Ok(())
+}
+
+/// Gets the default config file path,
+fn default_config_path() -> Result<PathBuf, Report> {
+    let config_path = dirs::config_dir()
+        .unwrap_or_else(|| panic!("Cannot determine default config path"))
+        .join("dt")
+        .join("cli.toml");
+
+    if config_path.exists().not() {
+        Err(color_eyre::eyre::eyre!(
+            "No default config path could be inferred"
+        ))
+    } else {
+        Ok(config_path)
+    }
 }
 
 // Author: Blurgy <gy@blurgy.xyz>

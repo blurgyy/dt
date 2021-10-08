@@ -49,7 +49,7 @@
 
 ## CLI
 
-- [ ] Find config in `$XDG_CONFIG_HOME/dt/cli.toml` by default
+- [x] Find config in `$XDG_CONFIG_HOME/dt/cli.toml` by default
 - [ ] Add command line option to specify which group to sync via passing name
       of the group
 
