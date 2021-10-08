@@ -30,28 +30,63 @@ impl DTConfig {
         ret.validate()
     }
 
+    /// Validates config object **without** touching the filesystem.
     fn validate(self) -> Result<Self, Report> {
+        let mut group_name_rec: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
         for group in &self.local {
-            if group.name.contains('/') {
+            // Duplicated group name
+            if group_name_rec.get(&group.name).is_some() {
                 return Err(eyre!(
-                    "Group name cannot include the '/' character"
+                    "Duplicated local group name: {}",
+                    group.name
                 ));
             }
+            group_name_rec.insert(group.name.to_owned());
+
+            // Slash in group name
+            if group.name.contains('/') {
+                return Err(eyre!(
+                    "Group name cannot contain the '/' character"
+                ));
+            }
+
+            // Target and basedir are the same
+            if group.basedir == group.target {
+                return Err(eyre!(
+                    "Group [{}]: base directory and its target are the same",
+                    group.name,
+                ));
+            }
+
+            // Source item referencing parent
             if group.sources.iter().any(|s| s.starts_with("../")) {
                 return Err(eyre!(
                     "Source item cannot reference parent directory",
                 ));
             }
-            if group.sources.iter().any(|s| s.starts_with("/")) {
+
+            // Source item is absolute
+            if group
+                .sources
+                .iter()
+                .any(|s| s.starts_with("/") || s.starts_with("~"))
+            {
                 return Err(eyre!("Source item cannot be an absolute path"));
             }
+
+            // Source item contains bad globbing pattern
             if group.sources.iter().any(|s| {
                 let s = s.to_str().unwrap();
-                s == ".*" || s.contains("/.*")
+                s == ".*" || s.ends_with("/.*")
             }) {
                 return Err(eyre!(
                     "Do not use globbing patterns like '.*', because it also matches current directory (.) and parent directory (..)"
                 ));
+            }
+
+            if group.ignored.is_some() {
+                todo!("`ignored` array works poorly and I decided to implement it in the future");
             }
         }
         Ok(self)
@@ -510,7 +545,13 @@ mod tilde_expansion {
         assert_eq!(config.global.unwrap().staging, dirs::home_dir());
         config.local.iter().all(|group| {
             assert_eq!(Some(group.to_owned().basedir), dirs::home_dir());
-            assert_eq!(Some(group.to_owned().target), dirs::home_dir());
+            assert_eq!(
+                group.to_owned().target,
+                dirs::home_dir()
+                    .unwrap_or_else(|| panic!("Cannot determine home dir"))
+                    .join("dt")
+                    .join("target"),
+            );
             true
         });
 
@@ -533,7 +574,7 @@ mod validation {
         )?) {
             assert_eq!(
                 msg.to_string(),
-                "Group name cannot include the '/' character",
+                "Group name cannot contain the '/' character",
             );
             Ok(())
         } else {
@@ -568,6 +609,36 @@ mod validation {
             Ok(())
         } else {
             Err(eyre!("This config should not be loaded because a source item is an absolute path"))
+        }
+    }
+
+    #[test]
+    fn basedir_is_target() -> Result<(), Report> {
+        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/syncing/invalid_configs-basedir_is_target.toml",
+        )?) {
+            assert_eq!(
+                msg.to_string(),
+                "Group [basedir is target]: base directory and its target are the same",
+            );
+            Ok(())
+        } else {
+            Err(eyre!("This config should not be loaded because basedir and target are the same"))
+        }
+    }
+
+    #[test]
+    fn same_names_in_multiple_local_groups() -> Result<(), Report> {
+        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/syncing/invalid_configs-same_names_in_multiple_locals.toml",
+        )?) {
+            assert_eq!(
+                msg.to_string(),
+                "Duplicated local group name: wubba lubba dub dub",
+            );
+            Ok(())
+        } else {
+            Err(eyre!("This config should not be loaded because there are multiple local groups share the same name"))
         }
     }
 

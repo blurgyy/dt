@@ -5,7 +5,7 @@ allow_overwrite = false
 
 
 [[local]]
-name = "placeholder"
+name = "expand tilde in basedir and target"
 basedir = "~"
 sources = []
-target = "~"
+target = "~/dt/target"

@@ -23,8 +23,6 @@ struct SyncingParameters {
 
 /// Expand tilde and globs in "sources" and manifest new config object.
 fn expand(config: &DTConfig) -> Result<DTConfig, Report> {
-    validate_pre_expansion(config)?;
-
     let mut ret = DTConfig {
         global: match &config.global {
             Some(global) => Some(GlobalConfig {
@@ -157,28 +155,6 @@ fn expand_recursive(
     }
 }
 
-fn validate_pre_expansion(config: &DTConfig) -> Result<(), Report> {
-    let mut group_name_rec: std::collections::HashSet<String> =
-        std::collections::HashSet::new();
-    for group in &config.local {
-        if group_name_rec.get(&group.name).is_some() {
-            return Err(eyre!("Duplicated local group name: {}", group.name));
-        }
-        group_name_rec.insert(group.name.to_owned());
-        if group.ignored.is_some() {
-            todo!("`ignored` array works poorly and I decided to implement it in the future");
-        }
-        // for i in &group.ignored { // This is WRONG because group.ignored is an Option<>
-        // if i.contains(&"/".to_owned()) {
-        // return Err(eyre!(
-        // "Ignored pattern contains slash, this is not allowed"
-        // ));
-        // }
-        // }
-    }
-    Ok(())
-}
-
 fn validate_post_expansion(config: &DTConfig) -> Result<(), Report> {
     for group in &config.local {
         if group.basedir.exists().not() {
@@ -186,13 +162,6 @@ fn validate_post_expansion(config: &DTConfig) -> Result<(), Report> {
                 "Group [{}]: base directory ({}) does not exist",
                 group.name,
                 group.basedir.display(),
-            ));
-        }
-
-        if group.basedir == group.target {
-            return Err(eyre!(
-                "Group [{}]: base directory and its target are the same",
-                group.name,
             ));
         }
 
@@ -607,36 +576,6 @@ mod invalid_configs {
         std::fs::remove_file(filepath)?;
 
         Ok(())
-    }
-
-    #[test]
-    fn basedir_is_target() -> Result<(), Report> {
-        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/syncing/invalid_configs-basedir_is_target.toml",
-        )?)?) {
-            assert_eq!(
-                msg.to_string(),
-                "Group [basedir is target]: base directory and its target are the same",
-            );
-            Ok(())
-        } else {
-            Err(eyre!("This config should not be loaded because basedir and target are the same"))
-        }
-    }
-
-    #[test]
-    fn same_names_in_multiple_locals() -> Result<(), Report> {
-        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/syncing/invalid_configs-same_names_in_multiple_locals.toml",
-        )?)?) {
-            assert_eq!(
-                msg.to_string(),
-                "Duplicated local group name: wubba lubba dub dub",
-            );
-            Ok(())
-        } else {
-            Err(eyre!("This config should not be loaded because there are multiple local groups share the same name"))
-        }
     }
 
     #[test]
