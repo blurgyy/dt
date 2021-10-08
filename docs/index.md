@@ -1,5 +1,14 @@
 # Overview
 
+<p align="center">
+  <img
+    title="$HOME, $HOME everywhere"
+    alt="head image"
+    src="/home-everywhere.png"
+    width=75%
+  />
+</p>
+
 ## Synopsis
 
 `dt-cli` is a highly customizable dotfile manager.
