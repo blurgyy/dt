@@ -58,7 +58,7 @@ module.exports = {
           link: "/host-specific",
         },
         {
-          text: "Contrubuting",
+          text: "Contributing",
           link: "/contributing",
         },
       ],
