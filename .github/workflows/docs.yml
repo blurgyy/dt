@@ -29,6 +29,7 @@ jobs:
           publish_branch: main
           publish_dir: ./docs/.vitepress/dist
           destination_dir: docs
+          full_commit_message: ${{ github.event.head_commit.message }}
 
 # Author: Blurgy <gy@blurgy.xyz>
 # Date:   Sep 15 2021, 11:19 [CST]
