@@ -81,7 +81,7 @@ Alternatively, you can:
   $ cargo install --path=dt-cli
   ```
 
-## Contrubuting
+## Contributing
 
 Thank you for your interest in contributing! There are many ways to contribute
 to this project. Get started [here](./CONTRIBUTING.md).
