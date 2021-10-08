@@ -59,6 +59,18 @@ impl DTConfig {
                 ));
             }
 
+            // basedir contains hostname_sep
+            let hostname_sep = group.get_hostname_sep(
+                &self.global.to_owned().unwrap_or_default(),
+            );
+            if group.basedir.to_str().unwrap().contains(&hostname_sep) {
+                return Err(eyre!(
+                    "Group [{}]: base directory contains hostname_sep ({})",
+                    group.name,
+                    hostname_sep,
+                ));
+            }
+
             // Source item referencing parent
             if group.sources.iter().any(|s| s.starts_with("../")) {
                 return Err(eyre!(
@@ -568,6 +580,21 @@ mod validation {
     use super::DTConfig;
 
     #[test]
+    fn same_names_in_multiple_local_groups() -> Result<(), Report> {
+        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/syncing/invalid_configs-same_names_in_multiple_locals.toml",
+        )?) {
+            assert_eq!(
+                msg.to_string(),
+                "Duplicated local group name: wubba lubba dub dub",
+            );
+            Ok(())
+        } else {
+            Err(eyre!("This config should not be loaded because there are multiple local groups share the same name"))
+        }
+    }
+
+    #[test]
     fn slash_in_group_name() -> Result<(), Report> {
         if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
             "../testroot/configs/config/validation-slash_in_group_name.toml",
@@ -579,6 +606,36 @@ mod validation {
             Ok(())
         } else {
             Err(eyre!("This config should not be loaded because a group name contains slash"))
+        }
+    }
+
+    #[test]
+    fn basedir_is_target() -> Result<(), Report> {
+        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/syncing/invalid_configs-basedir_is_target.toml",
+        )?) {
+            assert_eq!(
+                msg.to_string(),
+                "Group [basedir is target]: base directory and its target are the same",
+            );
+            Ok(())
+        } else {
+            Err(eyre!("This config should not be loaded because basedir and target are the same"))
+        }
+    }
+
+    #[test]
+    fn basedir_contains_hostname_sep() -> Result<(), Report> {
+        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/config/validation-basedir_contains_hostname_sep.toml",
+        )?) {
+            assert_eq!(
+                msg.to_string(),
+                "Group [basedir contains hostname_sep]: base directory contains hostname_sep (@@)",
+            );
+            Ok(())
+        } else {
+            Err(eyre!("This config should not be loaded because a basedir contains hostname_sep"))
         }
     }
 
@@ -609,36 +666,6 @@ mod validation {
             Ok(())
         } else {
             Err(eyre!("This config should not be loaded because a source item is an absolute path"))
-        }
-    }
-
-    #[test]
-    fn basedir_is_target() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/syncing/invalid_configs-basedir_is_target.toml",
-        )?) {
-            assert_eq!(
-                msg.to_string(),
-                "Group [basedir is target]: base directory and its target are the same",
-            );
-            Ok(())
-        } else {
-            Err(eyre!("This config should not be loaded because basedir and target are the same"))
-        }
-    }
-
-    #[test]
-    fn same_names_in_multiple_local_groups() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/syncing/invalid_configs-same_names_in_multiple_locals.toml",
-        )?) {
-            assert_eq!(
-                msg.to_string(),
-                "Duplicated local group name: wubba lubba dub dub",
-            );
-            Ok(())
-        } else {
-            Err(eyre!("This config should not be loaded because there are multiple local groups share the same name"))
         }
     }
 
