@@ -1,3 +1,7 @@
+---
+title: Syncing Methods
+---
+
 # Syncing Methods
 
 Until the last section, no comments has been given on the **stage** ->

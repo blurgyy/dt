@@ -1,3 +1,7 @@
+---
+title: Groups
+---
+
 # Groups
 
 Syncing only one group is boring.  We can also add more groups.

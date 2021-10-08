@@ -1,3 +1,7 @@
+---
+title: Key References
+---
+
 # Key References
 
 This page lists available configuration keys.

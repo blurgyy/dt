@@ -1,3 +1,7 @@
+---
+title: Basics
+---
+
 # Basics
 
 Configurations are composed with **groups**.  A `local` group is added to the
