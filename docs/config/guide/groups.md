@@ -43,7 +43,7 @@ But what if we exceptionally want the `VSCode` group to **not** overwrite the
 target file if it already exists?  No worries, here is the recipe of
 overriding a default behaviour for the `VSCode` group:
 
-```toml{7}
+```toml{6-7}
 [[local]]
 name = "VSCode"
 basedir = "~/dt/VSCode"
