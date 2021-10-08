@@ -1,5 +1,10 @@
 # Host-specific Syncing
 
+:::tip
+You might want to read the [configuration guide](/config/guide/) before
+reading this section (but definitely ok if you read this first).
+:::
+
 ## Introduction
 
 > With more _servers_ there must also come more _configuration files_.
