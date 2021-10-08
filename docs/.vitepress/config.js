@@ -10,7 +10,7 @@ module.exports = {
       {
         text: "dt-cli",
         link: "/",
-        activeMatch: "^/$|^/host-specific$|^/contributing$",
+        activeMatch: "^/$|^/host-specific$|^/contributing$|^/installation$",
       },
       {text: "Guide", link: "/config/guide/"},
       {text: "Key References", link: "/config/key-references"},
@@ -48,7 +48,11 @@ module.exports = {
         },
       ],
       "/": [
-        {text: "Getting Started", link: "/"},
+        {text: "Overview", link: "/"},
+        {
+          text: "Installation",
+          link: "/installation"
+        },
         {
           text: "Host-specific Syncing",
           link: "/host-specific",
