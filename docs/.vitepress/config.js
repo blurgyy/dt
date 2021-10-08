@@ -7,7 +7,11 @@ module.exports = {
     repo: "blurgyy/dt",
     docsDir: "docs",
     nav: [
-      {text: "dt-cli", link: "/"},
+      {
+        text: "dt-cli",
+        link: "/",
+        activeMatch: "^/|^/host-specific.html$|^/contributing.html$",
+      },
       {text: "Guide", link: "/config/guide/"},
       {text: "Key References", link: "/config/key-references"},
     ],
@@ -48,6 +52,10 @@ module.exports = {
         {
           text: "Host-specific Syncing",
           link: "/host-specific",
+        },
+        {
+          text: "Contrubuting",
+          link: "/contributing",
         },
       ],
     }
