@@ -555,7 +555,10 @@ mod invalid_configs {
         let filepath = dirs::home_dir()
             .unwrap()
             .join("d6a8e0bc1647c38548432ccfa1d79355");
-        assert!(filepath.exists().not());
+        assert!(
+            filepath.exists().not(),
+            "A previous test seem to abort abnormally, remove the file d6a8e0bc1647c38548432ccfa1d79355 in your $HOME to continue testing",
+        );
         std::fs::write(&filepath, "Created by `dt` when testing")?;
 
         // Read config (expected to fail)

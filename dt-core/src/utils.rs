@@ -44,7 +44,7 @@ pub fn is_for_other_host(path: impl AsRef<Path>, hostname_sep: &str) -> bool {
     );
     assert!(
         splitted.first().unwrap().is_empty().not(),
-        "hostname_sep ({}) appears to be a prefix os this path: {}",
+        "hostname_sep ({}) appears to be a prefix of this path: {}",
         hostname_sep,
         path.display(),
     );
