@@ -1,6 +1,9 @@
 use color_eyre::Report;
 use path_clean::PathClean;
-use std::path::{Path, PathBuf};
+use std::{
+    ops::Not,
+    path::{Path, PathBuf},
+};
 
 fn host_specific_suffix(hostname_sep: &str) -> Result<String, Report> {
     Ok(hostname_sep.to_owned()
@@ -21,15 +24,16 @@ pub fn is_for_other_host(path: impl AsRef<Path>, hostname_sep: &str) -> bool {
     let path = path.as_ref();
     let filename = path
         .file_name()
-        .expect(&format!(
-            "Failed extracting file name from path {}",
-            path.display()
-        ))
+        .unwrap_or_else(|| {
+            panic!("Failed extracting file name from path {}", path.display())
+        })
         .to_str()
-        .expect(&format!(
-            "Failed converting &OsStr to &str for path: {}",
-            path.display(),
-        ));
+        .unwrap_or_else(|| {
+            panic!(
+                "Failed converting &OsStr to &str for path: {}",
+                path.display(),
+            )
+        });
     let splitted: Vec<_> = filename.split(hostname_sep).collect();
 
     assert!(
@@ -39,7 +43,7 @@ pub fn is_for_other_host(path: impl AsRef<Path>, hostname_sep: &str) -> bool {
         path.display(),
     );
     assert!(
-        splitted.first().unwrap().len() > 0,
+        splitted.first().unwrap().is_empty().not(),
         "hostname_sep ({}) appears to be a prefix os this path: {}",
         hostname_sep,
         path.display(),
@@ -78,15 +82,19 @@ pub fn to_host_specific(
     } else {
         let hs_filename = path
             .file_name()
-            .expect(&format!(
-                "Failed extracting file name from path {}",
-                path.display(),
-            ))
+            .unwrap_or_else(|| {
+                panic!(
+                    "Failed extracting file name from path {}",
+                    path.display(),
+                )
+            })
             .to_str()
-            .expect(&format!(
-                "Failed converting &OsStr to &str for path: {}",
-                path.display(),
-            ))
+            .unwrap_or_else(|| {
+                panic!(
+                    "Failed converting &OsStr to &str for path: {}",
+                    path.display(),
+                )
+            })
             .to_owned()
             + &host_specific_suffix(hostname_sep)?;
 
@@ -104,15 +112,16 @@ pub fn to_non_host_specific(
 
     let filename = path
         .file_name()
-        .expect(&format!(
-            "Failed extracting file name from path {}",
-            path.display(),
-        ))
+        .unwrap_or_else(|| {
+            panic!("Failed extracting file name from path {}", path.display())
+        })
         .to_str()
-        .expect(&format!(
-            "Failed converting &OsStr to &str for path: {}",
-            path.display(),
-        ));
+        .unwrap_or_else(|| {
+            panic!(
+                "Failed converting &OsStr to &str for path: {}",
+                path.display(),
+            )
+        });
     let splitted: Vec<_> = filename.split(hostname_sep).collect();
 
     assert!(
@@ -122,7 +131,7 @@ pub fn to_non_host_specific(
         path.display(),
     );
     assert!(
-        splitted.first().unwrap().len() > 0,
+        splitted.first().unwrap().is_empty().not(),
         "hostname_sep ({}) appears to be a prefix os this path: {}",
         hostname_sep,
         path.display(),

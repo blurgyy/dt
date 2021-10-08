@@ -32,7 +32,7 @@ impl DTConfig {
 
     fn validate(self) -> Result<Self, Report> {
         for group in &self.local {
-            if group.name.contains("/") {
+            if group.name.contains('/') {
                 return Err(eyre!(
                     "Group name cannot include the '/' character"
                 ));
@@ -64,10 +64,12 @@ impl DTConfig {
                 *staging = PathBuf::from_str(&shellexpand::tilde(
                     staging.to_str().unwrap(),
                 ))
-                .expect(&format!(
-                    "Failed expanding tilde in `global.staging`: {}",
-                    staging.display(),
-                ));
+                .unwrap_or_else(|_| {
+                    panic!(
+                        "Failed expanding tilde in `global.staging`: {}",
+                        staging.display(),
+                    )
+                });
             }
         }
 
@@ -77,19 +79,23 @@ impl DTConfig {
             group.basedir = PathBuf::from_str(&shellexpand::tilde(
                 group.basedir.to_str().unwrap(),
             ))
-            .expect(&format!(
-                "Failed expanding tilde in `local.basedir`: {}",
-                group.basedir.display(),
-            ));
+            .unwrap_or_else(|_| {
+                panic!(
+                    "Failed expanding tilde in `local.basedir`: {}",
+                    group.basedir.display(),
+                )
+            });
 
             // `local.target`
             group.target = PathBuf::from_str(&shellexpand::tilde(
                 group.target.to_str().unwrap(),
             ))
-            .expect(&format!(
-                "Failed expanding tilde in `local.target`: {}",
-                group.target.display(),
-            ));
+            .unwrap_or_else(|_| {
+                panic!(
+                    "Failed expanding tilde in `local.target`: {}",
+                    group.target.display(),
+                )
+            });
         }
     }
 }
@@ -255,7 +261,7 @@ impl LocalGroup {
             _ => global_config
                 .hostname_sep
                 .to_owned()
-                .unwrap_or(DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
+                .unwrap_or_else(|| DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
         }
     }
 }

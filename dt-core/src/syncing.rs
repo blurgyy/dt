@@ -1,12 +1,29 @@
-use std::{ops::Not, path::PathBuf, str::FromStr};
+use std::{
+    ops::Not,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
 use color_eyre::{eyre::eyre, Report};
 
 use crate::{config::*, utils};
 
+/// Parameters for controlling how an item is synced.
+struct SyncingParameters {
+    spath: PathBuf,
+    tparent: PathBuf,
+    dry: bool,
+    allow_overwrite: bool,
+    method: SyncMethod,
+    staging: PathBuf,
+    group_name: String,
+    basedir: PathBuf,
+    hostname_sep: String,
+}
+
 /// Expand tilde and globs in "sources" and manifest new config object.
 fn expand(config: &DTConfig) -> Result<DTConfig, Report> {
-    validate_pre_expansion(&config)?;
+    validate_pre_expansion(config)?;
 
     let mut ret = DTConfig {
         global: match &config.global {
@@ -35,7 +52,7 @@ fn expand(config: &DTConfig) -> Result<DTConfig, Report> {
             &next
                 .hostname_sep
                 .to_owned()
-                .unwrap_or(DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
+                .unwrap_or_else(|| DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
         )?;
         if host_specific_basedir.exists() {
             next.basedir = host_specific_basedir;
@@ -63,7 +80,7 @@ fn expand(config: &DTConfig) -> Result<DTConfig, Report> {
 }
 
 fn expand_recursive(
-    path: &PathBuf,
+    path: &Path,
     hostname_sep: &str,
     do_glob: bool,
 ) -> Result<Vec<PathBuf>, Report> {
@@ -78,19 +95,23 @@ fn expand_recursive(
             glob::glob_with(path.to_str().unwrap(), globbing_options)?
                 // Extract value from Result<PathBuf>
                 .map(|x| {
-                    x.expect(&format!(
-                        "Failed globbing source path {}",
-                        path.display(),
-                    ))
+                    x.unwrap_or_else(|_| {
+                        panic!(
+                            "Failed globbing source path {}",
+                            path.display(),
+                        )
+                    })
                 })
                 // Filter out paths that are meant for other hosts
                 .filter(|x| utils::is_for_other_host(x, hostname_sep).not())
                 // Convert to absolute paths
                 .map(|x| {
-                    utils::to_absolute(&x).expect(&format!(
-                        "Failed converting to absolute path: {}",
-                        x.display(),
-                    ))
+                    utils::to_absolute(&x).unwrap_or_else(|_| {
+                        panic!(
+                            "Failed converting to absolute path: {}",
+                            x.display(),
+                        )
+                    })
                 })
                 .collect();
 
@@ -113,10 +134,9 @@ fn expand_recursive(
     } else {
         let initial: Vec<PathBuf> = std::fs::read_dir(path)?
             .map(|x| {
-                x.expect(&format!(
-                    "Cannot read dir properly: {}",
-                    path.display()
-                ))
+                x.unwrap_or_else(|_| {
+                    panic!("Cannot read dir properly: {}", path.display())
+                })
                 .path()
             })
             .filter(|x| utils::is_for_other_host(x, hostname_sep).not())
@@ -141,7 +161,7 @@ fn validate_pre_expansion(config: &DTConfig) -> Result<(), Report> {
     let mut group_name_rec: std::collections::HashSet<String> =
         std::collections::HashSet::new();
     for group in &config.local {
-        if let Some(_) = group_name_rec.get(&group.name) {
+        if group_name_rec.get(&group.name).is_some() {
             return Err(eyre!("Duplicated local group name: {}", group.name));
         }
         group_name_rec.insert(group.name.to_owned());
@@ -195,14 +215,14 @@ fn validate_post_expansion(config: &DTConfig) -> Result<(), Report> {
 
 /// Syncs items specified in configuration.
 pub fn sync(config: &DTConfig) -> Result<(), Report> {
-    let config = expand(&config)?;
+    let config = expand(config)?;
 
     let staging = &config
         .global
         .to_owned()
         .unwrap_or_default()
         .staging
-        .unwrap_or(GlobalConfig::default().staging.unwrap());
+        .unwrap_or_else(|| GlobalConfig::default().staging.unwrap());
     if staging.exists().not() {
         log::debug!(
             "Creating non-existing staging root {}",
@@ -221,23 +241,24 @@ pub fn sync(config: &DTConfig) -> Result<(), Report> {
             std::fs::create_dir_all(&group_staging)?;
         }
         for spath in &group.sources {
-            sync_core(
-                spath,
-                &group.target,
-                false,
-                group.get_allow_overwrite(
+            let params = SyncingParameters {
+                spath: spath.to_owned(),
+                tparent: group.target.to_owned(),
+                dry: false,
+                allow_overwrite: group.get_allow_overwrite(
                     &config.global.to_owned().unwrap_or_default(),
                 ),
-                group.get_method(
+                method: group.get_method(
                     &config.global.to_owned().unwrap_or_default(),
                 ),
-                &group_staging,
-                &group.name,
-                &group.basedir,
-                &group.get_hostname_sep(
+                staging: group_staging.to_owned(),
+                group_name: group.name.to_owned(),
+                basedir: group.basedir.to_owned(),
+                hostname_sep: group.get_hostname_sep(
                     &config.global.to_owned().unwrap_or_default(),
                 ),
-            )?;
+            };
+            sync_core(params)?;
         }
     }
     Ok(())
@@ -252,7 +273,7 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
         .to_owned()
         .unwrap_or_default()
         .staging
-        .unwrap_or(GlobalConfig::default().staging.unwrap());
+        .unwrap_or_else(|| GlobalConfig::default().staging.unwrap());
     if staging.exists().not() {
         log::info!("Staging root does not exist, will be automatically created when syncing");
     } else if staging.is_dir().not() {
@@ -269,23 +290,24 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
             )
         }
         for spath in &group.sources {
-            sync_core(
-                spath,
-                &group.target,
-                true,
-                group.get_allow_overwrite(
+            let params = SyncingParameters {
+                spath: spath.to_owned(),
+                tparent: group.target.to_owned(),
+                dry: false,
+                allow_overwrite: group.get_allow_overwrite(
                     &config.global.to_owned().unwrap_or_default(),
                 ),
-                group.get_method(
+                method: group.get_method(
                     &config.global.to_owned().unwrap_or_default(),
                 ),
-                &group_staging,
-                &group.name,
-                &group.basedir,
-                &group.get_hostname_sep(
+                staging: group_staging.to_owned(),
+                group_name: group.name.to_owned(),
+                basedir: group.basedir.to_owned(),
+                hostname_sep: group.get_hostname_sep(
                     &config.global.to_owned().unwrap_or_default(),
                 ),
-            )?;
+            };
+            sync_core(params)?;
         }
     }
     Ok(())
@@ -301,17 +323,18 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
 ///   - `method`: A `SyncMethod` instance.
 ///   - `staging`: Path to staging directory.
 ///   - `hostname_sep`: Separator for per-host settings.
-fn sync_core(
-    spath: &PathBuf,
-    tparent: &PathBuf,
-    dry: bool,
-    allow_overwrite: bool,
-    method: SyncMethod,
-    staging: &PathBuf,
-    group_name: &str,
-    basedir: &PathBuf,
-    hostname_sep: &str,
-) -> Result<(), Report> {
+fn sync_core(params: SyncingParameters) -> Result<(), Report> {
+    let SyncingParameters {
+        spath,
+        tparent,
+        dry,
+        allow_overwrite,
+        method,
+        staging,
+        group_name,
+        basedir,
+        hostname_sep,
+    } = params;
     if tparent.exists().not() {
         if dry {
             log::warn!(
@@ -325,7 +348,7 @@ fn sync_core(
                 group_name,
                 tparent.display()
             );
-            std::fs::create_dir_all(tparent)?;
+            std::fs::create_dir_all(&tparent)?;
         }
     }
     let overwrite_log_level = if allow_overwrite {
@@ -336,24 +359,28 @@ fn sync_core(
 
     // First, get target path (without the per-host suffix).
     let tpath = tparent.join(
-        utils::to_non_host_specific(spath, hostname_sep)?
-            .strip_prefix(basedir)?,
+        utils::to_non_host_specific(&spath, &hostname_sep)?
+            .strip_prefix(&basedir)?,
     );
-    std::fs::create_dir_all(tpath.parent().expect(&format!(
-        "Structrue of target directory could not be created at {}",
-        tpath.display(),
-    )))?;
+    std::fs::create_dir_all(tpath.parent().unwrap_or_else(|| {
+        panic!(
+            "Structrue of target directory could not be created at {}",
+            tpath.display(),
+        )
+    }))?;
 
     // Finally, get the staging path with source path (staging path does not have host-specific
     // suffix).
     let staging_path = staging.join(
-        utils::to_non_host_specific(spath, hostname_sep)?
+        utils::to_non_host_specific(&spath, &hostname_sep)?
             .strip_prefix(basedir)?,
     );
-    std::fs::create_dir_all(staging_path.parent().expect(&format!(
-        "Structrue of staging directory could not be created at {}",
-        staging_path.display(),
-    )))?;
+    std::fs::create_dir_all(staging_path.parent().unwrap_or_else(|| {
+        panic!(
+            "Structrue of staging directory could not be created at {}",
+            staging_path.display(),
+        )
+    }))?;
 
     if spath.is_file() {
         if tpath.is_dir() {
@@ -390,70 +417,65 @@ fn sync_core(
                 spath.display(),
                 tpath.display()
             );
+        } else if tpath.exists() && !allow_overwrite {
+            log::log!(
+                overwrite_log_level,
+                "SYNC::SKIP [{}]> Target path ({}) exists",
+                group_name,
+                tpath.display(),
+            );
         } else {
-            if tpath.exists() && !allow_overwrite {
-                log::log!(
-                    overwrite_log_level,
-                    "SYNC::SKIP [{}]> Target path ({}) exists",
+            // Allows overwrite in this block.
+            if method == SyncMethod::Copy {
+                log::debug!(
+                    "SYNC::COPY [{}]> {} => {}",
                     group_name,
+                    spath.display(),
+                    tpath.display()
+                );
+                if std::fs::remove_file(&tpath).is_ok() {
+                    log::trace!(
+                        "SYNC::OVERWRITE [{}]> {}",
+                        group_name,
+                        tpath.display()
+                    )
+                }
+                std::fs::copy(spath, tpath)?;
+            } else if method == SyncMethod::Symlink {
+                // Staging
+                log::debug!(
+                    "SYNC::STAGE [{}]> {} => {}",
+                    group_name,
+                    spath.display(),
+                    staging_path.display(),
+                );
+
+                if std::fs::remove_file(&staging_path).is_ok() {
+                    log::trace!(
+                        "SYNC::OVERWRITE [{}]> {}",
+                        group_name,
+                        staging_path.display(),
+                    )
+                }
+                std::fs::copy(spath, &staging_path)?;
+
+                // Symlinking
+                if std::fs::remove_file(&tpath).is_ok() {
+                    {
+                        log::trace!(
+                            "SYNC::OVERWRITE [{}]> {}",
+                            group_name,
+                            tpath.display(),
+                        );
+                    }
+                }
+                log::debug!(
+                    "SYNC::SYMLINK [{}]> {} => {}",
+                    group_name,
+                    staging_path.display(),
                     tpath.display(),
                 );
-            } else {
-                // Allows overwrite in this block.
-                if method == SyncMethod::Copy {
-                    log::debug!(
-                        "SYNC::COPY [{}]> {} => {}",
-                        group_name,
-                        spath.display(),
-                        tpath.display()
-                    );
-                    match std::fs::remove_file(&tpath) {
-                        Ok(_) => log::trace!(
-                            "SYNC::OVERWRITE [{}]> {}",
-                            group_name,
-                            tpath.display()
-                        ),
-                        _ => {}
-                    }
-                    std::fs::copy(spath, tpath)?;
-                } else if method == SyncMethod::Symlink {
-                    // Staging
-                    log::debug!(
-                        "SYNC::STAGE [{}]> {} => {}",
-                        group_name,
-                        spath.display(),
-                        staging_path.display(),
-                    );
-
-                    match std::fs::remove_file(&staging_path) {
-                        Ok(_) => log::trace!(
-                            "SYNC::OVERWRITE [{}]> {}",
-                            group_name,
-                            staging_path.display(),
-                        ),
-                        _ => {}
-                    }
-                    std::fs::copy(spath, &staging_path)?;
-
-                    // Symlinking
-                    match std::fs::remove_file(&tpath) {
-                        Ok(_) => {
-                            log::trace!(
-                                "SYNC::OVERWRITE [{}]> {}",
-                                group_name,
-                                tpath.display(),
-                            );
-                        }
-                        _ => {}
-                    }
-                    log::debug!(
-                        "SYNC::SYMLINK [{}]> {} => {}",
-                        group_name,
-                        staging_path.display(),
-                        tpath.display(),
-                    );
-                    std::os::unix::fs::symlink(staging_path, tpath)?;
-                }
+                std::os::unix::fs::symlink(staging_path, tpath)?;
             }
         }
     } else if spath.is_dir() {
