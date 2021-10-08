@@ -1,7 +1,8 @@
 # Contributing
 
 Thank you for your interest in contributing! There are many ways to contribute
-to `dt`.  You can start with examining unchecked items in the
+to [`dt`](https://github.com/blurgyy/dt).  You can start with examining
+unchecked items in the
 [roadmap](https://github.com/blurgyy/dt/blob/main/roadmap.md), or discuss some
 features to be added to the roadmap.
 
