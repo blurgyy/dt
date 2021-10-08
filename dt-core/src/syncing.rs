@@ -23,6 +23,8 @@ struct SyncingParameters {
 
 /// Expand tilde and globs in "sources" and manifest new config object.
 fn expand(config: &DTConfig) -> Result<DTConfig, Report> {
+    check_dirs(config)?;
+
     let mut ret = DTConfig {
         global: match &config.global {
             Some(global) => Some(GlobalConfig {
@@ -71,8 +73,6 @@ fn expand(config: &DTConfig) -> Result<DTConfig, Report> {
         next.sources.dedup();
         ret.local.push(next);
     }
-
-    validate_post_expansion(&ret)?;
 
     Ok(ret)
 }
@@ -155,30 +155,61 @@ fn expand_recursive(
     }
 }
 
-fn validate_post_expansion(config: &DTConfig) -> Result<(), Report> {
+fn check_dirs(config: &DTConfig) -> Result<(), Report> {
+    let mut has_symlink: bool = false;
+
     for group in &config.local {
+        if has_symlink.not()
+            && group.get_method(&config.global.to_owned().unwrap_or_default())
+                == SyncMethod::Symlink
+        {
+            has_symlink = true;
+        }
+
         if group.basedir.exists().not() {
             return Err(eyre!(
-                "Group [{}]: base directory ({}) does not exist",
+                "Group [{}]: basedir path does not exist",
                 group.name,
-                group.basedir.display(),
             ));
         }
 
         if group.target.exists() && !group.target.is_dir() {
             return Err(eyre!(
-                "Group [{}]: target path exists and is not a directory",
+                "Group [{}]: target path exists but is not a valid directory",
                 group.name,
             ));
         }
 
         if group.basedir.is_dir().not() {
             return Err(eyre!(
-                "Configured basedir {} is invalid",
-                group.basedir.display(),
+                "Group [{}]: basedir path exists but is not a valid directory",
+                group.name,
             ));
         }
     }
+
+    if has_symlink {
+        let staging = if config.global.is_none()
+            || config.global.as_ref().unwrap().staging.is_none()
+        {
+            GlobalConfig::default().staging.unwrap()
+        } else {
+            config
+                .global
+                .as_ref()
+                .unwrap()
+                .staging
+                .as_ref()
+                .unwrap()
+                .to_owned()
+        };
+        if staging.exists() && staging.is_dir().not() {
+            return Err(eyre!(
+                "Staging root path exists but is not a valid directory",
+            ));
+        }
+    }
+
     Ok(())
 }
 
@@ -511,9 +542,41 @@ mod invalid_configs {
 
     use color_eyre::{eyre::eyre, Report};
 
-    use crate::{config::DTConfig, utils};
+    use crate::config::DTConfig;
 
     use super::expand;
+
+    #[test]
+    fn non_existing_basedir() -> Result<(), Report> {
+        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/syncing/invalid_configs-non_existing_basedir.toml"
+        )?)?) {
+            assert_eq!(
+                msg.to_string(),
+                "Group [non-existing basedir]: basedir path does not exist",
+            );
+            Ok(())
+        } else {
+            Err(eyre!(""))
+        }
+    }
+
+    #[test]
+    fn basedir_is_file() -> Result<(), Report> {
+        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/syncing/invalid_configs-basedir_is_file.toml",
+        )?)?) {
+            assert_eq!(
+                msg.to_string(),
+                "Group [basedir path is file]: basedir path exists but is not a valid directory",
+            );
+            Ok(())
+        } else {
+            Err(eyre!(
+                "This config should not be loaded because basedir is not a directory",
+            ))
+        }
+    }
 
     #[test]
     fn target_is_file_relative() -> Result<(), Report> {
@@ -522,7 +585,7 @@ mod invalid_configs {
         )?)?) {
             assert_eq!(
                 msg.to_string(),
-                "Group [target path is relative]: target path exists and is not a directory",
+                "Group [target path is relative]: target path exists but is not a valid directory",
             );
             Ok(())
         } else {
@@ -539,7 +602,7 @@ mod invalid_configs {
         )?)?) {
             assert_eq!(
                 msg.to_string(),
-                "Group [target path is absolute]: target path exists and is not a directory",
+                "Group [target path is absolute]: target path exists but is not a valid directory",
             );
             Ok(())
         } else {
@@ -567,7 +630,7 @@ mod invalid_configs {
         )?)?) {
             assert_eq!(
                 msg.to_string(),
-                "Group [target contains tilde to be expanded]: target path exists and is not a directory",
+                "Group [target contains tilde to be expanded]: target path exists but is not a valid directory",
             );
         } else {
             return Err(eyre!(
@@ -579,29 +642,6 @@ mod invalid_configs {
         std::fs::remove_file(filepath)?;
 
         Ok(())
-    }
-
-    #[test]
-    fn non_existing_basedir() -> Result<(), Report> {
-        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
-            "../testroot/configs/syncing/invalid_configs-non_existing_basedir.toml"
-        )?)?) {
-            assert_eq!(
-                msg.to_string(),
-                format!(
-                    "Group [non-existing basedir]: base directory ({}) does not exist",
-                    utils::to_absolute(
-                        PathBuf::from_str(
-                            "../e52e04c1d71dd984b145ae3bfa5a2fa2"
-                        )?
-                    )?
-                    .display(),
-                ),
-            );
-            Ok(())
-        } else {
-            Err(eyre!(""))
-        }
     }
 }
 

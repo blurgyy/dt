@@ -1,5 +1,5 @@
 [[local]]
-name = "base directory is file"
+name = "basedir path is file"
 basedir = "Cargo.toml"
 sources = []
 target = "."
