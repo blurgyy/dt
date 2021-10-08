@@ -6,12 +6,16 @@
 [![docs](https://github.com/blurgyy/dt/actions/workflows/docs.yml/badge.svg)](https://dt-cli-docs.blurgy.xyz/)
 
 `DT` allows you to sync/populate configuration files at will.  It currently
-provides a CLI tool [`dt-cli`](./dt-cli), built with backend [`dt-core`](./dt-core).
+provides a CLI tool [`dt-cli`](./dt-cli), built with backend
+[`dt-core`](./dt-core).
 
 ## Usage
 
 The command line interface `dt-cli` takes a path to the configuration file as
 argument and issues the syncing process defined in the configuration file.
+
+See [documentations](https://dt-cli-docs.blurgy.xyz/) for configuration guides
+and detailed usages.
 
 ### Example
 
@@ -42,8 +46,8 @@ actually making those changes, for example:
 $ dt-cli path/to/config --dry-run
 ```
 
-For more detailed usage, see <https://dt-cli-docs.blurgy.xyz/>, for details
-about `dt-core`, see <https://docs.rs/dt-core/latest/dt_core/>.
+See [docs.rs](https://docs.rs/dt-core/latest/dt_core) for details about the
+backend `dt-core`.
 
 ## Install
 
@@ -60,9 +64,9 @@ $ paru -S dt-cli
 
 Alternatively, you can:
 
-- Download latest pre-built executables from GitHub:
-  <https://github.com/blurgyy/dt/releases/latest>
-- Install from <https://crates.io>:
+- Download latest [release](https://github.com/blurgyy/dt/releases/latest)
+  from GitHub
+- Install from [crates.io](https://crates.io/crates/dt-cli/):
   
   ```shell
   $ cargo install dt-cli
@@ -76,3 +80,8 @@ Alternatively, you can:
   $ cargo test --release
   $ cargo install --path=dt-cli
   ```
+
+## Contrubuting
+
+Thank you for your interest in contributing! There are many ways to contribute
+to this project. Get started [here](./CONTRIBUTING.md).
