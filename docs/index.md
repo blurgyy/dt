@@ -5,7 +5,7 @@
     title="$HOME, $HOME everywhere"
     alt="head image"
     src="/home-everywhere.png"
-    width=75%
+    width=384px
   />
 </p>
 
