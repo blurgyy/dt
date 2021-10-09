@@ -17,7 +17,7 @@ follow it in all your interactions with the project.
 
 ## Making your changes
 
-1. Fork your own copy of `dt` into your account and clone your forked
+1. Fork a copy of `dt` into your GitHub account and clone the forked
    repository to your development machine:
    ```shell
    $ git clone https://github.com/${your_account}/dt.git && cd dt

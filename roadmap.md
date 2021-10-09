@@ -16,6 +16,7 @@
 - [ ] Manage permission bits on a per-group basis
   - [x] Handle permission denied error when target file is created by current
         user but the `write` permission is not set
+  - [ ] Set permissions after all syncing process
 - [x] Return error when `sources` contains `.*` or similar globs, because this
       glob also matches current directory (`.`) and parent directory (`..`)
 - [x] Expand environment variables in `local.basedir`, `local.sources`,

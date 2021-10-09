@@ -83,5 +83,5 @@ Alternatively, you can:
 
 ## Contributing
 
-Thank you for your interest in contributing! There are many ways to contribute
-to this project. Get started [here](./CONTRIBUTING.md).
+There are many ways to contribute to this project. Get started
+[here](./CONTRIBUTING.md)!
