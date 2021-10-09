@@ -23,8 +23,6 @@ struct SyncingParameters {
 
 /// Expand tilde and globs in "sources" and manifest new config object.
 fn expand(config: &DTConfig) -> Result<DTConfig, Report> {
-    check_dirs(config)?;
-
     let mut ret = DTConfig {
         global: match &config.global {
             Some(global) => Some(GlobalConfig {
@@ -73,6 +71,8 @@ fn expand(config: &DTConfig) -> Result<DTConfig, Report> {
         next.sources.dedup();
         ret.local.push(next);
     }
+
+    check_dirs(&ret)?;
 
     Ok(ret)
 }
