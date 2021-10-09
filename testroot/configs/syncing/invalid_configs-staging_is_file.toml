@@ -1,0 +1,8 @@
+[global]
+staging = "../Cargo.toml"
+
+[[local]]
+name = "staging is file"
+basedir = "~"
+sources = []
+target = "."

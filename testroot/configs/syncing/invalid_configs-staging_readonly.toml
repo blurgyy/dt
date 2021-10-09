@@ -1,0 +1,8 @@
+[global]
+staging = "../testroot/items/syncing/invalid_configs/staging_readonly/staging"
+
+[[local]]
+name = "staging is readonly"
+basedir = "~"
+sources = []
+target = "../testroot/items/syncing/target"

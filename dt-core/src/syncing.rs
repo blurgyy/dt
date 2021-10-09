@@ -10,14 +10,23 @@ use crate::{config::*, utils};
 
 /// Parameters for controlling how an item is synced.
 struct SyncingParameters {
+    /// Path to source item, assumed to exist, and is already host-specific if possible.
     spath: PathBuf,
+    /// Path to the parent dir of the disired sync destination.
     tparent: PathBuf,
+    /// Whether to issue a dry run.
     dry: bool,
+    /// Whether overwrite existing files or not.
     allow_overwrite: bool,
+    /// A `SyncMethod` instance.
     method: SyncMethod,
+    /// Path to staging directory.
     staging: PathBuf,
+    /// Name of current group.
     group_name: String,
+    /// Configured `basedir` of current group
     basedir: PathBuf,
+    /// Separator for per-host settings.
     hostname_sep: String,
 }
 
@@ -166,6 +175,7 @@ fn check_dirs(config: &DTConfig) -> Result<(), Report> {
             has_symlink = true;
         }
 
+        // Non-existing basedir
         if group.basedir.exists().not() {
             return Err(eyre!(
                 "Group [{}]: basedir path does not exist",
@@ -173,6 +183,15 @@ fn check_dirs(config: &DTConfig) -> Result<(), Report> {
             ));
         }
 
+        // Wrong type of existing basedir path
+        if group.basedir.is_dir().not() {
+            return Err(eyre!(
+                "Group [{}]: basedir path exists but is not a valid directory",
+                group.name,
+            ));
+        }
+
+        // Wrong type of existing target path
         if group.target.exists() && !group.target.is_dir() {
             return Err(eyre!(
                 "Group [{}]: target path exists but is not a valid directory",
@@ -180,9 +199,10 @@ fn check_dirs(config: &DTConfig) -> Result<(), Report> {
             ));
         }
 
-        if group.basedir.is_dir().not() {
+        // Path to target contains readonly parent directory
+        if parent_readonly(&group.target) {
             return Err(eyre!(
-                "Group [{}]: basedir path exists but is not a valid directory",
+                "Group [{}]: target path cannot be created due to insufficient permissions",
                 group.name,
             ));
         }
@@ -203,14 +223,37 @@ fn check_dirs(config: &DTConfig) -> Result<(), Report> {
                 .unwrap()
                 .to_owned()
         };
+        // Wrong type of existing staging path
         if staging.exists() && staging.is_dir().not() {
             return Err(eyre!(
                 "Staging root path exists but is not a valid directory",
             ));
         }
+
+        // Path to staging root contains readonly parent directory
+        if parent_readonly(staging) {
+            return Err(eyre!(
+                "Staging root path cannot be created due to insufficient permissions"
+            ));
+        }
     }
 
     Ok(())
+}
+
+fn parent_readonly(p: impl AsRef<Path>) -> bool {
+    let mut p = p.as_ref();
+    let first_existing_parent = loop {
+        if p.exists() {
+            break p;
+        }
+        p = p.parent().unwrap();
+    };
+    first_existing_parent
+        .metadata()
+        .unwrap()
+        .permissions()
+        .readonly()
 }
 
 /// Syncs items specified in configuration.
@@ -316,13 +359,6 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
 /// Syncs `spath` to a directory `tparent`, being aware of its base directory.
 ///
 /// Args:
-///   - `spath`: Path to source item, assumed to exist, and is already host-specific if possible.
-///   - `tparent`: Path to the parent dir of the disired sync destination.
-///   - `dry`: Whether to issue a dry run.
-///   - `allow_overwrite`: Whether overwrite existing files or not.
-///   - `method`: A `SyncMethod` instance.
-///   - `staging`: Path to staging directory.
-///   - `hostname_sep`: Separator for per-host settings.
 fn sync_core(params: SyncingParameters) -> Result<(), Report> {
     let SyncingParameters {
         spath,
@@ -538,7 +574,10 @@ fn sync_core(params: SyncingParameters) -> Result<(), Report> {
 
 #[cfg(test)]
 mod invalid_configs {
-    use std::{ops::Not, path::PathBuf, str::FromStr};
+    use std::{
+        ops::Not, os::unix::prelude::PermissionsExt, path::PathBuf,
+        str::FromStr,
+    };
 
     use color_eyre::{eyre::eyre, Report};
 
@@ -554,6 +593,8 @@ mod invalid_configs {
             assert_eq!(
                 msg.to_string(),
                 "Group [non-existing basedir]: basedir path does not exist",
+                "{}",
+                msg,
             );
             Ok(())
         } else {
@@ -569,6 +610,8 @@ mod invalid_configs {
             assert_eq!(
                 msg.to_string(),
                 "Group [basedir path is file]: basedir path exists but is not a valid directory",
+                "{}",
+                msg,
             );
             Ok(())
         } else {
@@ -586,6 +629,8 @@ mod invalid_configs {
             assert_eq!(
                 msg.to_string(),
                 "Group [target path is relative]: target path exists but is not a valid directory",
+                "{}",
+                msg,
             );
             Ok(())
         } else {
@@ -603,6 +648,8 @@ mod invalid_configs {
             assert_eq!(
                 msg.to_string(),
                 "Group [target path is absolute]: target path exists but is not a valid directory",
+                "{}",
+                msg,
             );
             Ok(())
         } else {
@@ -631,6 +678,8 @@ mod invalid_configs {
             assert_eq!(
                 msg.to_string(),
                 "Group [target contains tilde to be expanded]: target path exists but is not a valid directory",
+                "{}",
+                msg,
             );
         } else {
             return Err(eyre!(
@@ -642,6 +691,73 @@ mod invalid_configs {
         std::fs::remove_file(filepath)?;
 
         Ok(())
+    }
+
+    #[test]
+    fn target_readonly() -> Result<(), Report> {
+        std::fs::set_permissions(
+            PathBuf::from_str(
+                "../testroot/items/syncing/invalid_configs/target_readonly/target")?,
+                std::fs::Permissions::from_mode(0o555),
+        )?;
+        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/syncing/invalid_configs-target_readonly.toml",
+        )?)?) {
+            assert_eq!(
+                msg.to_string(),
+                "Group [target is readonly]: target path cannot be created due to insufficient permissions",
+                "{}",
+                msg,
+            );
+            Ok(())
+        } else {
+            Err(eyre!(
+                "This config should not be loaded because target path is readonly",
+            ))
+        }
+    }
+
+    #[test]
+    fn staging_is_file() -> Result<(), Report> {
+        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/syncing/invalid_configs-staging_is_file.toml",
+        )?)?) {
+            assert_eq!(
+                msg.to_string(),
+                "Staging root path exists but is not a valid directory",
+                "{}",
+                msg,
+            );
+            Ok(())
+        } else {
+            Err(eyre!(
+                "This config should not be loaded because target path is readonly",
+            ))
+        }
+    }
+
+    #[test]
+    fn staging_readonly() -> Result<(), Report> {
+        std::fs::set_permissions(
+            PathBuf::from_str(
+                "../testroot/items/syncing/invalid_configs/staging_readonly/staging")?,
+                std::fs::Permissions::from_mode(0o555),
+        )?;
+        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/syncing/invalid_configs-staging_readonly.toml",
+        )?)?) {
+            assert_eq!(
+                msg.to_string(),
+                "Staging root path cannot be created due to insufficient permissions",
+                "{}",
+                msg,
+            );
+            Ok(())
+        } else {
+            Err(eyre!(
+                "This config should not be loaded because staging path is readonly",
+            ))
+        }
     }
 }
 
