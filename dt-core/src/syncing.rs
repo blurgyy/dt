@@ -81,7 +81,7 @@ fn expand(config: &DTConfig) -> Result<DTConfig, Report> {
         ret.local.push(next);
     }
 
-    check_dirs(&ret)?;
+    check(&ret)?;
 
     Ok(ret)
 }
@@ -164,7 +164,7 @@ fn expand_recursive(
     }
 }
 
-fn check_dirs(config: &DTConfig) -> Result<(), Report> {
+fn check(config: &DTConfig) -> Result<(), Report> {
     let mut has_symlink: bool = false;
 
     for group in &config.local {
@@ -205,6 +205,15 @@ fn check_dirs(config: &DTConfig) -> Result<(), Report> {
                 "Group [{}]: target path cannot be created due to insufficient permissions",
                 group.name,
             ));
+        }
+
+        for s in &group.sources {
+            if s.is_file() && std::fs::File::open(s).is_err() {
+                return Err(eyre!(
+                    "Group [{}]: there exists one or more source item(s) that is not readable",
+                    group.name,
+                ));
+            }
         }
     }
 
@@ -757,6 +766,35 @@ mod invalid_configs {
             Err(eyre!(
                 "This config should not be loaded because staging path is readonly",
             ))
+        }
+    }
+
+    #[test]
+    fn unreadable_source() -> Result<(), Report> {
+        std::fs::set_permissions(
+            "../testroot/items/syncing/invalid_configs/unreadable_source/no_read_access",
+            std::fs::Permissions::from_mode(0o222)
+        )?;
+        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+            "../testroot/configs/syncing/invalid_configs-unreadable_source.toml",
+        )?)?) {
+            assert_eq!(
+                msg.to_string(),
+                "Group [source is unreadable]: there exists one or more source item(s) that is not readable",
+                "{}",
+                msg,
+            );
+            std::fs::set_permissions(
+                "../testroot/items/syncing/invalid_configs/unreadable_source/no_read_access",
+                std::fs::Permissions::from_mode(0o644)
+            )?;
+            Ok(())
+        } else {
+            std::fs::set_permissions(
+                "../testroot/items/syncing/invalid_configs/unreadable_source/no_read_access",
+                std::fs::Permissions::from_mode(0o644)
+            )?;
+            Err(eyre!("This config should not be loaded because source item is not readable"))
         }
     }
 }

@@ -1,0 +1,5 @@
+[[local]]
+name = "source is unreadable"
+basedir = "../testroot/items/syncing/invalid_configs/unreadable_source"
+sources = ["no_read_access"]
+target = "../testroot/items/syncing/invalid_configs/unreadable_source/target"
