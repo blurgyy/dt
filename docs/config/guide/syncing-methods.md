@@ -33,8 +33,7 @@ target.
 
 ## Default Method
 
-I have chosen `Symlink` to be the default behaviour of `dt-cli`.  The added
-_staging_ step:
+`dt-cli` chooses `Symlink` as the default behaviour.  The added _staging_ step:
 
 - Makes it possible to organize sources according to their group
   [`name`](/config/key-references#name)s, which `Copy` does not.

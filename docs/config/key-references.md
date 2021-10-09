@@ -4,7 +4,7 @@ title: Key References
 
 # Key References
 
-This page lists available configuration keys.
+This chapter lists available configuration keys.
 
 ## Global
 

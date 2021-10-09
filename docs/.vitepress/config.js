@@ -40,6 +40,10 @@ module.exports = {
               text: "Host-specific Config",
               link: "/config/guide/host-specific",
             },
+            {
+              text: "Error Handling",
+              link: "/config/guide/error-handling",
+            },
           ],
         },
         {

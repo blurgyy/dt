@@ -5,7 +5,7 @@ title: Host-specific Configuration
 # Host-specific Configuration
 
 When you want to maintain multiple configurations for different machines, you
-will have to deal with [host-specific syncing](/host-specific).  This page
+will have to deal with [host-specific syncing](/host-specific).  This section
 describes how to use this feature of `dt-cli` properly.
 
 ## Separator
