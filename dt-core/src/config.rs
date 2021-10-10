@@ -4,6 +4,7 @@ use color_eyre::{eyre::eyre, Report};
 use serde::Deserialize;
 
 pub const DEFAULT_HOSTNAME_SEPARATOR: &str = "@@";
+pub const DEFAULT_ALLOW_OVERWRITE: bool = false;
 
 /// The configuration object constructed from configuration file.
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -300,7 +301,9 @@ impl LocalGroup {
     pub fn get_allow_overwrite(&self, global_config: &GlobalConfig) -> bool {
         match self.allow_overwrite {
             Some(allow_overwrite) => allow_overwrite,
-            _ => global_config.allow_overwrite.unwrap_or_default(),
+            _ => global_config
+                .allow_overwrite
+                .unwrap_or(DEFAULT_ALLOW_OVERWRITE),
         }
     }
 
@@ -359,6 +362,8 @@ pub struct GlobalConfig {
     /// recommended.
     pub allow_overwrite: Option<bool>,
 
+    /// The hostname separator.
+    ///
     /// Default value when `LocalSyncConfig::hostname_sep` is not set.
     pub hostname_sep: Option<String>,
 }
@@ -374,7 +379,7 @@ impl Default for GlobalConfig {
         GlobalConfig {
             staging: Some(default_staging),
             method: Some(SyncMethod::default()),
-            allow_overwrite: Some(bool::default()),
+            allow_overwrite: Some(DEFAULT_ALLOW_OVERWRITE),
             hostname_sep: Some(DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
         }
     }
@@ -418,7 +423,6 @@ mod overriding_global_config {
                 true,
             );
         }
-
         Ok(())
     }
 
@@ -435,7 +439,6 @@ mod overriding_global_config {
                 false,
             );
         }
-
         Ok(())
     }
 
@@ -452,7 +455,6 @@ mod overriding_global_config {
                 SyncMethod::Copy,
             )
         }
-
         Ok(())
     }
 
@@ -469,7 +471,6 @@ mod overriding_global_config {
                 SyncMethod::Symlink,
             )
         }
-
         Ok(())
     }
 
@@ -492,7 +493,6 @@ mod overriding_global_config {
                 true,
             );
         }
-
         Ok(())
     }
 
@@ -515,7 +515,6 @@ mod overriding_global_config {
                 false,
             );
         }
-
         Ok(())
     }
 
@@ -532,7 +531,6 @@ mod overriding_global_config {
                 "@-@",
             );
         }
-
         Ok(())
     }
 
@@ -549,7 +547,6 @@ mod overriding_global_config {
                 "@-@",
             );
         }
-
         Ok(())
     }
 }
@@ -579,7 +576,6 @@ mod tilde_expansion {
             );
             true
         });
-
         Ok(())
     }
 }
