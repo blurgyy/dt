@@ -124,15 +124,14 @@ fn expand_recursive(
 
         let mut ret: Vec<PathBuf> = Vec::new();
         for p in initial {
-            assert!(p.exists());
             if p.is_file() {
                 ret.push(p);
             } else if p.is_dir() {
                 ret.append(&mut expand_recursive(&p, hostname_sep, false)?);
             } else {
-                unimplemented!(
-                    "Unimplemented file type.  Metadata: {:#?}",
-                    p.metadata()?
+                log::warn!(
+                    "Unimplemented file type: {:#?}",
+                    p.symlink_metadata()?
                 );
             }
         }
@@ -156,7 +155,10 @@ fn expand_recursive(
             } else if p.is_dir() {
                 ret.append(&mut expand_recursive(&p, hostname_sep, false)?);
             } else {
-                unimplemented!();
+                log::warn!(
+                    "Unimplemented file type: {:#?}",
+                    p.symlink_metadata()?
+                );
             }
         }
 
