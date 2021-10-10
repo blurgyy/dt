@@ -34,9 +34,9 @@ string patterns.  This is for spotting obvious errors as fast as possible.
 
 If the above validating step passed successfully, `dt-cli` begins to iterate
 through every group, recursively expand all sources according their file
-hierarchy, the `basedir`s are also checked expanded to
-[host-specific](/host-specific) ones wherever possible.  The following cases
-are considered invalid:
+hierarchy, the `basedir`s are also expanded to [host-specific](/host-specific)
+ones wherever possible.  The following cases are considered invalid while
+expanding `sources` and `basedir`:
 
 - The group's `basedir` is non-existent
 - The group's `basedir` exists but is not a directory
@@ -46,6 +46,11 @@ are considered invalid:
   method](/config/guide/syncing-methods):
   - `staging` exists but iis not a directory
   - `staging` is non-existent but cannot be created
+
+:::info
+Broken symlinks and item types other than `file` or `directory` are ignored
+and warned during expanding.  These items will not cause errors.
+:::
 
 :::tip
 Checking operations does not create or modify anything, only query the
