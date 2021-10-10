@@ -720,8 +720,18 @@ mod invalid_configs {
                 "{}",
                 msg,
             );
+            std::fs::set_permissions(
+                PathBuf::from_str(
+                    "../testroot/items/syncing/invalid_configs/target_readonly/target")?,
+                    std::fs::Permissions::from_mode(0o755),
+            )?;
             Ok(())
         } else {
+            std::fs::set_permissions(
+                PathBuf::from_str(
+                    "../testroot/items/syncing/invalid_configs/target_readonly/target")?,
+                    std::fs::Permissions::from_mode(0o755),
+            )?;
             Err(eyre!(
                 "This config should not be loaded because target path is readonly",
             ))
@@ -763,8 +773,18 @@ mod invalid_configs {
                 "{}",
                 msg,
             );
+            std::fs::set_permissions(
+                PathBuf::from_str(
+                    "../testroot/items/syncing/invalid_configs/staging_readonly/staging")?,
+                    std::fs::Permissions::from_mode(0o755),
+            )?;
             Ok(())
         } else {
+            std::fs::set_permissions(
+                PathBuf::from_str(
+                    "../testroot/items/syncing/invalid_configs/staging_readonly/staging")?,
+                    std::fs::Permissions::from_mode(0o755),
+            )?;
             Err(eyre!(
                 "This config should not be loaded because staging path is readonly",
             ))
