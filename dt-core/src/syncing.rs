@@ -130,9 +130,10 @@ fn expand_recursive(
                 ret.append(&mut expand_recursive(&p, hostname_sep, false)?);
             } else {
                 log::warn!(
-                    "Unimplemented file type: {:#?}",
-                    p.symlink_metadata()?
+                    "Skipping unimplemented file type at {}",
+                    p.display(),
                 );
+                log::trace!("{:#?}", p.symlink_metadata()?);
             }
         }
 
@@ -156,9 +157,10 @@ fn expand_recursive(
                 ret.append(&mut expand_recursive(&p, hostname_sep, false)?);
             } else {
                 log::warn!(
-                    "Unimplemented file type: {:#?}",
-                    p.symlink_metadata()?
+                    "Skipping unimplemented file type at {}",
+                    p.display(),
                 );
+                log::trace!("{:#?}", p.symlink_metadata()?);
             }
         }
 
