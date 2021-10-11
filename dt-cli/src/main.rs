@@ -10,18 +10,18 @@ use dt_core::{config::DTConfig, syncing};
     global_settings(&[structopt::clap::AppSettings::ColoredHelp])
 )]
 struct Args {
-    #[structopt(help = "Path to config file", short, long)]
+    #[structopt(help = "Specifies path to config file", short, long)]
     config_path: Option<PathBuf>,
 
     #[structopt(
-        help = "Show changes to be made without actually syncing files",
+        help = "Shows changes to be made without actually syncing files",
         short,
         long
     )]
     dry_run: bool,
 
     #[structopt(
-        help = "Increase logging verbosity",
+        help = "Increases logging verbosity",
         short,
         long,
         parse(from_occurrences)
