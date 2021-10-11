@@ -11,17 +11,27 @@ title: Overview
 ## Usage
 
 `dt-cli` takes a configuration file and issues syncing process defined in the
-config file.  For example, a config file lies at `~/.config/dt/cli.toml`, use
+config file.  Put your config file at `~/.config/dt/cli.toml` and run
 
 ```shell
-$ dt-cli ~/.config/dt/cli.toml
+$ dt-cli -c ~/.config/dt/cli.toml
 ```
 
-to run with defined behaviours in config.
+to start syncing.  Note the path in this example (`~/.config/dt/cli.toml`) is
+also the default path, so the below command (calling `dt-cli` with no argument)
+does the same thing as above:
 
-**Command line options & flags**
+```shell
+$ dt-cli
+```
 
-- `-d|--dry-run`: Show changes to be made without actually syncing files.
+**Other command line options & flags**
+
+- `-c|--config-path <path>`: Specifies path to config file.
+- `-d|--dry-run`: Shows changes to be made without actually syncing files.
+- `-v|--verbose`: Increases logging verbosity.
+- `-h|--help`: Prints help information.
+- `-V`: Prints version information.
 
 ## Configuration
 
