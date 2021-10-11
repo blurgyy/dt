@@ -349,7 +349,7 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
             let params = SyncingParameters {
                 spath: spath.to_owned(),
                 tparent: group.target.to_owned(),
-                dry: false,
+                dry: true,
                 allow_overwrite: group.get_allow_overwrite(
                     &config.global.to_owned().unwrap_or_default(),
                 ),
@@ -400,11 +400,6 @@ fn sync_core(params: SyncingParameters) -> Result<(), Report> {
             std::fs::create_dir_all(&tparent)?;
         }
     }
-    let overwrite_log_level = if allow_overwrite {
-        log::Level::Warn
-    } else {
-        log::Level::Error
-    };
 
     // First, get target path (without the per-host suffix).
     let tpath = tparent.join(
@@ -453,22 +448,30 @@ fn sync_core(params: SyncingParameters) -> Result<(), Report> {
 
         if dry {
             if tpath.exists() {
-                log::log!(
-                    overwrite_log_level,
-                    "DRYRUN [{}]> Target path ({}) exists",
+                if allow_overwrite {
+                    log::info!(
+                        "DRYRUN::OVERWRITE [{}]> {} -> {}",
+                        group_name,
+                        spath.display(),
+                        tpath.display()
+                    );
+                } else {
+                    log::error!(
+                        "DRYRUN [{}]> Target path ({}) exists",
+                        group_name,
+                        tpath.display(),
+                    );
+                }
+            } else {
+                log::info!(
+                    "DRYRUN [{}]> {} -> {}",
                     group_name,
-                    tpath.display(),
+                    spath.display(),
+                    tpath.display()
                 );
             }
-            log::info!(
-                "DRYRUN [{}]> {} -> {}",
-                group_name,
-                spath.display(),
-                tpath.display()
-            );
-        } else if tpath.exists() && !allow_overwrite {
-            log::log!(
-                overwrite_log_level,
+        } else if tpath.exists() && allow_overwrite.not() {
+            log::error!(
                 "SYNC::SKIP [{}]> Target path ({}) exists",
                 group_name,
                 tpath.display(),
