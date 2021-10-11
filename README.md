@@ -30,24 +30,30 @@ sources = ["*init.vim"]
 target = "~/.config/nvim"
 ```
 
-**STOP HERE if you don't know what you are doing, or have not backed up
-existing files under `~/.config/nvim`.**
+:warning: **STOP HERE if you don't know what you are doing, or have not backed
+up existing files under `~/.config/nvim`.**
 
-Run `dt-cli` with path to above configuration file:
-
-```shell
-$ dt-cli path/to/config
-```
-
-Passing `-d|--dry-run` to `dt-cli` will show changes to be made without
-actually making those changes, for example:
+Save above config to `~/.config/dt/cli.toml` and run
 
 ```shell
-$ dt-cli path/to/config --dry-run
+$ dt-cli -c ~/.config/dt/cli.toml
 ```
 
-See [docs.rs](https://docs.rs/dt-core/latest/dt_core) for details about the
-backend `dt-core`.
+to start syncing.  Note the path in this example (`~/.config/dt/cli.toml`) is
+also the default path, so the below command (calling `dt-cli` with no argument)
+does the same thing as above:
+
+```shell
+$ dt-cli
+```
+
+**Other command line options & flags**
+
+- `-c|--config-path <path>`: Specifies path to config file.
+- `-d|--dry-run`: Shows changes to be made without actually syncing files.
+- `-v|--verbose`: Increases logging verbosity.
+- `-h|--help`: Prints help information.
+- `-V`: Prints version information.
 
 ## Install
 
