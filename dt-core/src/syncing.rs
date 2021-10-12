@@ -603,7 +603,7 @@ mod invalid_configs {
 
     #[test]
     fn non_existing_basedir() -> Result<(), Report> {
-        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+        if let Err(msg) = expand(&DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-non_existing_basedir.toml"
         )?)?) {
             assert_eq!(
@@ -620,7 +620,7 @@ mod invalid_configs {
 
     #[test]
     fn basedir_is_file() -> Result<(), Report> {
-        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+        if let Err(msg) = expand(&DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-basedir_is_file.toml",
         )?)?) {
             assert_eq!(
@@ -639,7 +639,7 @@ mod invalid_configs {
 
     #[test]
     fn target_is_file_relative() -> Result<(), Report> {
-        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+        if let Err(msg) = expand(&DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-target_is_file_relative.toml",
         )?)?) {
             assert_eq!(
@@ -658,7 +658,7 @@ mod invalid_configs {
 
     #[test]
     fn target_is_file_absolute() -> Result<(), Report> {
-        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+        if let Err(msg) = expand(&DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-target_is_file_absolute.toml",
         )?)?) {
             assert_eq!(
@@ -688,7 +688,7 @@ mod invalid_configs {
         std::fs::write(&filepath, "Created by `dt` when testing")?;
 
         // Read config (expected to fail)
-        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+        if let Err(msg) = expand(&DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-target_is_file_has_tilde.toml",
         )?)?) {
             assert_eq!(
@@ -716,7 +716,7 @@ mod invalid_configs {
                 "../testroot/items/syncing/invalid_configs/target_readonly/target")?,
                 std::fs::Permissions::from_mode(0o555),
         )?;
-        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+        if let Err(msg) = expand(&DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-target_readonly.toml",
         )?)?) {
             assert_eq!(
@@ -745,7 +745,7 @@ mod invalid_configs {
 
     #[test]
     fn staging_is_file() -> Result<(), Report> {
-        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+        if let Err(msg) = expand(&DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-staging_is_file.toml",
         )?)?) {
             assert_eq!(
@@ -769,7 +769,7 @@ mod invalid_configs {
                 "../testroot/items/syncing/invalid_configs/staging_readonly/staging")?,
                 std::fs::Permissions::from_mode(0o555),
         )?;
-        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+        if let Err(msg) = expand(&DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-staging_readonly.toml",
         )?)?) {
             assert_eq!(
@@ -802,7 +802,7 @@ mod invalid_configs {
             "../testroot/items/syncing/invalid_configs/unreadable_source/no_read_access",
             std::fs::Permissions::from_mode(0o222)
         )?;
-        if let Err(msg) = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+        if let Err(msg) = expand(&DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-unreadable_source.toml",
         )?)?) {
             assert_eq!(
@@ -838,7 +838,7 @@ mod expansion {
 
     #[test]
     fn glob() -> Result<(), Report> {
-        let config = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+        let config = expand(&DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/expansion-glob.toml",
         )?)?)?;
         for group in &config.local {
@@ -877,7 +877,7 @@ mod expansion {
 
     #[test]
     fn sorting_and_deduping() -> Result<(), Report> {
-        let config = expand(&DTConfig::from_pathbuf(PathBuf::from_str(
+        let config = expand(&DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/expansion-sorting_and_deduping.toml",
         )?)?)?;
         for group in config.local {

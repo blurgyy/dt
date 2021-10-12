@@ -1,4 +1,8 @@
-use std::{panic, path::PathBuf, str::FromStr};
+use std::{
+    panic,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
 use color_eyre::{eyre::eyre, Report};
 use serde::Deserialize;
@@ -16,19 +20,22 @@ pub struct DTConfig {
     pub local: Vec<LocalGroup>,
 }
 
-impl DTConfig {
-    /// Loads configuration from a file.
-    pub fn from_pathbuf(path: PathBuf) -> Result<Self, Report> {
-        let confstr = std::fs::read_to_string(path)?;
-        Self::from_str(&confstr)
-    }
+impl FromStr for DTConfig {
+    type Err = Report;
 
     /// Loads configuration from string.
-    fn from_str(s: &str) -> Result<Self, Report> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut ret = toml::from_str::<Self>(s)?;
         ret.expand_tilde();
-
         ret.validate()
+    }
+}
+
+impl DTConfig {
+    /// Loads configuration from a file.
+    pub fn from_path(path: impl AsRef<Path>) -> Result<Self, Report> {
+        let confstr = std::fs::read_to_string(path)?;
+        Self::from_str(&confstr)
     }
 
     /// Validates config object **without** touching the filesystem.
@@ -412,7 +419,7 @@ mod overriding_global_config {
 
     #[test]
     fn allow_overwrite_no_global() -> Result<(), Report> {
-        let config = DTConfig::from_pathbuf(PathBuf::from_str(
+        let config = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/overriding_global_config-allow_overwrite_no_global.toml",
         )?)?;
         for group in config.local {
@@ -428,7 +435,7 @@ mod overriding_global_config {
 
     #[test]
     fn allow_overwrite_with_global() -> Result<(), Report> {
-        let config = DTConfig::from_pathbuf(PathBuf::from_str(
+        let config = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/overriding_global_config-allow_overwrite_with_global.toml",
         )?)?;
         for group in config.local {
@@ -444,7 +451,7 @@ mod overriding_global_config {
 
     #[test]
     fn method_no_global() -> Result<(), Report> {
-        let config = DTConfig::from_pathbuf(PathBuf::from_str(
+        let config = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/overriding_global_config-method_no_global.toml",
         )?)?;
         for group in config.local {
@@ -460,7 +467,7 @@ mod overriding_global_config {
 
     #[test]
     fn method_with_global() -> Result<(), Report> {
-        let config = DTConfig::from_pathbuf(PathBuf::from_str(
+        let config = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/overriding_global_config-method_with_global.toml",
         )?)?;
         for group in config.local {
@@ -476,7 +483,7 @@ mod overriding_global_config {
 
     #[test]
     fn both_allow_overwrite_and_method_no_global() -> Result<(), Report> {
-        let config= DTConfig::from_pathbuf(PathBuf::from_str(
+        let config= DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/overriding_global_config-both_allow_overwrite_and_method_no_global.toml",
         )?)?;
         for group in config.local {
@@ -498,7 +505,7 @@ mod overriding_global_config {
 
     #[test]
     fn both_allow_overwrite_and_method_with_global() -> Result<(), Report> {
-        let config= DTConfig::from_pathbuf(PathBuf::from_str(
+        let config= DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/overriding_global_config-both_allow_overwrite_and_method_with_global.toml",
         )?)?;
         for group in config.local {
@@ -520,7 +527,7 @@ mod overriding_global_config {
 
     #[test]
     fn hostname_sep_no_global() -> Result<(), Report> {
-        let config = DTConfig::from_pathbuf(PathBuf::from_str(
+        let config = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/overriding_global_config-hostname_sep_no_global.toml"
         )?)?;
         for group in config.local {
@@ -536,7 +543,7 @@ mod overriding_global_config {
 
     #[test]
     fn hostname_sep_with_global() -> Result<(), Report> {
-        let config = DTConfig::from_pathbuf(PathBuf::from_str(
+        let config = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/overriding_global_config-hostname_sep_with_global.toml"
         )?)?;
         for group in config.local {
@@ -561,7 +568,7 @@ mod tilde_expansion {
 
     #[test]
     fn all() -> Result<(), Report> {
-        let config = DTConfig::from_pathbuf(PathBuf::from_str(
+        let config = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/tilde_expansion-all.toml",
         )?)?;
         assert_eq!(config.global.unwrap().staging, dirs::home_dir());
@@ -590,7 +597,7 @@ mod validation {
 
     #[test]
     fn empty_group_name() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
+        if let Err(msg) = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/validation-empty_group_name.toml",
         )?) {
             assert_eq!(msg.to_string(), "Empty group name");
@@ -602,7 +609,7 @@ mod validation {
 
     #[test]
     fn empty_basedir() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
+        if let Err(msg) = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/validation-empty_basedir.toml",
         )?) {
             assert_eq!(
@@ -617,7 +624,7 @@ mod validation {
 
     #[test]
     fn empty_target() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
+        if let Err(msg) = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/validation-empty_target.toml",
         )?) {
             assert_eq!(msg.to_string(), "Group [empty target]: empty target");
@@ -629,7 +636,7 @@ mod validation {
 
     #[test]
     fn same_names_in_multiple_local_groups() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
+        if let Err(msg) = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/validation-same_names_in_multiple_locals.toml",
         )?) {
             assert_eq!(
@@ -644,7 +651,7 @@ mod validation {
 
     #[test]
     fn slash_in_group_name() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
+        if let Err(msg) = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/validation-slash_in_group_name.toml",
         )?) {
             assert_eq!(
@@ -659,7 +666,7 @@ mod validation {
 
     #[test]
     fn basedir_is_target() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
+        if let Err(msg) = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-basedir_is_target.toml",
         )?) {
             assert_eq!(
@@ -674,7 +681,7 @@ mod validation {
 
     #[test]
     fn basedir_contains_hostname_sep() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
+        if let Err(msg) = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/validation-basedir_contains_hostname_sep.toml",
         )?) {
             assert_eq!(
@@ -689,7 +696,7 @@ mod validation {
 
     #[test]
     fn source_item_referencing_parent() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
+        if let Err(msg) = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/validation-source_item_referencing_parent.toml",
         )?) {
             assert_eq!(
@@ -704,7 +711,7 @@ mod validation {
 
     #[test]
     fn source_item_is_absolute() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
+        if let Err(msg) = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/validation-source_item_is_absolute.toml",
         )?) {
             assert_eq!(
@@ -719,7 +726,7 @@ mod validation {
 
     #[test]
     fn except_dot_asterisk_glob() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_pathbuf(PathBuf::from_str(
+        if let Err(msg) = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/validation-except_dot_asterisk_glob.toml",
         )?) {
             assert_eq!(

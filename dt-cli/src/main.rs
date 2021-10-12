@@ -33,7 +33,7 @@ fn main() -> Result<(), Report> {
     let opt = Args::from_args();
     setup(opt.verbose)?;
 
-    let config: DTConfig = DTConfig::from_pathbuf(
+    let config: DTConfig = DTConfig::from_path(
         opt.config_path.unwrap_or(default_config_path()?),
     )?;
     if opt.dry_run {
