@@ -47,6 +47,24 @@ target.
 - When the target and source are the same (by accident), `Copy` does not
   guarantee integrity of the source item, while `Symlink` preserves the file
   content in the staging directory.
+- Make all further symlinks point at most to the staged items.
+  :::tip
+  This particularly helpful when you manage user-scope systemd services
+  with symlinks.  According to
+  [`systemctl(1)`](https://man.archlinux.org/man/systemctl.1):
+  
+  > Disables one or more units. This removes all symlinks to the unit files
+  > backing the specified units from the unit configuration directory, and
+  > hence undoes any changes made by enable or link. Note that this removes
+  > all symlinks to matching unit files, including manually created symlinks,
+  > and not just those actually created by enable or link.
+  
+  That said, when disabling services (with `systemctl --user disable`),
+  `systemctl` removes all symlinks (**including user-created ones!**).
+  
+  With this added _staging_ process, your source files will be well protected.
+  :::
+- Protects original items if you want to make experimental changes.
 
 ## Overriding
 
