@@ -49,5 +49,6 @@ follow it in all your interactions with the project.
 
 ## License
 
-By contributing, you agree that your contributions will be licenced under [MIT
-OR Apache 2.0](https://github.com/blurgyy/dt/blob/main/LICENSE) license.
+By contributing, you agree that your contributions will be licenced under
+[MIT](http://opensource.org/licenses/MIT)
+or [Apache 2.0](http://www.apache.org/licenses/LICENSE-2.0) license.
