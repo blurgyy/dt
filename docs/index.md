@@ -27,11 +27,14 @@ $ dt-cli
 
 **Other command line options & flags**
 
-- `-c|--config-path <path>`: Specifies path to config file.
-- `-d|--dry-run`: Shows changes to be made without actually syncing files.
-- `-v|--verbose`: Increases logging verbosity.
-- `-h|--help`: Prints help information.
-- `-V`: Prints version information.
+| Options/Flags | Description |
+|---:|:---|
+| `-c\|--config-path <path>` | Specifies path to config file. |
+| `-d\|--dry-run` | Shows changes to be made without actually syncing files. |
+| `-v\|--verbose` | Increases logging verbosity. |
+| `-q\|--quiet` | Decreases logging verbosity. |
+| `-h\|--help` | Prints help information. |
+| `-V` | Prints version information. |
 
 ## Configuration
 
