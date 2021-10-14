@@ -3,6 +3,7 @@
 [![release](https://github.com/blurgyy/dt/actions/workflows/release.yml/badge.svg)](https://github.com/blurgyy/dt/actions/workflows/release.yml)
 [![tests](https://github.com/blurgyy/dt/actions/workflows/tests.yml/badge.svg)](https://github.com/blurgyy/dt/actions/workflows/tests.yml)
 [![docs](https://github.com/blurgyy/dt/actions/workflows/docs.yml/badge.svg)](https://dt-cli-docs.blurgy.xyz/)
+[![crates.io](https://img.shields.io/crates/v/dt-cli?style=flat&labelColor=1C2C2E&color=C96329&logo=Rust&logoColor=white)](https://crates.io/crates/dt-cli)
 
 `DT` allows you to sync/populate configuration files at will.  It currently
 provides a CLI tool [`dt-cli`](./dt-cli), built with backend
