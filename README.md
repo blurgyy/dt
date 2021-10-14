@@ -1,6 +1,5 @@
 # DT
 
-[![license: MIT OR Apache 2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache%202.0-blue.svg)](./LICENSE)
 [![release](https://github.com/blurgyy/dt/actions/workflows/release.yml/badge.svg)](https://github.com/blurgyy/dt/actions/workflows/release.yml)
 [![tests](https://github.com/blurgyy/dt/actions/workflows/tests.yml/badge.svg)](https://github.com/blurgyy/dt/actions/workflows/tests.yml)
 [![docs](https://github.com/blurgyy/dt/actions/workflows/docs.yml/badge.svg)](https://dt-cli-docs.blurgy.xyz/)
@@ -92,5 +91,12 @@ Alternatively, you can:
 
 ## Contributing
 
-There are many ways to contribute to this project. Get started
+There are many ways to contribute to this project.  Get started
 [here](./CONTRIBUTING.md)!
+
+## License
+
+Licensed under the the MIT license <http://opensource.org/licenses/MIT> or
+Apache License, Version 2.0 <http://www.apache.org/licenses/LICENSE-2.0>, at
+your option.  This file may not be copied, modified, or distributed except
+according to those terms.
