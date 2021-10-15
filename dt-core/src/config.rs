@@ -34,7 +34,10 @@ impl FromStr for DTConfig {
 impl DTConfig {
     /// Loads configuration from a file.
     pub fn from_path(path: impl AsRef<Path>) -> Result<Self, Report> {
-        let confstr = std::fs::read_to_string(path)?;
+        let path = path.as_ref();
+        let confstr = std::fs::read_to_string(path).unwrap_or_else(|_| {
+            panic!("Could not load config from {}", path.display())
+        });
         Self::from_str(&confstr)
     }
 

@@ -1,4 +1,4 @@
-use std::{ops::Not, path::PathBuf};
+use std::path::PathBuf;
 
 use color_eyre::Report;
 use structopt::StructOpt;
@@ -43,7 +43,7 @@ fn main() -> Result<(), Report> {
     setup(opt.verbose - opt.quiet)?;
 
     let config: DTConfig = DTConfig::from_path(
-        opt.config_path.unwrap_or(default_config_path()?),
+        opt.config_path.unwrap_or_else(default_config_path),
     )?;
     if opt.dry_run {
         syncing::dry_sync(&config)?;
@@ -72,20 +72,12 @@ fn setup(verbosity: i8) -> Result<(), Report> {
     Ok(())
 }
 
-/// Gets the default config file path,
-fn default_config_path() -> Result<PathBuf, Report> {
-    let config_path = dirs::config_dir()
+/// Gets the default config file path.
+fn default_config_path() -> PathBuf {
+    dirs::config_dir()
         .unwrap_or_else(|| panic!("Cannot determine default config path"))
         .join("dt")
-        .join("cli.toml");
-
-    if config_path.exists().not() {
-        Err(color_eyre::eyre::eyre!(
-            "No default config path could be inferred"
-        ))
-    } else {
-        Ok(config_path)
-    }
+        .join("cli.toml")
 }
 
 // Author: Blurgy <gy@blurgy.xyz>
