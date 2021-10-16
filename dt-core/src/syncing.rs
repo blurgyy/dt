@@ -421,8 +421,9 @@ fn sync_core(params: SyncingParameters) -> Result<(), Report> {
 
     // First, get target path (without the per-host suffix).
     let tpath = tparent.join(
-        utils::to_non_host_specific(&spath, &hostname_sep)?
-            .strip_prefix(&basedir)?,
+        utils::to_non_host_specific(&spath, &hostname_sep)?.strip_prefix(
+            utils::to_non_host_specific(&basedir, &hostname_sep)?,
+        )?,
     );
     std::fs::create_dir_all(tpath.parent().unwrap_or_else(|| {
         panic!(
@@ -434,8 +435,9 @@ fn sync_core(params: SyncingParameters) -> Result<(), Report> {
     // Finally, get the staging path with source path (staging path does not have host-specific
     // suffix).
     let staging_path = staging.join(
-        utils::to_non_host_specific(&spath, &hostname_sep)?
-            .strip_prefix(basedir)?,
+        utils::to_non_host_specific(&spath, &hostname_sep)?.strip_prefix(
+            utils::to_non_host_specific(&basedir, &hostname_sep)?,
+        )?,
     );
     std::fs::create_dir_all(staging_path.parent().unwrap_or_else(|| {
         panic!(

@@ -55,7 +55,7 @@ pub fn is_for_other_host(path: impl AsRef<Path>, hostname_sep: &str) -> bool {
 
 /// Convert a path relative to the current directory to an absolute one.
 ///
-/// Reference: https://stackoverflow.com/a/54817755/13482274
+/// <https://stackoverflow.com/a/54817755/13482274>
 pub fn to_absolute(path: impl AsRef<Path>) -> std::io::Result<PathBuf> {
     let path = path.as_ref();
 
@@ -103,46 +103,48 @@ pub fn to_host_specific(
 }
 
 /// Converts a path to a non-host-specific path.  If the input path is already non-host-specific,
-/// returns itself;  Otherwise returns the path's name before `hostname_sep`.
+/// returns itself;  Otherwise returns a path where every component of the path is converted to
+/// non-host-specific one.
+///
+/// ```rust
+/// # use color_eyre::Report;
+/// # use std::path::PathBuf;
+/// # use std::str::FromStr;
+/// # use dt_core::utils;
+/// #
+/// # fn main() -> Result<(), Report> {
+///     let p: PathBuf = "/some@@watson/long/path@@watson".into();
+///     let h = utils::to_non_host_specific(p, "@@")?;
+///
+///     assert_eq!(h, PathBuf::from_str("/some/long/path")?);
+///
+/// #     Ok(())
+/// # }
+/// ```
 pub fn to_non_host_specific(
     path: impl AsRef<Path>,
     hostname_sep: &str,
 ) -> Result<PathBuf, Report> {
     let path = path.as_ref();
-
-    let filename = path
-        .file_name()
-        .unwrap_or_else(|| {
-            panic!("Failed extracting file name from path {}", path.display())
+    Ok(path
+        .iter()
+        .map(std::ffi::OsStr::to_str)
+        .map(|s| {
+            s.unwrap_or_else(|| {
+                panic!(
+                    "Failed extracting path components from {}",
+                    path.display()
+                )
+            })
         })
-        .to_str()
-        .unwrap_or_else(|| {
-            panic!(
-                "Failed converting &OsStr to &str for path: {}",
-                path.display(),
-            )
-        });
-    let splitted: Vec<_> = filename.split(hostname_sep).collect();
-
-    assert!(
-        splitted.len() <= 2,
-        "There appears to be more than 1 occurrences of hostname_sep ({}) in this path: {}",
-        hostname_sep,
-        path.display(),
-    );
-    assert!(
-        splitted.first().unwrap().is_empty().not(),
-        "hostname_sep ({}) appears to be a prefix os this path: {}",
-        hostname_sep,
-        path.display(),
-    );
-
-    Ok(path.with_file_name(
-        splitted
-            // First item from separated filename
-            .first()
-            .expect("Cannot get non-host-specific path"),
-    ))
+        .map(|s| {
+            s.split(hostname_sep)
+                .collect::<Vec<_>>()
+                .first()
+                .unwrap_or_else(|| panic!("Failed extracting basename from component {} of path {}", s, path.display()))
+                .to_owned()
+        })
+        .collect())
 }
 
 // Author: Blurgy <gy@blurgy.xyz>
