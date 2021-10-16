@@ -121,6 +121,18 @@ impl DTConfig {
                 ));
             }
 
+            // Source item contains hostname_sep
+            if group.sources.iter().any(|s| {
+                let s = s.to_str().unwrap();
+                s.contains(&hostname_sep)
+            }) {
+                return Err(eyre!(
+                    "Group [{}]: a source item contains hostname_sep ({})",
+                    group.name,
+                    hostname_sep,
+                ));
+            }
+
             if group.ignored.is_some() {
                 todo!("`ignored` array works poorly and I decided to implement it in the future");
             }
@@ -739,6 +751,21 @@ mod validation {
             Ok(())
         } else {
             Err(eyre!("This config should not be loaded because it contains bad globs (.* and /.*)"))
+        }
+    }
+
+    #[test]
+    fn source_item_contains_hostname_sep() -> Result<(), Report> {
+        if let Err(msg) = DTConfig::from_path(PathBuf::from_str(
+            "../testroot/configs/config/validation-source_item_contains_hostname_sep.toml",
+        )?) {
+            assert_eq!(
+                msg.to_string(),
+                "Group [@@ in source item]: a source item contains hostname_sep (@@)",
+            );
+            Ok(())
+        } else {
+            Err(eyre!("This config should not be loaded because a source item contains hostname_sep"))
         }
     }
 }
