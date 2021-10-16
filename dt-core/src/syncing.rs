@@ -53,19 +53,37 @@ fn expand(config: &DTConfig) -> Result<DTConfig, Report> {
             ..original.to_owned()
         };
 
+        let group_hostname_sep =
+            original.get_hostname_sep(ret.global.as_ref().unwrap_or_else(|| {
+                unreachable!("The [global] object is already a `Some`, this message should never be seen");
+            }));
+
         // Check for host-specific basedir
-        let host_specific_basedir = utils::to_host_specific(
-            &next.basedir,
-            &next
-                .hostname_sep
-                .to_owned()
-                .unwrap_or_else(|| DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
-        )?;
+        let host_specific_basedir =
+            utils::to_host_specific(&next.basedir, &group_hostname_sep)?;
         if host_specific_basedir.exists() {
             next.basedir = host_specific_basedir;
         }
 
-        for s in &original.sources {
+        // Check for host-specific sources
+        let sources: Vec<PathBuf> = original
+            .sources
+            .iter()
+            .map(|s| {
+                let try_s = utils::to_absolute(next.basedir.join(s))
+                    .unwrap_or_else(|e| panic!("{}", e));
+                let try_s =
+                    utils::to_host_specific(try_s, &group_hostname_sep)
+                        .unwrap_or_else(|e| panic!("{}", e));
+                if try_s.exists() {
+                    try_s
+                } else {
+                    s.to_owned()
+                }
+            })
+            .collect();
+
+        for s in &sources {
             let s = next.basedir.join(s);
             let mut s = expand_recursive(
                 &s,
