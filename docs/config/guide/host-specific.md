@@ -94,12 +94,6 @@ sources = [
 target = "~/.config"
 ```
 
-:::info Note
-Note that we did not specifically reference the `alacritty` directory anywhere
-in the above config, because `dt-cli` will recursively expand directories
-**and automatically handle host-specific items in the expanded paths**.
-:::
-
 :::warning
 `dt-cli` will panic (**not a bug**) if you use globbing patterns like `.*` or
 `/path/to/something/.*`, because `.*` also expands to the parent directory,
@@ -107,4 +101,24 @@ which is almost never what you want.
 
 The globbing patterns in the above `sources` array is the recommended way to
 glob all items under a given `basedir`.
+:::
+
+Note that we did not specifically reference the `alacritty` directory anywhere
+in the above config, because `dt-cli` will recursively expand directories
+**and automatically handle host-specific items in the expanded paths**.  You
+can also specify a source only, like below:
+
+```toml
+[[local]]
+name = "Alacritty"
+basedir = "~/.dt/alacritty"
+sources = ["alacritty.yml"]
+target = "~/.config/alacritty"
+```
+
+:::warning
+Do **NOT** include the host-specific part in the `sources` array (like
+`alacritty.yml@@laptop` or `alacritty.yml@@workstation`), see the [Error
+Handling](/config/guide/error-handling#config-validating) section for more
+details on this.
 :::

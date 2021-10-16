@@ -17,7 +17,8 @@ following cases are considered invalid:
   - is also another group's name (duplicated group name)
   - contains `/` (used for creating subdirectory under `staging` directory)
 - Any group that has the same `basedir` and `target`
-- Any group whose `basedir` contains any occurrences (at least 1) of
+- Any group whose `basedir` contains any occurrences of `hostname_sep`
+- Any group whose `sources` contains any item that contains any occurrences of
   `hostname_sep`
 - Any source item that:
   - begins with `../` (references the parent of base directory)
