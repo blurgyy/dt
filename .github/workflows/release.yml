@@ -28,24 +28,28 @@ jobs:
       id: get_tag_name
       run: echo "::set-output name=tag_name::${GITHUB_REF/refs\/tags\//}"
     - name: Generate changelog
+      uses: orhun/git-cliff-action@v1
+      id: git-cliff
+      with:
+        args: -vv --latest --strip header
+      env:
+        OUTPUT: CHANGELOG.md
+    - name: Set release body
       id: changelog
       run: |
-        if prev_tag=$(git describe --abbrev=0 --tags ${{ github.ref }}^); then
-          log=$(git log --oneline --decorate=no $prev_tag..${{ github.ref }})
+        if log=$(cat ${{ steps.git-cliff.outputs.changelog }}); then
           log="${log//'%'/'%25'}"
           log="${log//'~'/\\~}"
           log="${log//$'\n'/'%0A'}"
           log="${log//$'\r'/'%0D'}"
-          echo "::set-output name=value::$log"
+          echo "::set-output name=release_body::$log"
         else
-          echo "::set-output name=value::log generation failed"
+          echo "::set-output name=release_body::log generation failed"
         fi
     - name: Strip debug symbols
-      id: strip
       run: |
         strip target/release/dt-cli
     - name: Create release with compiled binary
-      id: upload-release-asset
       uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -54,7 +58,7 @@ jobs:
         prerelease: false
         tag_name: ${{ github.ref }}
         name: Release ${{ steps.get_tag_name.outputs.tag_name }}
-        body: ${{ steps.changelog.outputs.value }}
+        body: ${{ steps.changelog.outputs.release_body }}
         files: target/release/dt-cli
 
 # Author: Blurgy <gy@blurgy.xyz>
