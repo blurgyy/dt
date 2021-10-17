@@ -1,6 +1,6 @@
 {
   "name": "dt-cli-docs",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "description": "Documentations for dt-cli <https://github.com/blurgyy/dt>",
   "main": "index.js",
   "repository": "https://github.com/blurgyy/dt-cli-docs",
