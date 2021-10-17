@@ -878,6 +878,9 @@ mod expansion {
                         "../dt-core/Cargo.toml"
                     )?)?,
                     utils::to_absolute(PathBuf::from_str(
+                        "../dt-core/README.md",
+                    )?)?,
+                    utils::to_absolute(PathBuf::from_str(
                         "../dt-core/src/config.rs"
                     )?)?,
                     utils::to_absolute(PathBuf::from_str(
