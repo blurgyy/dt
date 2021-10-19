@@ -1,7 +1,8 @@
 [workspace]
 members = [
-    "dt-core",
     "dt-cli",
+    "dt-core",
+    "dt-server",
 ]
 
 # Author: Blurgy <gy@blurgy.xyz>
