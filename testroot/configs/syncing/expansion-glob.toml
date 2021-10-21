@@ -1,5 +1,5 @@
 [[local]]
 name = "globbing test"
 basedir = ".."
-sources = ["dt-*"]
+sources = ["dt-c*"]
 target = "../testroot/target"
