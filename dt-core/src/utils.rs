@@ -5,6 +5,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
+/// Gets the default config file path, with last component specified by `filename`.
+pub fn default_config_path(filename: impl AsRef<Path>) -> PathBuf {
+    dirs::config_dir()
+        .unwrap_or_else(|| panic!("Cannot determine default config path"))
+        .join("dt")
+        .join(filename)
+}
+
 fn host_specific_suffix(hostname_sep: &str) -> Result<String, Report> {
     Ok(hostname_sep.to_owned()
         + gethostname::gethostname()

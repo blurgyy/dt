@@ -3,13 +3,13 @@ use std::path::PathBuf;
 use color_eyre::Report;
 use structopt::StructOpt;
 
-use dt_core::{config::DTConfig, syncing};
+use dt_core::{config::DTConfig, syncing, utils::default_config_path};
 
 #[derive(StructOpt, Debug)]
 #[structopt(
     global_settings(&[structopt::clap::AppSettings::ColoredHelp])
 )]
-struct Args {
+struct Opt {
     #[structopt(help = "Specifies path to config file", short, long)]
     config_path: Option<PathBuf>,
 
@@ -39,11 +39,12 @@ struct Args {
 }
 
 fn main() -> Result<(), Report> {
-    let opt = Args::from_args();
+    let opt = Opt::from_args();
     setup(opt.verbose - opt.quiet)?;
 
     let config: DTConfig = DTConfig::from_path(
-        opt.config_path.unwrap_or_else(default_config_path),
+        opt.config_path
+            .unwrap_or_else(|| default_config_path("cli.toml")),
     )?;
     if opt.dry_run {
         syncing::dry_sync(&config)?;
@@ -70,14 +71,6 @@ fn setup(verbosity: i8) -> Result<(), Report> {
     color_eyre::install()?;
 
     Ok(())
-}
-
-/// Gets the default config file path.
-fn default_config_path() -> PathBuf {
-    dirs::config_dir()
-        .unwrap_or_else(|| panic!("Cannot determine default config path"))
-        .join("dt")
-        .join("cli.toml")
 }
 
 // Author: Blurgy <gy@blurgy.xyz>
