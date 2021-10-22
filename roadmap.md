@@ -64,7 +64,7 @@
 - [x] Find config in `$XDG_CONFIG_HOME/dt/cli.toml` by default
 - [ ] Add command line option to specify which group to sync via passing name
       of the group
-- [ ] Change default config path to `$XDG_CONFIG_HOME/.config/dt/config.toml`
+- [x] Change default config path to `$XDG_CONFIG_HOME/dt/config.toml`
 
 ## Server
 

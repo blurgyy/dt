@@ -44,7 +44,7 @@ fn main() -> Result<(), Report> {
 
     let config: DTConfig = DTConfig::from_path(
         opt.config_path
-            .unwrap_or_else(|| default_config_path("cli.toml")),
+            .unwrap_or_else(|| default_config_path("config.toml")),
     )?;
     if opt.dry_run {
         syncing::dry_sync(&config)?;
