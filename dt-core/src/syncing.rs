@@ -9,6 +9,7 @@ use color_eyre::{eyre::eyre, Report};
 use crate::{config::*, utils};
 
 /// Parameters for controlling how an item is synced.
+#[derive(Debug)]
 struct SyncingParameters {
     /// Path to source item, assumed to exist, and is already host-specific if possible.
     spath: PathBuf,
@@ -148,7 +149,7 @@ fn expand_recursive(
                 ret.append(&mut expand_recursive(&p, hostname_sep, false)?);
             } else {
                 log::warn!(
-                    "Skipping unimplemented file type at {}",
+                    "Skipping unimplemented file type at '{}'",
                     p.display(),
                 );
                 log::trace!("{:#?}", p.symlink_metadata()?);
@@ -175,7 +176,7 @@ fn expand_recursive(
                 ret.append(&mut expand_recursive(&p, hostname_sep, false)?);
             } else {
                 log::warn!(
-                    "Skipping unimplemented file type at {}",
+                    "Skipping unimplemented file type at '{}'",
                     p.display(),
                 );
                 log::trace!("{:#?}", p.symlink_metadata()?);
@@ -298,18 +299,38 @@ pub fn sync(config: &DTConfig) -> Result<(), Report> {
         .staging
         .unwrap_or_else(|| GlobalConfig::default().staging.unwrap());
     if staging.exists().not() {
-        log::debug!(
-            "Creating non-existing staging root {}",
+        log::trace!(
+            "Creating non-existing staging root '{}'",
             staging.display(),
         );
         std::fs::create_dir_all(staging)?;
     }
 
     for group in &config.local {
+        log::info!("Dry-running with group: [{}]", group.name);
+        if group.sources.is_empty() {
+            log::debug!(
+                "Group [{}]: skipping due to empty group",
+                group.name,
+            );
+            continue;
+        } else {
+            log::debug!(
+                "Group [{}]: {} {} detected",
+                group.name,
+                group.sources.len(),
+                if group.sources.len() <= 1 {
+                    "item"
+                } else {
+                    "items"
+                },
+            );
+        }
+
         let group_staging = staging.join(PathBuf::from_str(&group.name)?);
         if group_staging.exists().not() {
-            log::debug!(
-                "Creating non-existing staging directory {}",
+            log::trace!(
+                "Creating non-existing staging directory '{}'",
                 group_staging.display(),
             );
             std::fs::create_dir_all(&group_staging)?;
@@ -355,14 +376,35 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
     }
 
     for group in &config.local {
+        log::info!("Dry-running with group: [{}]", group.name);
+        if group.sources.is_empty() {
+            log::debug!(
+                "Group [{}]: skipping due to empty group",
+                group.name,
+            );
+            continue;
+        } else {
+            log::debug!(
+                "Group [{}]: {} {} detected",
+                group.name,
+                group.sources.len(),
+                if group.sources.len() <= 1 {
+                    "item"
+                } else {
+                    "items"
+                },
+            );
+        }
+
         let group_staging = staging.join(PathBuf::from_str(&group.name)?);
         if group_staging.exists().not() {
             log::info!("Staging directory does not exist, will be automatically created when syncing");
         } else if staging.is_dir().not() {
-            log::info!(
+            log::error!(
                 "Staging directory seems to exist and is not a directory"
             )
         }
+
         for spath in &group.sources {
             let params = SyncingParameters {
                 spath: spath.to_owned(),
@@ -391,6 +433,7 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
 ///
 /// Args:
 fn sync_core(params: SyncingParameters) -> Result<(), Report> {
+    log::trace!("Parameters for `sync_core`: {:#?}", params);
     let SyncingParameters {
         spath,
         tparent,
@@ -405,13 +448,13 @@ fn sync_core(params: SyncingParameters) -> Result<(), Report> {
     if tparent.exists().not() {
         if dry {
             log::warn!(
-                "DRYRUN [{}]> Non-existing target directory {}",
+                "DRYRUN [{}]> Non-existing target directory '{}'",
                 group_name,
                 tparent.display(),
             );
         } else {
-            log::debug!(
-                "SYNC::CREATE [{}]> {}",
+            log::trace!(
+                "SYNC::CREATE [{}]> '{}'",
                 group_name,
                 tparent.display()
             );
@@ -450,7 +493,7 @@ fn sync_core(params: SyncingParameters) -> Result<(), Report> {
         if tpath.is_dir() {
             if dry {
                 log::error!(
-                    "DRYRUN [{}]> A directory ({}) exists at the target path of a source file ({})",
+                    "DRYRUN [{}]> A directory ('{}') exists at the target path of a source file ('{}')",
                     group_name,
                     tpath.display(),
                     spath.display(),
@@ -469,45 +512,45 @@ fn sync_core(params: SyncingParameters) -> Result<(), Report> {
         if dry {
             if tpath.exists() {
                 if allow_overwrite {
-                    log::info!(
-                        "DRYRUN::OVERWRITE [{}]> {} -> {}",
+                    log::debug!(
+                        "DRYRUN::OVERWRITE [{}]> '{}' -> '{}'",
                         group_name,
                         spath.display(),
                         tpath.display()
                     );
                 } else {
                     log::error!(
-                        "DRYRUN [{}]> Target path ({}) exists",
+                        "DRYRUN [{}]> Target path ('{}') exists",
                         group_name,
                         tpath.display(),
                     );
                 }
             } else {
-                log::info!(
-                    "DRYRUN [{}]> {} -> {}",
+                log::debug!(
+                    "DRYRUN [{}]> '{}' -> '{}'",
                     group_name,
                     spath.display(),
                     tpath.display()
                 );
             }
         } else if tpath.exists() && allow_overwrite.not() {
-            log::error!(
-                "SYNC::SKIP [{}]> Target path ({}) exists",
+            log::warn!(
+                "SYNC::SKIP [{}]> Target path ('{}') exists",
                 group_name,
                 tpath.display(),
             );
         } else {
-            // Allows overwrite in this block.
+            // Overwrites are allowed in this block.
             if method == SyncMethod::Copy {
-                log::debug!(
-                    "SYNC::COPY [{}]> {} => {}",
+                log::trace!(
+                    "SYNC::COPY [{}]> '{}' => '{}'",
                     group_name,
                     spath.display(),
                     tpath.display()
                 );
                 if std::fs::remove_file(&tpath).is_ok() {
                     log::trace!(
-                        "SYNC::OVERWRITE [{}]> {}",
+                        "SYNC::OVERWRITE [{}]> '{}'",
                         group_name,
                         tpath.display()
                     )
@@ -515,8 +558,8 @@ fn sync_core(params: SyncingParameters) -> Result<(), Report> {
                 std::fs::copy(spath, tpath)?;
             } else if method == SyncMethod::Symlink {
                 // Staging
-                log::debug!(
-                    "SYNC::STAGE [{}]> {} => {}",
+                log::trace!(
+                    "SYNC::STAGE [{}]> '{}' => '{}'",
                     group_name,
                     spath.display(),
                     staging_path.display(),
@@ -524,7 +567,7 @@ fn sync_core(params: SyncingParameters) -> Result<(), Report> {
 
                 if std::fs::remove_file(&staging_path).is_ok() {
                     log::trace!(
-                        "SYNC::OVERWRITE [{}]> {}",
+                        "SYNC::OVERWRITE [{}]> '{}'",
                         group_name,
                         staging_path.display(),
                     )
@@ -535,14 +578,14 @@ fn sync_core(params: SyncingParameters) -> Result<(), Report> {
                 if std::fs::remove_file(&tpath).is_ok() {
                     {
                         log::trace!(
-                            "SYNC::OVERWRITE [{}]> {}",
+                            "SYNC::OVERWRITE [{}]> '{}'",
                             group_name,
                             tpath.display(),
                         );
                     }
                 }
-                log::debug!(
-                    "SYNC::SYMLINK [{}]> {} => {}",
+                log::trace!(
+                    "SYNC::SYMLINK [{}]> '{}' => '{}'",
                     group_name,
                     staging_path.display(),
                     tpath.display(),
@@ -554,7 +597,7 @@ fn sync_core(params: SyncingParameters) -> Result<(), Report> {
         if tpath.is_file() {
             if dry {
                 log::error!(
-                    "DRYRUN [{}]> A file ({}) exists at the target path of a source directory ({})",
+                    "DRYRUN [{}]> A file ('{}') exists at the target path of a source directory ('{}')",
                     group_name,
                     tpath.display(),
                     spath.display(),
@@ -575,7 +618,7 @@ fn sync_core(params: SyncingParameters) -> Result<(), Report> {
         {
             if dry {
                 log::warn!(
-                    "DRYRUN [{}]> Non-existing directory: {}",
+                    "DRYRUN [{}]> Non-existing directory: '{}'",
                     group_name,
                     if tpath.exists().not() {
                         tpath.display()
@@ -587,16 +630,16 @@ fn sync_core(params: SyncingParameters) -> Result<(), Report> {
                 if method == SyncMethod::Symlink
                     && staging_path.exists().not()
                 {
-                    log::debug!(
-                        "SYNC::STAGE::CREATE [{}]> {}",
+                    log::trace!(
+                        "SYNC::STAGE::CREATE [{}]> '{}'",
                         group_name,
                         staging_path.display(),
                     );
                     std::fs::create_dir_all(staging_path)?;
                 }
                 if tpath.exists().not() {
-                    log::debug!(
-                        "SYNC::CREATE [{}]> {}",
+                    log::trace!(
+                        "SYNC::CREATE [{}]> '{}'",
                         group_name,
                         tpath.display()
                     );

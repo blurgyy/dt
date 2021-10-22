@@ -50,7 +50,7 @@
 - [ ] Warn when a group's `target` is inside another group's `basedir`
 - [ ] Set maximum recursion depth when expanding sources
 - [x] Deny empty `name`/`basedir`/`target`
-- [ ] Better logging messages:
+- [x] Better logging messages:
   - error: shows errors
   - warn: shows warnings
   - info: shows coarse step messages, like "syncing group [xxx]"

@@ -40,7 +40,7 @@ struct Opt {
 
 fn main() -> Result<(), Report> {
     let opt = Opt::from_args();
-    setup(opt.verbose - opt.quiet)?;
+    setup(opt.verbose - opt.quiet + { opt.dry_run as i8 })?;
 
     let config_path = match opt.config_path {
         Some(p) => {
