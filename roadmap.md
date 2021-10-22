@@ -56,6 +56,7 @@
   - info: shows coarse step messages, like "syncing group [xxx]"
   - debug: shows how items are synced
   - trace: shows messages that contains multiple lines
+  Paths in log messages should be single quoted.
 - [ ] Keep track of items that are synced last time, so that when deletion of
       source items can also be propagated properly.
 
