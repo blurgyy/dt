@@ -56,12 +56,20 @@
   - info: shows coarse step messages, like "syncing group [xxx]"
   - debug: shows how items are synced
   - trace: shows messages that contains multiple lines
+- [ ] Keep track of items that are synced last time, so that when deletion of
+      source items can also be propagated properly.
 
 ## CLI
 
 - [x] Find config in `$XDG_CONFIG_HOME/dt/cli.toml` by default
 - [ ] Add command line option to specify which group to sync via passing name
       of the group
+- [ ] Change default config path to `$XDG_CONFIG_HOME/.config/dt/config.toml`
+
+## Server
+
+- [ ] Serve files with a HTTP server, grouped by their group names
+- [ ] Use the same config layout as `dt-cli`
 
 > Author: Blurgy <gy@blurgy.xyz>
 > Date:   Sep 29 2021, 00:18 [CST]
