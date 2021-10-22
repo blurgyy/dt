@@ -42,10 +42,19 @@ fn main() -> Result<(), Report> {
     let opt = Opt::from_args();
     setup(opt.verbose - opt.quiet)?;
 
-    let config: DTConfig = DTConfig::from_path(
-        opt.config_path
-            .unwrap_or_else(|| default_config_path("config.toml")),
-    )?;
+    let config_path = match opt.config_path {
+        Some(p) => p,
+        None => {
+            let p = default_config_path("cli.toml");
+            if p.exists() {
+                p
+            } else {
+                default_config_path("config.toml")
+            }
+        }
+    };
+
+    let config: DTConfig = DTConfig::from_path(config_path)?;
     if opt.dry_run {
         syncing::dry_sync(&config)?;
     } else {
