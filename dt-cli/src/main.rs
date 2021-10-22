@@ -43,14 +43,22 @@ fn main() -> Result<(), Report> {
     setup(opt.verbose - opt.quiet)?;
 
     let config_path = match opt.config_path {
-        Some(p) => p,
+        Some(p) => {
+            log::debug!(
+                "Using config file from command line '{}'",
+                p.display(),
+            );
+            p
+        }
         None => {
             let p = default_config_path("cli.toml");
-            if p.exists() {
+            let p = if p.exists() {
                 p
             } else {
                 default_config_path("config.toml")
-            }
+            };
+            log::debug!("Using inferred config file '{}'", p.display());
+            p
         }
     };
 
