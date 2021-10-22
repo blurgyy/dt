@@ -57,8 +57,8 @@
   - debug: shows how items are synced
   - trace: shows messages that contains multiple lines
   Paths in log messages should be single quoted.
-- [ ] Keep track of items that are synced last time, so that when deletion of
-      source items can also be propagated properly.
+- [ ] Keep track of items that are synced last time, so that deletion of
+      source items can also be propagated to local fs properly.
 
 ## CLI
 
