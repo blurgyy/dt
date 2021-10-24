@@ -19,8 +19,8 @@
   - [ ] Set permissions after all syncing process
 - [x] Return error when `sources` contains `.*` or similar globs, because this
       glob also matches current directory (`.`) and parent directory (`..`)
-- [x] Expand environment variables in `local.basedir`, `local.sources`,
-      `local.target`
+- [ ] Expand environment variables in `local.basedir`, `local.sources`,
+      `local.target` and `staging`
 - [x] Handle non-existing source, give warnings when encountered
 - [ ] ~~Add `local.for` to separate groups for different machines w.r.t. their
       hostname (with `gethostname` crate)~~
