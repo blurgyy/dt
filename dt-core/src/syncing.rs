@@ -309,21 +309,23 @@ pub fn sync(config: &DTConfig, local_name: &[String]) -> Result<(), Report> {
     let local_groups: Vec<LocalGroup> = if local_name.is_empty() {
         config.local
     } else {
+        local_name.iter().for_each(|n| {
+            if config.local.iter().all(|g| g.name != *n) {
+                log::warn!("Group [{}] is not recognized", n);
+            }
+        });
         config
             .local
             .iter()
-            .filter(|g| {
-                if local_name.contains(&g.name) {
-                    true
-                } else {
-                    log::warn!("Group [{}] is not found", g.name);
-                    false
-                }
-            })
+            .filter(|g| local_name.contains(&g.name))
             .map(|g| g.to_owned())
             .collect()
     };
-    log::debug!("Local groups to process: {:#?}", local_groups);
+    log::trace!("Local groups to process: {:#?}", local_groups);
+    if local_groups.is_empty() {
+        log::warn!("Nothing to be synced");
+        return Ok(());
+    }
 
     for group in local_groups {
         log::info!("Syncing local group: [{}]", group.name);
@@ -400,21 +402,23 @@ pub fn dry_sync(
     let local_groups: Vec<LocalGroup> = if local_name.is_empty() {
         config.local
     } else {
+        local_name.iter().for_each(|n| {
+            if config.local.iter().all(|g| g.name != *n) {
+                log::warn!("Group [{}] is not recognized", n);
+            }
+        });
         config
             .local
             .iter()
-            .filter(|g| {
-                if local_name.contains(&g.name) {
-                    true
-                } else {
-                    log::warn!("Group [{}] is not found", g.name);
-                    false
-                }
-            })
+            .filter(|g| local_name.contains(&g.name))
             .map(|g| g.to_owned())
             .collect()
     };
-    log::debug!("Local groups to process: {:#?}", local_groups);
+    log::trace!("Local groups to process: {:#?}", local_groups);
+    if local_groups.is_empty() {
+        log::warn!("Nothing to be synced");
+        return Ok(());
+    }
 
     for group in local_groups {
         log::info!("Dry-running with local group: [{}]", group.name);
