@@ -71,6 +71,11 @@
 
 - [ ] Serve files with a HTTP server, grouped by their group names
 - [ ] Use the same config layout as `dt-cli`
+- [ ] Add `confidential` flag to `local` group to determin whether this group
+      should be served in the HTTP server
+- [ ] Make URL prefix (like `/raw/`) configurable
+- [ ] Optionally serve static files at a given root
+- [ ] Encryption
 
 > Author: Blurgy <gy@blurgy.xyz>
 > Date:   Sep 29 2021, 00:18 [CST]
