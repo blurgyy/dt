@@ -21,7 +21,7 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: build
-        args: --release --all-features
+        args: --release --all-features --locked
     - name: Fetch all tags
       run: git fetch origin +refs/tags/*:refs/tags/*
     - name: Get name of current tag
