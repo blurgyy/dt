@@ -306,14 +306,14 @@ pub fn sync(config: &DTConfig, local_name: &[String]) -> Result<(), Report> {
         std::fs::create_dir_all(staging)?;
     }
 
-    let local_groups: Vec<LocalGroup> = if local_names.is_empty() {
+    let local_groups: Vec<LocalGroup> = if local_name.is_empty() {
         config.local
     } else {
         config
             .local
             .iter()
             .filter(|g| {
-                if local_names.contains(&g.name) {
+                if local_name.contains(&g.name) {
                     true
                 } else {
                     log::warn!("Group [{}] is not found", g.name);
@@ -397,14 +397,14 @@ pub fn dry_sync(
         log::error!("Staging root seems to exist and is not a directory");
     }
 
-    let local_groups: Vec<LocalGroup> = if local_names.is_empty() {
+    let local_groups: Vec<LocalGroup> = if local_name.is_empty() {
         config.local
     } else {
         config
             .local
             .iter()
             .filter(|g| {
-                if local_names.contains(&g.name) {
+                if local_name.contains(&g.name) {
                     true
                 } else {
                     log::warn!("Group [{}] is not found", g.name);
