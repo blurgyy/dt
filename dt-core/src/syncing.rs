@@ -289,7 +289,7 @@ fn parent_readonly(p: impl AsRef<Path>) -> bool {
 }
 
 /// Syncs items specified in configuration.
-pub fn sync(config: &DTConfig) -> Result<(), Report> {
+pub fn sync(config: &DTConfig, local_name: &[String]) -> Result<(), Report> {
     let config = expand(config)?;
 
     let staging = &config
@@ -306,8 +306,27 @@ pub fn sync(config: &DTConfig) -> Result<(), Report> {
         std::fs::create_dir_all(staging)?;
     }
 
-    for group in &config.local {
-        log::info!("Dry-running with group: [{}]", group.name);
+    let local_groups: Vec<LocalGroup> = if local_names.is_empty() {
+        config.local
+    } else {
+        config
+            .local
+            .iter()
+            .filter(|g| {
+                if local_names.contains(&g.name) {
+                    true
+                } else {
+                    log::warn!("Group [{}] is not found", g.name);
+                    false
+                }
+            })
+            .map(|g| g.to_owned())
+            .collect()
+    };
+    log::debug!("Local groups to process: {:#?}", local_groups);
+
+    for group in local_groups {
+        log::info!("Syncing local group: [{}]", group.name);
         if group.sources.is_empty() {
             log::debug!(
                 "Group [{}]: skipping due to empty group",
@@ -360,7 +379,10 @@ pub fn sync(config: &DTConfig) -> Result<(), Report> {
 }
 
 /// Show changes to be made according to configuration, without actually syncing items.
-pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
+pub fn dry_sync(
+    config: &DTConfig,
+    local_name: &[String],
+) -> Result<(), Report> {
     let config = expand(config)?;
 
     let staging = &config
@@ -375,8 +397,27 @@ pub fn dry_sync(config: &DTConfig) -> Result<(), Report> {
         log::error!("Staging root seems to exist and is not a directory");
     }
 
-    for group in &config.local {
-        log::info!("Dry-running with group: [{}]", group.name);
+    let local_groups: Vec<LocalGroup> = if local_names.is_empty() {
+        config.local
+    } else {
+        config
+            .local
+            .iter()
+            .filter(|g| {
+                if local_names.contains(&g.name) {
+                    true
+                } else {
+                    log::warn!("Group [{}] is not found", g.name);
+                    false
+                }
+            })
+            .map(|g| g.to_owned())
+            .collect()
+    };
+    log::debug!("Local groups to process: {:#?}", local_groups);
+
+    for group in local_groups {
+        log::info!("Dry-running with local group: [{}]", group.name);
         if group.sources.is_empty() {
             log::debug!(
                 "Group [{}]: skipping due to empty group",

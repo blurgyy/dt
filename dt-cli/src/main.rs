@@ -14,6 +14,13 @@ struct Opt {
     config_path: Option<PathBuf>,
 
     #[structopt(
+        help = "Specifies name(s) of the local group(s) to be processed",
+        short,
+        long
+    )]
+    local_name: Vec<String>,
+
+    #[structopt(
         help = "Shows changes to be made without actually syncing files",
         short,
         long
@@ -42,6 +49,8 @@ fn main() -> Result<(), Report> {
     let opt = Opt::from_args();
     setup(opt.verbose - opt.quiet + { opt.dry_run as i8 })?;
 
+    log::trace!("Parsed command line: {:#?}", &opt);
+
     let config_path = match opt.config_path {
         Some(p) => {
             log::debug!(
@@ -64,9 +73,9 @@ fn main() -> Result<(), Report> {
 
     let config: DTConfig = DTConfig::from_path(config_path)?;
     if opt.dry_run {
-        syncing::dry_sync(&config)?;
+        syncing::dry_sync(&config, &opt.local_name)?;
     } else {
-        syncing::sync(&config)?;
+        syncing::sync(&config, &opt.local_name)?;
     }
 
     Ok(())
