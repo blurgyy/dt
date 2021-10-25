@@ -2,7 +2,7 @@
 name = "dt-cli"
 description = "Syncing dotfiles and more"
 version = "0.2.1"
-edition = "2018"
+edition = "2021"
 authors = ["Gaoyang Zhang <gy@blurgy.xyz>"]
 documentation = "https://dt-cli-docs.blurgy.xyz/"
 license = "MIT OR Apache-2.0"
