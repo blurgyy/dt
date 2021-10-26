@@ -189,8 +189,9 @@ pub struct LocalGroup {
     /// Name of this group, used as namespace in staging root directory.
     pub name: String,
 
-    /// The base directory of all source items.  This simplifies configuration files with common
-    /// prefixes in `local.sources` array.
+    /// The base directory of all source items.  This simplifies
+    /// configuration files with common prefixes in `local.sources`
+    /// array.
     ///
     /// ## Example
     ///
@@ -216,8 +217,8 @@ pub struct LocalGroup {
     /// target = "."
     /// ```
     ///
-    /// It will only sync `src/main.rs` to the configured target directory (in this case, the
-    /// directory where `dt` is being executed).
+    /// It will only sync `src/main.rs` to the configured target directory
+    /// (in this case, the directory where `dt` is being executed).
     pub basedir: PathBuf,
 
     /// Paths (relative to `basedir`) to the items to be synced.
@@ -232,15 +233,16 @@ pub struct LocalGroup {
     /// target = "/tar/get"
     /// ```
     ///
-    /// will sync "/source/file" to "/tar/get/file" (creating non-existing directories along the way), while
+    /// will sync "/source/file" to "/tar/get/file" (creating non-existing
+    /// directories along the way), while
     ///
     /// ```toml
     /// source = ["/source/dir"]
     /// target = "/tar/get/dir"
     /// ```
     ///
-    /// will sync "source/dir" to "/tar/get/dir/dir" (creating non-existing directories along the
-    /// way).
+    /// will sync "source/dir" to "/tar/get/dir/dir" (creating non-existing
+    /// directories along the way).
     pub target: PathBuf,
 
     /// (Optional) Ignored names.
@@ -253,19 +255,21 @@ pub struct LocalGroup {
     /// ignored = [".git"]
     /// ```
     ///
-    /// With this setting, all files or directories with their basename as ".git" will be skipped.
+    /// With this setting, all files or directories with their basename as
+    /// ".git" will be skipped.
     ///
     /// Cannot contain slash in any of the patterns.
     pub ignored: Option<Vec<String>>,
 
     /// (Optional) Separator for per-host settings, default to `@@`.
     ///
-    /// An additional item with `${hostname_sep}$(hostname)` appended to the original item name
-    /// will be checked first, before looking for the original item.  If the appended item is found,
-    /// use this item instead of the configured one.
+    /// An additional item with `${hostname_sep}$(hostname)` appended to the
+    /// original item name will be checked first, before looking for the
+    /// original item.  If the appended item is found, use this item
+    /// instead of the configured one.
     ///
-    /// Also ignores items that are meant for other hosts by checking if the string after
-    /// `hostname_sep` matches current machine's hostname.
+    /// Also ignores items that are meant for other hosts by checking if the
+    /// string after `hostname_sep` matches current machine's hostname.
     ///
     /// ## Example
     ///
@@ -281,8 +285,8 @@ pub struct LocalGroup {
     /// └── config@watson
     /// ```
     ///
-    /// On a machine with hostname set to `watson`, the below configuration (extraneous keys are
-    /// omitted here)
+    /// On a machine with hostname set to `watson`, the below configuration
+    /// (extraneous keys are omitted here)
     ///
     /// ```toml [[local]]
     /// ...
@@ -301,25 +305,27 @@ pub struct LocalGroup {
     /// └── config
     /// ```
     ///
-    /// Where `/tmp/sshconfig/config` mirrors the content of `~/.ssh/config@watson`.
+    /// Where `/tmp/sshconfig/config` mirrors the content of
+    /// `~/.ssh/config@watson`.
     pub hostname_sep: Option<String>,
 
-    /// (Optional) Whether to allow overwriting existing files.  Dead symlinks are treated as
-    /// non-existing, and are always overwrited (regardless of this option).
+    /// (Optional) Whether to allow overwriting existing files.  Dead
+    /// symlinks are treated as non-existing, and are always overwrited
+    /// (regardless of this option).
     pub allow_overwrite: Option<bool>,
 
     /// (Optional) Syncing method, overrides `global.method` key.
     pub method: Option<SyncMethod>,
-    // // The pattern specified in `match_begin` is matched against all
-    // match_begin: String,
-    // replace_begin: String,
-    // match_end: String,
-    // replace_end: String,
+    /* // The pattern specified in `match_begin` is matched against all
+     * match_begin: String,
+     * replace_begin: String,
+     * match_end: String,
+     * replace_end: String, */
 }
 
 impl LocalGroup {
-    /// Gets the `allow_overwrite` key from a `LocalSyncConfig` object, falls back to the
-    /// `allow_overwrite` from provided global config.
+    /// Gets the `allow_overwrite` key from a `LocalSyncConfig` object, falls
+    /// back to the `allow_overwrite` from provided global config.
     pub fn get_allow_overwrite(&self, global_config: &GlobalConfig) -> bool {
         match self.allow_overwrite {
             Some(allow_overwrite) => allow_overwrite,
@@ -329,8 +335,8 @@ impl LocalGroup {
         }
     }
 
-    /// Gets the `method` key from a `LocalSyncConfig` object, falls back to the `method` from
-    /// provided global config.
+    /// Gets the `method` key from a `LocalSyncConfig` object, falls back to
+    /// the `method` from provided global config.
     pub fn get_method(&self, global_config: &GlobalConfig) -> SyncMethod {
         match self.method {
             Some(method) => method,
@@ -338,8 +344,8 @@ impl LocalGroup {
         }
     }
 
-    /// Gets the `method` key from a `LocalSyncConfig` object, falls back to the `method` from
-    /// provided global config.
+    /// Gets the `method` key from a `LocalSyncConfig` object, falls back to
+    /// the `method` from provided global config.
     pub fn get_hostname_sep(&self, global_config: &GlobalConfig) -> String {
         match &self.hostname_sep {
             Some(hostname_sep) => hostname_sep.to_owned(),
@@ -356,14 +362,16 @@ impl LocalGroup {
 pub struct GlobalConfig {
     /// The staging root directory.
     ///
-    /// Only works when `method` (see below) is set to `Symlink`.  When syncing with `Symlink`
-    /// method, items will be copied to their staging directory (composed by joining staging root
-    /// directory with their group name), then symlinked (as of `ln -sf`) from their staging
-    /// directory to the target directory.
+    /// Only works when `method` (see below) is set to `Symlink`.  When
+    /// syncing with `Symlink` method, items will be copied to their
+    /// staging directory (composed by joining staging root
+    /// directory with their group name), then symlinked (as of `ln -sf`)
+    /// from their staging directory to the target directory.
     ///
-    /// Default to `$XDG_CACHE_HOME/dt/staging` if `XDG_CACHE_HOME` is set, or
-    /// `$HOME/.cache/dt/staging` if `HOME` is set.  Panics when neither `XDG_CACHE_HOME` nor
-    /// `HOME` is set and config file does not specify this.
+    /// Default to `$XDG_CACHE_HOME/dt/staging` if `XDG_CACHE_HOME` is set,
+    /// or `$HOME/.cache/dt/staging` if `HOME` is set.  Panics when
+    /// neither `XDG_CACHE_HOME` nor `HOME` is set and config file does
+    /// not specify this.
     pub staging: Option<PathBuf>,
 
     /// The syncing method.
@@ -373,14 +381,16 @@ pub struct GlobalConfig {
     /// - `Copy`
     /// - `Symlink`
     ///
-    /// When `method` is `Copy`, the above `staging` setting will be disabled.
+    /// When `method` is `Copy`, the above `staging` setting will be
+    /// disabled.
     pub method: Option<SyncMethod>,
 
     /// Whether to allow overwriting existing files.
     ///
-    /// This alters syncing behaviours when the target file exists.  If set to `true`, no
-    /// errors/warnings will be omitted when the target file exists; otherwise reports error and
-    /// skips the existing item.  Using dry run to spot the existing files before syncing is
+    /// This alters syncing behaviours when the target file exists.  If set
+    /// to `true`, no errors/warnings will be omitted when the target
+    /// file exists; otherwise reports error and skips the existing item.
+    /// Using dry run to spot the existing files before syncing is
     /// recommended.
     pub allow_overwrite: Option<bool>,
 
@@ -410,11 +420,13 @@ impl Default for GlobalConfig {
 /// Syncing methods.
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
 pub enum SyncMethod {
-    /// Instructs syncing module to directly copy each item from source to target.
+    /// Instructs syncing module to directly copy each item from source to
+    /// target.
     Copy,
 
-    /// Instructs syncing module to first copy iach item from source to its staging directory, then
-    /// symlink staged items from their staging directory to target.
+    /// Instructs syncing module to first copy iach item from source to its
+    /// staging directory, then symlink staged items from their staging
+    /// directory to target.
     Symlink,
 }
 

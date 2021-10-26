@@ -1,4 +1,15 @@
+edition = "2021"
+hard_tabs = false
 max_width = 78
+newline_style = "Unix"
+reorder_imports = true
+tab_spaces = 4
+use_field_init_shorthand = true
+
+# Unstable features
+unstable_features = true
+comment_width = 78
+wrap_comments = true
 
 # Author: Blurgy <gy@blurgy.xyz>
 # Date:   Jun 09 2021, 15:27 [CST]

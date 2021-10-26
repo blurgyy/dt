@@ -11,7 +11,8 @@ use crate::{config::*, utils};
 /// Parameters for controlling how an item is synced.
 #[derive(Debug)]
 struct SyncingParameters {
-    /// Path to source item, assumed to exist, and is already host-specific if possible.
+    /// Path to source item, assumed to exist, and is already host-specific
+    /// if possible.
     spath: PathBuf,
     /// Path to the parent dir of the disired sync destination.
     tparent: PathBuf,
@@ -380,7 +381,8 @@ pub fn sync(config: &DTConfig, local_name: &[String]) -> Result<(), Report> {
     Ok(())
 }
 
-/// Show changes to be made according to configuration, without actually syncing items.
+/// Show changes to be made according to configuration, without actually
+/// syncing items.
 pub fn dry_sync(
     config: &DTConfig,
     local_name: &[String],
@@ -520,8 +522,8 @@ fn sync_core(params: SyncingParameters) -> Result<(), Report> {
         )
     }))?;
 
-    // Finally, get the staging path with source path (staging path does not have host-specific
-    // suffix).
+    // Finally, get the staging path with source path (staging path does not
+    // have host-specific suffix).
     let staging_path = staging.join(
         utils::to_non_host_specific(&spath, &hostname_sep)?.strip_prefix(
             utils::to_non_host_specific(&basedir, &hostname_sep)?,
