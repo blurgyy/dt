@@ -126,9 +126,11 @@ pub fn to_host_specific(
 /// #
 /// # fn main() -> Result<(), Report> {
 ///     let p: PathBuf = "/some@@watson/long/path@@watson".into();
-///     let h = utils::to_non_host_specific(p, "@@")?;
 ///
-///     assert_eq!(h, PathBuf::from_str("/some/long/path")?);
+///     assert_eq!(
+///         utils::to_non_host_specific(p, "@@")?,
+///         PathBuf::from_str("/some/long/path")?,
+///     );
 ///
 /// #     Ok(())
 /// # }
