@@ -25,16 +25,20 @@ does the same thing as above:
 $ dt-cli
 ```
 
-**Other command line options & flags**
+**Other command line flags & options**
 
-| Options/Flags | Description |
+| Flags | Description |
 |---:|:---|
-| `-c\|--config-path <path>` | Specifies path to config file. |
 | `-d\|--dry-run` | Shows changes to be made without actually syncing files. |
-| `-v\|--verbose` | Increases logging verbosity. |
-| `-q\|--quiet` | Decreases logging verbosity. |
 | `-h\|--help` | Prints help information. |
+| `-q\|--quiet` | Decreases logging verbosity. |
+| `-v\|--verbose` | Increases logging verbosity. |
 | `-V` | Prints version information. |
+
+| Options | Description |
+|---:|:---|
+| `-c\|--config-path` `<path>` | Specifies path to config file. |
+| `-l\|--local-name` `<name>` | Specifies name(s) of the local group(s) to be processed |
 
 ## Configuration
 
