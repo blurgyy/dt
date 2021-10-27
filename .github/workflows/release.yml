@@ -59,7 +59,10 @@ jobs:
         tag_name: ${{ github.ref }}
         name: Release ${{ steps.get_tag_name.outputs.tag_name }}
         body: ${{ steps.changelog.outputs.release_body }}
-        files: target/release/dt-cli
+        files: |
+          target/release/dt-cli
+          LICENSE-APACHE
+          LICENSE-MIT
 
 # Author: Blurgy <gy@blurgy.xyz>
 # Date:   Oct 07 2021, 00:39 [CST]
