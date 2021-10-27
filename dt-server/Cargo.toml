@@ -15,7 +15,7 @@ keywords = ["dotfiles", "manager", "syncing", "config"]
 [dependencies]
 color-eyre = "0.5.11"
 dirs = "4.0.0"
-dt-core = { path = "../dt-core", version = "0.2.1" }
+dt-core = { path = "../dt-core", version = "0.3.0" }
 log = "0.4.14"
 pretty_env_logger = "0.4.0"
 structopt = "0.3.23"
