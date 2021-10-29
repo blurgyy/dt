@@ -6,7 +6,7 @@ use std::{
 
 use color_eyre::{eyre::eyre, Report};
 
-use crate::{config::*, utils};
+use crate::{config::*, item::DTItem};
 
 /// Parameters for controlling how an item is synced.
 #[derive(Debug)]
@@ -38,7 +38,7 @@ fn expand(config: &DTConfig) -> Result<DTConfig, Report> {
         global: match &config.global {
             Some(global) => Some(GlobalConfig {
                 staging: match &global.staging {
-                    Some(staging) => Some(utils::to_absolute(staging)?),
+                    Some(staging) => Some(staging.absolute()?),
                     None => GlobalConfig::default().staging,
                 },
                 ..global.to_owned()
@@ -49,9 +49,9 @@ fn expand(config: &DTConfig) -> Result<DTConfig, Report> {
     };
     for original in &config.local {
         let mut next = LocalGroup {
-            basedir: utils::to_absolute(&original.basedir)?,
+            basedir: original.basedir.absolute()?,
             sources: vec![],
-            target: utils::to_absolute(&original.target)?,
+            target: original.target.absolute()?,
             ..original.to_owned()
         };
 
@@ -62,7 +62,7 @@ fn expand(config: &DTConfig) -> Result<DTConfig, Report> {
 
         // Check for host-specific basedir
         let host_specific_basedir =
-            utils::to_host_specific(&next.basedir, &group_hostname_sep)?;
+            next.basedir.host_specific(&group_hostname_sep);
         if host_specific_basedir.exists() {
             next.basedir = host_specific_basedir;
         }
@@ -72,11 +72,12 @@ fn expand(config: &DTConfig) -> Result<DTConfig, Report> {
             .sources
             .iter()
             .map(|s| {
-                let try_s = utils::to_absolute(next.basedir.join(s))
+                let try_s = next
+                    .basedir
+                    .join(s)
+                    .absolute()
                     .unwrap_or_else(|e| panic!("{}", e));
-                let try_s =
-                    utils::to_host_specific(try_s, &group_hostname_sep)
-                        .unwrap_or_else(|e| panic!("{}", e));
+                let try_s = try_s.host_specific(&group_hostname_sep);
                 if try_s.exists() {
                     try_s
                 } else {
@@ -130,10 +131,10 @@ fn expand_recursive(
                     })
                 })
                 // Filter out paths that are meant for other hosts
-                .filter(|x| utils::is_for_other_host(x, hostname_sep).not())
+                .filter(|x| x.is_for_other_host(hostname_sep).not())
                 // Convert to absolute paths
                 .map(|x| {
-                    utils::to_absolute(&x).unwrap_or_else(|_| {
+                    x.absolute().unwrap_or_else(|_| {
                         panic!(
                             "Failed converting to absolute path: {}",
                             x.display(),
@@ -166,7 +167,7 @@ fn expand_recursive(
                 })
                 .path()
             })
-            .filter(|x| utils::is_for_other_host(x, hostname_sep).not())
+            .filter(|x| x.is_for_other_host(hostname_sep).not())
             .collect();
 
         let mut ret: Vec<PathBuf> = Vec::new();
@@ -224,7 +225,7 @@ fn check(config: &DTConfig) -> Result<(), Report> {
         }
 
         // Path to target contains readonly parent directory
-        if parent_readonly(&group.target) {
+        if group.target.parent_readonly() {
             return Err(eyre!(
                 "Group [{}]: target path cannot be created due to insufficient permissions",
                 group.name,
@@ -264,7 +265,7 @@ fn check(config: &DTConfig) -> Result<(), Report> {
         }
 
         // Path to staging root contains readonly parent directory
-        if parent_readonly(staging) {
+        if staging.parent_readonly() {
             return Err(eyre!(
                 "Staging root path cannot be created due to insufficient permissions"
             ));
@@ -272,21 +273,6 @@ fn check(config: &DTConfig) -> Result<(), Report> {
     }
 
     Ok(())
-}
-
-fn parent_readonly(p: impl AsRef<Path>) -> bool {
-    let mut p = p.as_ref();
-    let first_existing_parent = loop {
-        if p.exists() {
-            break p;
-        }
-        p = p.parent().unwrap();
-    };
-    first_existing_parent
-        .metadata()
-        .unwrap()
-        .permissions()
-        .readonly()
 }
 
 /// Syncs items specified in configuration.
@@ -511,9 +497,9 @@ fn sync_core(params: SyncingParameters) -> Result<(), Report> {
 
     // First, get target path (without the per-host suffix).
     let tpath = tparent.join(
-        utils::to_non_host_specific(&spath, &hostname_sep)?.strip_prefix(
-            utils::to_non_host_specific(&basedir, &hostname_sep)?,
-        )?,
+        spath
+            .non_host_specific(&hostname_sep)
+            .strip_prefix(basedir.non_host_specific(&hostname_sep))?,
     );
     std::fs::create_dir_all(tpath.parent().unwrap_or_else(|| {
         panic!(
@@ -525,9 +511,9 @@ fn sync_core(params: SyncingParameters) -> Result<(), Report> {
     // Finally, get the staging path with source path (staging path does not
     // have host-specific suffix).
     let staging_path = staging.join(
-        utils::to_non_host_specific(&spath, &hostname_sep)?.strip_prefix(
-            utils::to_non_host_specific(&basedir, &hostname_sep)?,
-        )?,
+        spath
+            .non_host_specific(&hostname_sep)
+            .strip_prefix(basedir.non_host_specific(&hostname_sep))?,
     );
     std::fs::create_dir_all(staging_path.parent().unwrap_or_else(|| {
         panic!(
@@ -941,8 +927,9 @@ mod expansion {
     use std::{path::PathBuf, str::FromStr};
 
     use color_eyre::Report;
+    use pretty_assertions::assert_eq;
 
-    use crate::{config::*, utils};
+    use crate::{config::*, item::DTItem};
 
     use super::expand;
 
@@ -955,33 +942,22 @@ mod expansion {
             assert_eq!(
                 group.sources,
                 vec![
-                    utils::to_absolute(PathBuf::from_str(
-                        "../dt-cli/Cargo.toml"
-                    )?)?,
-                    utils::to_absolute(PathBuf::from_str(
-                        "../dt-cli/README.md",
-                    )?)?,
-                    utils::to_absolute(PathBuf::from_str(
-                        "../dt-cli/src/main.rs"
-                    )?)?,
-                    utils::to_absolute(PathBuf::from_str(
-                        "../dt-core/Cargo.toml"
-                    )?)?,
-                    utils::to_absolute(PathBuf::from_str(
-                        "../dt-core/README.md",
-                    )?)?,
-                    utils::to_absolute(PathBuf::from_str(
-                        "../dt-core/src/config.rs"
-                    )?)?,
-                    utils::to_absolute(PathBuf::from_str(
-                        "../dt-core/src/lib.rs"
-                    )?)?,
-                    utils::to_absolute(PathBuf::from_str(
-                        "../dt-core/src/syncing.rs"
-                    )?)?,
-                    utils::to_absolute(PathBuf::from_str(
-                        "../dt-core/src/utils.rs"
-                    )?)?,
+                    PathBuf::from_str("../dt-cli/Cargo.toml")?.absolute()?,
+                    PathBuf::from_str("../dt-cli/README.md")?.absolute()?,
+                    PathBuf::from_str("../dt-cli/src/main.rs")?.absolute()?,
+                    PathBuf::from_str("../dt-core/Cargo.toml")?.absolute()?,
+                    PathBuf::from_str("../dt-core/README.md")?.absolute()?,
+                    PathBuf::from_str("../dt-core/src/config.rs")?
+                        .absolute()?,
+                    PathBuf::from_str("../dt-core/src/error.rs")?
+                        .absolute()?,
+                    PathBuf::from_str("../dt-core/src/item.rs")?
+                        .absolute()?,
+                    PathBuf::from_str("../dt-core/src/lib.rs")?.absolute()?,
+                    PathBuf::from_str("../dt-core/src/syncing.rs")?
+                        .absolute()?,
+                    PathBuf::from_str("../dt-core/src/utils.rs")?
+                        .absolute()?,
                 ],
             );
         }
@@ -997,24 +973,30 @@ mod expansion {
             assert_eq!(
                 group.sources,
                 vec![
-                    utils::to_absolute(PathBuf::from_str(
+                    PathBuf::from_str(
                         "../testroot/items/sorting_and_deduping/A-a"
-                    )?)?,
-                    utils::to_absolute(PathBuf::from_str(
+                    )?
+                    .absolute()?,
+                    PathBuf::from_str(
                         "../testroot/items/sorting_and_deduping/A-b"
-                    )?)?,
-                    utils::to_absolute(PathBuf::from_str(
+                    )?
+                    .absolute()?,
+                    PathBuf::from_str(
                         "../testroot/items/sorting_and_deduping/A-c"
-                    )?)?,
-                    utils::to_absolute(PathBuf::from_str(
+                    )?
+                    .absolute()?,
+                    PathBuf::from_str(
                         "../testroot/items/sorting_and_deduping/B-a"
-                    )?)?,
-                    utils::to_absolute(PathBuf::from_str(
+                    )?
+                    .absolute()?,
+                    PathBuf::from_str(
                         "../testroot/items/sorting_and_deduping/B-b"
-                    )?)?,
-                    utils::to_absolute(PathBuf::from_str(
+                    )?
+                    .absolute()?,
+                    PathBuf::from_str(
                         "../testroot/items/sorting_and_deduping/B-c"
-                    )?)?,
+                    )?
+                    .absolute()?,
                 ]
             );
         }

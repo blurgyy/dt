@@ -22,5 +22,8 @@ serde = { version = "1.0.130", features = ["derive"] }
 shellexpand = "2.1.0"
 toml = "0.5.8"
 
+[dev-dependencies]
+pretty_assertions = "1.0.0"
+
 # Author: Blurgy <gy@blurgy.xyz>
 # Date:   Sep 17 2021, 21:32 [CST]

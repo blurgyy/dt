@@ -1,4 +1,6 @@
 pub mod config;
+pub mod error;
+pub mod item;
 pub mod syncing;
 pub mod utils;
 
