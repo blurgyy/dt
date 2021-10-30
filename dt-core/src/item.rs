@@ -8,7 +8,9 @@ use crate::{error, utils};
 
 type Result<T> = std::result::Result<T, error::Error>;
 
-/// Defines behaviours for an item (a path) used in DT.
+/// Defines behaviours for an item (a path) used in [DT].
+///
+/// [DT]: https://github.com/blurgyy/dt
 pub trait DTItem<'a>
 where
     Self: AsRef<Path> + From<&'a Path> + From<PathBuf>,
@@ -16,14 +18,16 @@ where
     /// Checks if the item is for another machine (by checking its name).
     ///
     /// A host-specific item is considered for another machine, when its
-    /// filename contains only 1 `hostname_sep`, and after the
-    /// `hostname_sep` should not be current machine's hostname.
+    /// filename contains only 1 [`hostname_sep`], and after the
+    /// [`hostname_sep`] should not be current machine's hostname.
     ///
     /// A non-host-specific item is always considered **not** for another
     /// machine (because it is non-host-specific, i.e. for all machines).
     ///
-    /// An item with filename containing more than 1 `hostname_sep` causes
+    /// An item with filename containing more than 1 [`hostname_sep`] causes
     /// this function to panic.
+    ///
+    /// [`hostname_sep`]: crate::config::GlobalConfig::hostname_sep
     fn is_for_other_host(&'a self, hostname_sep: &'a str) -> bool {
         let path = self.as_ref();
         let filename = path
@@ -62,7 +66,7 @@ where
 
     /// Gets the absolute path of `self`, **without** traversing symlinks.
     ///
-    /// <https://stackoverflow.com/a/54817755/13482274>
+    /// Reference: <https://stackoverflow.com/a/54817755/13482274>
     fn absolute(&'a self) -> Result<Self> {
         let path = self.as_ref();
 
@@ -159,6 +163,7 @@ where
             .collect::<PathBuf>().into()
     }
 
+    /// Checks whether any of the component above `self` is readonly.
     fn parent_readonly(&self) -> bool {
         let mut p = self.as_ref();
         let first_existing_parent = loop {

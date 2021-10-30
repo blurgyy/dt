@@ -8,7 +8,13 @@ use serde::Deserialize;
 
 use crate::error::{Error as AppError, Result};
 
+/// Fallback value for config key [`hostname_sep`]
+///
+/// [`hostname_sep`]: GlobalConfig::hostname_sep
 pub const DEFAULT_HOSTNAME_SEPARATOR: &str = "@@";
+/// Fallback value for config key [`allow_overwrite`]
+///
+/// [`allow_overwrite`]: GlobalConfig::allow_overwrite
 pub const DEFAULT_ALLOW_OVERWRITE: bool = false;
 
 /// The configuration object constructed from configuration file.
@@ -202,8 +208,10 @@ pub struct LocalGroup {
     pub name: String,
 
     /// The base directory of all source items.  This simplifies
-    /// configuration files with common prefixes in `local.sources`
+    /// configuration files with common prefixes in the [`sources`]
     /// array.
+    ///
+    /// [`sources`]: LocalGroup::sources
     ///
     /// ## Example
     ///
@@ -230,10 +238,14 @@ pub struct LocalGroup {
     /// ```
     ///
     /// It will only sync `src/main.rs` to the configured target directory
-    /// (in this case, the directory where `dt` is being executed).
+    /// (in this case, the directory where [DT] is being executed).
+    ///
+    /// [DT]: https://github.com/blurgyy/dt
     pub basedir: PathBuf,
 
-    /// Paths (relative to `basedir`) to the items to be synced.
+    /// Paths (relative to [`basedir`]) to the items to be synced.
+    ///
+    /// [`basedir`]: LocalGroup::basedir
     pub sources: Vec<PathBuf>,
 
     /// The path of the parent dir of the final synced items.
@@ -245,7 +257,7 @@ pub struct LocalGroup {
     /// target = "/tar/get"
     /// ```
     ///
-    /// will sync "/source/file" to "/tar/get/file" (creating non-existing
+    /// will sync `/source/file` to `/tar/get/file` (creating non-existing
     /// directories along the way), while
     ///
     /// ```toml
@@ -253,7 +265,7 @@ pub struct LocalGroup {
     /// target = "/tar/get/dir"
     /// ```
     ///
-    /// will sync "source/dir" to "/tar/get/dir/dir" (creating non-existing
+    /// will sync `source/dir` to `/tar/get/dir/dir` (creating non-existing
     /// directories along the way).
     pub target: PathBuf,
 
@@ -281,7 +293,9 @@ pub struct LocalGroup {
     /// instead of the configured one.
     ///
     /// Also ignores items that are meant for other hosts by checking if the
-    /// string after `hostname_sep` matches current machine's hostname.
+    /// string after [`hostname_sep`] matches current machine's hostname.
+    ///
+    /// [`hostname_sep`]: LocalGroup::hostname_sep
     ///
     /// ## Example
     ///
@@ -326,18 +340,17 @@ pub struct LocalGroup {
     /// (regardless of this option).
     pub allow_overwrite: Option<bool>,
 
-    /// (Optional) Syncing method, overrides `global.method` key.
+    /// (Optional) Syncing method, overrides [`global.method`] key.
+    ///
+    /// [`global.method`]: GlobalConfig::method
     pub method: Option<SyncMethod>,
-    /* // The pattern specified in `match_begin` is matched against all
-     * match_begin: String,
-     * replace_begin: String,
-     * match_end: String,
-     * replace_end: String, */
 }
 
 impl LocalGroup {
-    /// Gets the `allow_overwrite` key from a `LocalSyncConfig` object, falls
-    /// back to the `allow_overwrite` from provided global config.
+    /// Gets the [`allow_overwrite`] key from a `LocalGroup` object,
+    /// falls back to the `allow_overwrite` from provided global config.
+    ///
+    /// [`allow_overwrite`]: LocalGroup::allow_overwrite
     pub fn get_allow_overwrite(&self, global_config: &GlobalConfig) -> bool {
         match self.allow_overwrite {
             Some(allow_overwrite) => allow_overwrite,
@@ -347,8 +360,10 @@ impl LocalGroup {
         }
     }
 
-    /// Gets the `method` key from a `LocalSyncConfig` object, falls back to
-    /// the `method` from provided global config.
+    /// Gets the [`method`] key from a `LocalGroup` object, falls back
+    /// to the `method` from provided global config.
+    ///
+    /// [`method`]: LocalGroup::method
     pub fn get_method(&self, global_config: &GlobalConfig) -> SyncMethod {
         match self.method {
             Some(method) => method,
@@ -356,8 +371,10 @@ impl LocalGroup {
         }
     }
 
-    /// Gets the `method` key from a `LocalSyncConfig` object, falls back to
-    /// the `method` from provided global config.
+    /// Gets the [`hostname_sep`] key from a `LocalGroup` object, falls
+    /// back to the [`hostname_sep`] from provided global config.
+    ///
+    /// [`hostname_sep`]: LocalGroup::hostname_sep
     pub fn get_hostname_sep(&self, global_config: &GlobalConfig) -> String {
         match &self.hostname_sep {
             Some(hostname_sep) => hostname_sep.to_owned(),
@@ -374,8 +391,8 @@ impl LocalGroup {
 pub struct GlobalConfig {
     /// The staging root directory.
     ///
-    /// Only works when `method` (see below) is set to `Symlink`.  When
-    /// syncing with `Symlink` method, items will be copied to their
+    /// Only works when [`method`] (see below) is set to [`Symlink`].  When
+    /// syncing with [`Symlink`] method, items will be copied to their
     /// staging directory (composed by joining staging root
     /// directory with their group name), then symlinked (as of `ln -sf`)
     /// from their staging directory to the target directory.
@@ -384,17 +401,25 @@ pub struct GlobalConfig {
     /// or `$HOME/.cache/dt/staging` if `HOME` is set.  Panics when
     /// neither `XDG_CACHE_HOME` nor `HOME` is set and config file does
     /// not specify this.
+    ///
+    /// [`method`]: GlobalConfig::method
+    /// [`Symlink`]: SyncMethod::Symlink
     pub staging: Option<PathBuf>,
 
     /// The syncing method.
     ///
     /// Available values are:
     ///
-    /// - `Copy`
-    /// - `Symlink`
+    /// - [`Copy`]
+    /// - [`Symlink`]
     ///
-    /// When `method` is `Copy`, the above `staging` setting will be
+    /// When [`method`] is [`Copy`], the above [`staging`] setting will be
     /// disabled.
+    ///
+    /// [`method`]: GlobalConfig::method
+    /// [`staging`]: GlobalConfig::staging
+    /// [`Copy`]: SyncMethod::Copy
+    /// [`Symlink`]: SyncMethod::Symlink
     pub method: Option<SyncMethod>,
 
     /// Whether to allow overwriting existing files.
@@ -408,7 +433,9 @@ pub struct GlobalConfig {
 
     /// The hostname separator.
     ///
-    /// Default value when `LocalSyncConfig::hostname_sep` is not set.
+    /// Default value when [`LocalGroup::hostname_sep`] is not set.
+    ///
+    /// [`LocalGroup::hostname_sep`]: LocalGroup::hostname_sep
     pub hostname_sep: Option<String>,
 }
 

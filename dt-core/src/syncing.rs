@@ -19,19 +19,37 @@ struct SyncingParameters {
     dry: bool,
     /// Whether overwrite existing files or not.
     allow_overwrite: bool,
-    /// A `SyncMethod` instance.
+    /// A [`SyncMethod`] instance.
+    ///
+    /// [`SyncMethod`]: crate::config::SyncMethod
     method: SyncMethod,
     /// Path to staging directory.
     staging: PathBuf,
     /// Name of current group.
     group_name: String,
-    /// Configured `basedir` of current group
+    /// Configured [`basedir`] of current group
+    ///
+    /// [`basedir`]: crate::config::LocalGroup::basedir
     basedir: PathBuf,
     /// Separator for per-host settings.
     hostname_sep: String,
 }
 
-/// Expand tilde and globs in "sources" and manifest new config object.
+/// Expands tilde and globs in [`sources`], returns new config object.
+///
+/// It does the following operations on given config:
+///
+/// 1. Convert [`global.staging`] to an absolute path.
+/// 2. Convert all [`basedir`]s, [`target`]s in `[[local]]` to absolute paths.
+/// 3. Replace [`basedir`]s and paths in [`sources`] with their host-specific
+///    counterpart, if there exists any.
+/// 4. Recursively expand globs and directories in [`sources`].
+///
+/// [`sources`]: crate::config::LocalGroup::sources
+/// [`global.staging`]: crate::config::GlobalConfig::staging
+/// [`basedir`]: crate::config::LocalGroup::basedir
+/// [`target`]: crate::config::LocalGroup::target
+/// [`[[local]]`]: crate::config::LocalGroup
 fn expand(config: &DTConfig) -> Result<DTConfig> {
     let mut ret = DTConfig {
         global: match &config.global {
@@ -85,6 +103,7 @@ fn expand(config: &DTConfig) -> Result<DTConfig> {
             })
             .collect();
 
+        // Recursively expand source paths
         for s in &sources {
             let s = next.basedir.join(s);
             let mut s = expand_recursive(
@@ -106,6 +125,15 @@ fn expand(config: &DTConfig) -> Result<DTConfig> {
     Ok(ret)
 }
 
+/// Recursively expands a given path.
+///
+/// - If `do_glob` is `true`, trys to expand glob;
+/// - If `do_glob` is `false`, `path` must be a directory, then children of
+///   `path` are recursively expanded.
+///
+/// Returns a [`Vec`] of the expanded paths.
+///
+/// [`Vec`]: Vec
 fn expand_recursive(
     path: &Path,
     hostname_sep: &str,
@@ -188,6 +216,7 @@ fn expand_recursive(
     }
 }
 
+/// Checks validity of the given `config`.
 fn check(config: &DTConfig) -> Result<()> {
     let mut has_symlink: bool = false;
 
@@ -274,7 +303,7 @@ fn check(config: &DTConfig) -> Result<()> {
     Ok(())
 }
 
-/// Syncs items specified in configuration.
+/// Syncs items specified with given configuration object.
 pub fn sync(config: &DTConfig, local_name: &[String]) -> Result<()> {
     let config = expand(config)?;
 
@@ -461,8 +490,6 @@ pub fn dry_sync(config: &DTConfig, local_name: &[String]) -> Result<()> {
 }
 
 /// Syncs `spath` to a directory `tparent`, being aware of its base directory.
-///
-/// Args:
 fn sync_core(params: SyncingParameters) -> Result<()> {
     log::trace!("Parameters for `sync_core`: {:#?}", params);
     let SyncingParameters {

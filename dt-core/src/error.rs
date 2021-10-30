@@ -2,13 +2,19 @@ use std::fmt;
 
 #[derive(Debug, PartialEq)]
 pub enum Error {
+    /// Errors that occur when a config is deemed as invalid.
     ConfigError(String),
+    /// Errors that may occur during I/O operations.
     IoError(String),
+    /// Errors that occur when parsing of structures failes.
     ParseError(String),
+    /// Errors that may occur while manipulating paths.
     PathError(String),
+    /// Errors that may occur during syncing.
     SyncingError(String),
 }
 
+/// Result type used across the application.
 pub type Result<T> = std::result::Result<T, Error>;
 
 impl std::error::Error for Error {}
