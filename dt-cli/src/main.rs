@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use color_eyre::Report;
 use structopt::StructOpt;
 
 use dt_core::{config::DTConfig, syncing, utils::default_config_path};
@@ -45,9 +44,9 @@ struct Opt {
     quiet: i8,
 }
 
-fn main() -> Result<(), Report> {
+fn main() {
     let opt = Opt::from_args();
-    setup(opt.verbose - opt.quiet + { opt.dry_run as i8 })?;
+    setup(opt.verbose - opt.quiet + { opt.dry_run as i8 });
 
     log::trace!("Parsed command line: {:#?}", &opt);
 
@@ -71,17 +70,27 @@ fn main() -> Result<(), Report> {
         }
     };
 
-    let config: DTConfig = DTConfig::from_path(config_path)?;
+    let config = match DTConfig::from_path(config_path) {
+        Ok(config) => config,
+        Err(e) => {
+            log::error!("{}", e);
+            std::process::exit(1);
+        }
+    };
     if opt.dry_run {
-        syncing::dry_sync(&config, &opt.local_name)?;
+        if let Err(e) = syncing::dry_sync(&config, &opt.local_name) {
+            log::error!("{}", e);
+            std::process::exit(2);
+        }
     } else {
-        syncing::sync(&config, &opt.local_name)?;
+        if let Err(e) = syncing::sync(&config, &opt.local_name) {
+            log::error!("{}", e);
+            std::process::exit(3);
+        }
     }
-
-    Ok(())
 }
 
-fn setup(verbosity: i8) -> Result<(), Report> {
+fn setup(verbosity: i8) {
     match verbosity {
         i8::MIN..=-2 => std::env::set_var("RUST_LOG", "error"),
         -1 => std::env::set_var("RUST_LOG", "warn"),
@@ -94,9 +103,6 @@ fn setup(verbosity: i8) -> Result<(), Report> {
     }
 
     pretty_env_logger::init();
-    color_eyre::install()?;
-
-    Ok(())
 }
 
 // Author: Blurgy <gy@blurgy.xyz>

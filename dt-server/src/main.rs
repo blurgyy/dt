@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use color_eyre::Report;
 use dt_core::{config::DTConfig, utils::default_config_path};
 use structopt::StructOpt;
 
@@ -45,9 +44,9 @@ struct Opt {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Report> {
+async fn main() {
     let opt = Opt::from_args();
-    setup(opt.verbose - opt.quiet)?;
+    setup(opt.verbose - opt.quiet);
 
     let config_path = match opt.config_path {
         Some(p) => {
@@ -69,12 +68,16 @@ async fn main() -> Result<(), Report> {
         }
     };
 
-    let config: DTConfig = DTConfig::from_path(config_path)?;
-
-    Ok(())
+    let config = match DTConfig::from_path(config_path) {
+        Ok(config) => config,
+        Err(e) => {
+            log::error!("{}", e);
+            std::process::exit(1);
+        }
+    };
 }
 
-fn setup(verbosity: i8) -> Result<(), Report> {
+fn setup(verbosity: i8) {
     match verbosity {
         i8::MIN..=-2 => std::env::set_var("RUST_LOG", "error"),
         -1 => std::env::set_var("RUST_LOG", "warn"),
@@ -86,10 +89,7 @@ fn setup(verbosity: i8) -> Result<(), Report> {
         2..=i8::MAX => std::env::set_var("RUST_LOG", "trace"),
     }
 
-    color_eyre::install()?;
     pretty_env_logger::init();
-
-    Ok(())
 }
 
 // Author: Blurgy <gy@blurgy.xyz>

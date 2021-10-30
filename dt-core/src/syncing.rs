@@ -4,8 +4,7 @@ use std::{
     str::FromStr,
 };
 
-use color_eyre::{eyre::eyre, Report};
-
+use crate::error::{Error as AppError, Result};
 use crate::{config::*, item::DTItem};
 
 /// Parameters for controlling how an item is synced.
@@ -33,7 +32,7 @@ struct SyncingParameters {
 }
 
 /// Expand tilde and globs in "sources" and manifest new config object.
-fn expand(config: &DTConfig) -> Result<DTConfig, Report> {
+fn expand(config: &DTConfig) -> Result<DTConfig> {
     let mut ret = DTConfig {
         global: match &config.global {
             Some(global) => Some(GlobalConfig {
@@ -111,7 +110,7 @@ fn expand_recursive(
     path: &Path,
     hostname_sep: &str,
     do_glob: bool,
-) -> Result<Vec<PathBuf>, Report> {
+) -> Result<Vec<PathBuf>> {
     if do_glob {
         let globbing_options = glob::MatchOptions {
             case_sensitive: true,
@@ -189,7 +188,7 @@ fn expand_recursive(
     }
 }
 
-fn check(config: &DTConfig) -> Result<(), Report> {
+fn check(config: &DTConfig) -> Result<()> {
     let mut has_symlink: bool = false;
 
     for group in &config.local {
@@ -202,42 +201,42 @@ fn check(config: &DTConfig) -> Result<(), Report> {
 
         // Non-existing basedir
         if group.basedir.exists().not() {
-            return Err(eyre!(
-                "Group [{}]: basedir path does not exist",
+            return Err(AppError::ConfigError(format!(
+                "basedir path does not exist in group '{}'",
                 group.name,
-            ));
+            )));
         }
 
         // Wrong type of existing basedir path
         if group.basedir.is_dir().not() {
-            return Err(eyre!(
-                "Group [{}]: basedir path exists but is not a valid directory",
+            return Err(AppError::ConfigError(format!(
+                "basedir path exists but is not a valid directory in group '{}'",
                 group.name,
-            ));
+            )));
         }
 
         // Wrong type of existing target path
         if group.target.exists() && !group.target.is_dir() {
-            return Err(eyre!(
-                "Group [{}]: target path exists but is not a valid directory",
+            return Err(AppError::ConfigError(format!(
+                "target path exists but is not a valid directory in group '{}'",
                 group.name,
-            ));
+            )));
         }
 
         // Path to target contains readonly parent directory
         if group.target.parent_readonly() {
-            return Err(eyre!(
-                "Group [{}]: target path cannot be created due to insufficient permissions",
+            return Err(AppError::ConfigError(format!(
+                "target path cannot be created due to insufficient permissions in group '{}'",
                 group.name,
-            ));
+            )));
         }
 
         for s in &group.sources {
             if s.is_file() && std::fs::File::open(s).is_err() {
-                return Err(eyre!(
-                    "Group [{}]: there exists one or more source item(s) that is not readable",
+                return Err(AppError::ConfigError(format!(
+                    "there exists one or more source item(s) that is not readable in group '{}'",
                     group.name,
-                ));
+                )));
             }
         }
     }
@@ -259,16 +258,16 @@ fn check(config: &DTConfig) -> Result<(), Report> {
         };
         // Wrong type of existing staging path
         if staging.exists() && staging.is_dir().not() {
-            return Err(eyre!(
-                "Staging root path exists but is not a valid directory",
-            ));
+            return Err(AppError::ConfigError(format!(
+                "staging root path exists but is not a valid directory",
+            )));
         }
 
         // Path to staging root contains readonly parent directory
         if staging.parent_readonly() {
-            return Err(eyre!(
-                "Staging root path cannot be created due to insufficient permissions"
-            ));
+            return Err(AppError::ConfigError(format!(
+                "staging root path cannot be created due to insufficient permissions"
+            )));
         }
     }
 
@@ -276,7 +275,7 @@ fn check(config: &DTConfig) -> Result<(), Report> {
 }
 
 /// Syncs items specified in configuration.
-pub fn sync(config: &DTConfig, local_name: &[String]) -> Result<(), Report> {
+pub fn sync(config: &DTConfig, local_name: &[String]) -> Result<()> {
     let config = expand(config)?;
 
     let staging = &config
@@ -335,7 +334,8 @@ pub fn sync(config: &DTConfig, local_name: &[String]) -> Result<(), Report> {
             );
         }
 
-        let group_staging = staging.join(PathBuf::from_str(&group.name)?);
+        let group_staging =
+            staging.join(PathBuf::from_str(&group.name).unwrap());
         if group_staging.exists().not() {
             log::trace!(
                 "Creating non-existing staging directory '{}'",
@@ -369,10 +369,7 @@ pub fn sync(config: &DTConfig, local_name: &[String]) -> Result<(), Report> {
 
 /// Show changes to be made according to configuration, without actually
 /// syncing items.
-pub fn dry_sync(
-    config: &DTConfig,
-    local_name: &[String],
-) -> Result<(), Report> {
+pub fn dry_sync(config: &DTConfig, local_name: &[String]) -> Result<()> {
     let config = expand(config)?;
 
     let staging = &config
@@ -429,7 +426,8 @@ pub fn dry_sync(
             );
         }
 
-        let group_staging = staging.join(PathBuf::from_str(&group.name)?);
+        let group_staging =
+            staging.join(PathBuf::from_str(&group.name).unwrap());
         if group_staging.exists().not() {
             log::info!("Staging directory does not exist, will be automatically created when syncing");
         } else if staging.is_dir().not() {
@@ -465,7 +463,7 @@ pub fn dry_sync(
 /// Syncs `spath` to a directory `tparent`, being aware of its base directory.
 ///
 /// Args:
-fn sync_core(params: SyncingParameters) -> Result<(), Report> {
+fn sync_core(params: SyncingParameters) -> Result<()> {
     log::trace!("Parameters for `sync_core`: {:#?}", params);
     let SyncingParameters {
         spath,
@@ -533,11 +531,11 @@ fn sync_core(params: SyncingParameters) -> Result<(), Report> {
                 );
             } else {
                 return Err(
-                    eyre!(
-                        "A directory ({}) exists at the target path of a source file ({})",
+                    AppError::SyncingError(format!(
+                        "a directory '{}' exists at the target path of a source file '{}'",
                         tpath.display(),
                         spath.display(),
-                    )
+                    ))
                 );
             };
         }
@@ -637,11 +635,11 @@ fn sync_core(params: SyncingParameters) -> Result<(), Report> {
                 );
             } else {
                 return Err(
-                    eyre!(
-                        "A file ({}) exists at the target path of a source directory ({})",
+                    AppError::SyncingError(format!(
+                        "a file '{}' exists at the target path of a source directory '{}'",
                         tpath.display(),
                         spath.display(),
-                    )
+                    ))
                 );
             };
         }
@@ -692,21 +690,26 @@ mod invalid_configs {
     };
 
     use color_eyre::{eyre::eyre, Report};
+    use pretty_assertions::assert_eq;
 
     use crate::config::DTConfig;
+    use crate::error::Error as AppError;
 
     use super::expand;
 
     #[test]
     fn non_existing_basedir() -> Result<(), Report> {
-        if let Err(msg) = expand(&DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-non_existing_basedir.toml"
-        )?)?) {
+        ).unwrap())?) {
             assert_eq!(
-                msg.to_string(),
-                "Group [non-existing basedir]: basedir path does not exist",
+                err,
+                AppError::ConfigError(
+                    "basedir path does not exist in group 'non-existing basedir'"
+                        .to_owned()
+                ),
                 "{}",
-                msg,
+                err,
             );
             Ok(())
         } else {
@@ -716,14 +719,17 @@ mod invalid_configs {
 
     #[test]
     fn basedir_is_file() -> Result<(), Report> {
-        if let Err(msg) = expand(&DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-basedir_is_file.toml",
-        )?)?) {
+        ).unwrap())?) {
             assert_eq!(
-                msg.to_string(),
-                "Group [basedir path is file]: basedir path exists but is not a valid directory",
+                err,
+                AppError::ConfigError(
+                    "basedir path exists but is not a valid directory in group 'basedir path is file'"
+                        .to_owned(),
+                ),
                 "{}",
-                msg,
+                err,
             );
             Ok(())
         } else {
@@ -735,14 +741,17 @@ mod invalid_configs {
 
     #[test]
     fn target_is_file_relative() -> Result<(), Report> {
-        if let Err(msg) = expand(&DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-target_is_file_relative.toml",
-        )?)?) {
+        ).unwrap())?) {
             assert_eq!(
-                msg.to_string(),
-                "Group [target path is relative]: target path exists but is not a valid directory",
+                err,
+                AppError::ConfigError(
+                    "target path exists but is not a valid directory in group 'target path is relative'"
+                        .to_owned(),
+                ),
                 "{}",
-                msg,
+                err,
             );
             Ok(())
         } else {
@@ -754,14 +763,17 @@ mod invalid_configs {
 
     #[test]
     fn target_is_file_absolute() -> Result<(), Report> {
-        if let Err(msg) = expand(&DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-target_is_file_absolute.toml",
-        )?)?) {
+        ).unwrap())?) {
             assert_eq!(
-                msg.to_string(),
-                "Group [target path is absolute]: target path exists but is not a valid directory",
+                err,
+                AppError::ConfigError(
+                    "target path exists but is not a valid directory in group 'target path is absolute'"
+                        .to_owned(),
+                ),
                 "{}",
-                msg,
+                err,
             );
             Ok(())
         } else {
@@ -784,14 +796,17 @@ mod invalid_configs {
         std::fs::write(&filepath, "Created by `dt` when testing")?;
 
         // Read config (expected to fail)
-        if let Err(msg) = expand(&DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-target_is_file_has_tilde.toml",
-        )?)?) {
+        ).unwrap())?) {
             assert_eq!(
-                msg.to_string(),
-                "Group [target contains tilde to be expanded]: target path exists but is not a valid directory",
+                err,
+                AppError::ConfigError(
+                    "target path exists but is not a valid directory in group 'target contains tilde to be expanded'"
+                        .to_owned(),
+                ),
                 "{}",
-                msg,
+                err,
             );
         } else {
             return Err(eyre!(
@@ -809,29 +824,35 @@ mod invalid_configs {
     fn target_readonly() -> Result<(), Report> {
         std::fs::set_permissions(
             PathBuf::from_str(
-                "../testroot/items/syncing/invalid_configs/target_readonly/target")?,
-                std::fs::Permissions::from_mode(0o555),
+                "../testroot/items/syncing/invalid_configs/target_readonly/target"
+            ).unwrap(),
+            std::fs::Permissions::from_mode(0o555),
         )?;
-        if let Err(msg) = expand(&DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-target_readonly.toml",
-        )?)?) {
+        ).unwrap())?) {
             assert_eq!(
-                msg.to_string(),
-                "Group [target is readonly]: target path cannot be created due to insufficient permissions",
+                err,
+                AppError::ConfigError(
+                    "target path cannot be created due to insufficient permissions in group 'target is readonly'"
+                        .to_owned(),
+                ),
                 "{}",
-                msg,
+                err,
             );
             std::fs::set_permissions(
                 PathBuf::from_str(
-                    "../testroot/items/syncing/invalid_configs/target_readonly/target")?,
-                    std::fs::Permissions::from_mode(0o755),
+                    "../testroot/items/syncing/invalid_configs/target_readonly/target"
+                ).unwrap(),
+                std::fs::Permissions::from_mode(0o755),
             )?;
             Ok(())
         } else {
             std::fs::set_permissions(
                 PathBuf::from_str(
-                    "../testroot/items/syncing/invalid_configs/target_readonly/target")?,
-                    std::fs::Permissions::from_mode(0o755),
+                    "../testroot/items/syncing/invalid_configs/target_readonly/target"
+                ).unwrap(),
+                std::fs::Permissions::from_mode(0o755),
             )?;
             Err(eyre!(
                 "This config should not be loaded because target path is readonly",
@@ -841,14 +862,17 @@ mod invalid_configs {
 
     #[test]
     fn staging_is_file() -> Result<(), Report> {
-        if let Err(msg) = expand(&DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-staging_is_file.toml",
-        )?)?) {
+        ).unwrap())?) {
             assert_eq!(
-                msg.to_string(),
-                "Staging root path exists but is not a valid directory",
+                err,
+                AppError::ConfigError(
+                    "staging root path exists but is not a valid directory"
+                        .to_owned(),
+                ),
                 "{}",
-                msg,
+                err,
             );
             Ok(())
         } else {
@@ -862,29 +886,35 @@ mod invalid_configs {
     fn staging_readonly() -> Result<(), Report> {
         std::fs::set_permissions(
             PathBuf::from_str(
-                "../testroot/items/syncing/invalid_configs/staging_readonly/staging")?,
-                std::fs::Permissions::from_mode(0o555),
+                "../testroot/items/syncing/invalid_configs/staging_readonly/staging"
+            ).unwrap(),
+            std::fs::Permissions::from_mode(0o555),
         )?;
-        if let Err(msg) = expand(&DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-staging_readonly.toml",
-        )?)?) {
+        ).unwrap())?) {
             assert_eq!(
-                msg.to_string(),
-                "Staging root path cannot be created due to insufficient permissions",
+                err,
+                AppError::ConfigError(
+                    "staging root path cannot be created due to insufficient permissions"
+                        .to_owned(),
+                ),
                 "{}",
-                msg,
+                err,
             );
             std::fs::set_permissions(
                 PathBuf::from_str(
-                    "../testroot/items/syncing/invalid_configs/staging_readonly/staging")?,
-                    std::fs::Permissions::from_mode(0o755),
+                    "../testroot/items/syncing/invalid_configs/staging_readonly/staging"
+                ).unwrap(),
+                std::fs::Permissions::from_mode(0o755),
             )?;
             Ok(())
         } else {
             std::fs::set_permissions(
                 PathBuf::from_str(
-                    "../testroot/items/syncing/invalid_configs/staging_readonly/staging")?,
-                    std::fs::Permissions::from_mode(0o755),
+                    "../testroot/items/syncing/invalid_configs/staging_readonly/staging"
+                ).unwrap(),
+                std::fs::Permissions::from_mode(0o755),
             )?;
             Err(eyre!(
                 "This config should not be loaded because staging path is readonly",
@@ -898,14 +928,17 @@ mod invalid_configs {
             "../testroot/items/syncing/invalid_configs/unreadable_source/no_read_access",
             std::fs::Permissions::from_mode(0o222)
         )?;
-        if let Err(msg) = expand(&DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-unreadable_source.toml",
-        )?)?) {
+        ).unwrap())?) {
             assert_eq!(
-                msg.to_string(),
-                "Group [source is unreadable]: there exists one or more source item(s) that is not readable",
+                err,
+                AppError::ConfigError(
+                    "there exists one or more source item(s) that is not readable in group 'source is unreadable'"
+                        .to_owned(),
+                ),
                 "{}",
-                msg,
+                err,
             );
             std::fs::set_permissions(
                 "../testroot/items/syncing/invalid_configs/unreadable_source/no_read_access",
@@ -935,28 +968,48 @@ mod expansion {
 
     #[test]
     fn glob() -> Result<(), Report> {
-        let config = expand(&DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/syncing/expansion-glob.toml",
-        )?)?)?;
+        let config = expand(&DTConfig::from_path(
+            PathBuf::from_str(
+                "../testroot/configs/syncing/expansion-glob.toml",
+            )
+            .unwrap(),
+        )?)?;
         for group in &config.local {
             assert_eq!(
                 group.sources,
                 vec![
-                    PathBuf::from_str("../dt-cli/Cargo.toml")?.absolute()?,
-                    PathBuf::from_str("../dt-cli/README.md")?.absolute()?,
-                    PathBuf::from_str("../dt-cli/src/main.rs")?.absolute()?,
-                    PathBuf::from_str("../dt-core/Cargo.toml")?.absolute()?,
-                    PathBuf::from_str("../dt-core/README.md")?.absolute()?,
-                    PathBuf::from_str("../dt-core/src/config.rs")?
+                    PathBuf::from_str("../dt-cli/Cargo.toml")
+                        .unwrap()
                         .absolute()?,
-                    PathBuf::from_str("../dt-core/src/error.rs")?
+                    PathBuf::from_str("../dt-cli/README.md")
+                        .unwrap()
                         .absolute()?,
-                    PathBuf::from_str("../dt-core/src/item.rs")?
+                    PathBuf::from_str("../dt-cli/src/main.rs")
+                        .unwrap()
                         .absolute()?,
-                    PathBuf::from_str("../dt-core/src/lib.rs")?.absolute()?,
-                    PathBuf::from_str("../dt-core/src/syncing.rs")?
+                    PathBuf::from_str("../dt-core/Cargo.toml")
+                        .unwrap()
                         .absolute()?,
-                    PathBuf::from_str("../dt-core/src/utils.rs")?
+                    PathBuf::from_str("../dt-core/README.md")
+                        .unwrap()
+                        .absolute()?,
+                    PathBuf::from_str("../dt-core/src/config.rs")
+                        .unwrap()
+                        .absolute()?,
+                    PathBuf::from_str("../dt-core/src/error.rs")
+                        .unwrap()
+                        .absolute()?,
+                    PathBuf::from_str("../dt-core/src/item.rs")
+                        .unwrap()
+                        .absolute()?,
+                    PathBuf::from_str("../dt-core/src/lib.rs")
+                        .unwrap()
+                        .absolute()?,
+                    PathBuf::from_str("../dt-core/src/syncing.rs")
+                        .unwrap()
+                        .absolute()?,
+                    PathBuf::from_str("../dt-core/src/utils.rs")
+                        .unwrap()
                         .absolute()?,
                 ],
             );
@@ -968,34 +1021,40 @@ mod expansion {
     fn sorting_and_deduping() -> Result<(), Report> {
         let config = expand(&DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/expansion-sorting_and_deduping.toml",
-        )?)?)?;
+        ).unwrap())?)?;
         for group in config.local {
             assert_eq!(
                 group.sources,
                 vec![
                     PathBuf::from_str(
                         "../testroot/items/sorting_and_deduping/A-a"
-                    )?
+                    )
+                    .unwrap()
                     .absolute()?,
                     PathBuf::from_str(
                         "../testroot/items/sorting_and_deduping/A-b"
-                    )?
+                    )
+                    .unwrap()
                     .absolute()?,
                     PathBuf::from_str(
                         "../testroot/items/sorting_and_deduping/A-c"
-                    )?
+                    )
+                    .unwrap()
                     .absolute()?,
                     PathBuf::from_str(
                         "../testroot/items/sorting_and_deduping/B-a"
-                    )?
+                    )
+                    .unwrap()
                     .absolute()?,
                     PathBuf::from_str(
                         "../testroot/items/sorting_and_deduping/B-b"
-                    )?
+                    )
+                    .unwrap()
                     .absolute()?,
                     PathBuf::from_str(
                         "../testroot/items/sorting_and_deduping/B-c"
-                    )?
+                    )
+                    .unwrap()
                     .absolute()?,
                 ]
             );

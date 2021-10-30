@@ -4,8 +4,9 @@ use std::{
     str::FromStr,
 };
 
-use color_eyre::{eyre::eyre, Report};
 use serde::Deserialize;
+
+use crate::error::{Error as AppError, Result};
 
 pub const DEFAULT_HOSTNAME_SEPARATOR: &str = "@@";
 pub const DEFAULT_ALLOW_OVERWRITE: bool = false;
@@ -21,10 +22,10 @@ pub struct DTConfig {
 }
 
 impl FromStr for DTConfig {
-    type Err = Report;
+    type Err = AppError;
 
     /// Loads configuration from string.
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self> {
         let mut ret = toml::from_str::<Self>(s)?;
         ret.expand_tilde();
         ret.validate()
@@ -33,7 +34,7 @@ impl FromStr for DTConfig {
 
 impl DTConfig {
     /// Loads configuration from a file.
-    pub fn from_path(path: impl AsRef<Path>) -> Result<Self, Report> {
+    pub fn from_path(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
         let confstr = std::fs::read_to_string(path).unwrap_or_else(|_| {
             panic!("Could not load config from {}", path.display())
@@ -42,45 +43,54 @@ impl DTConfig {
     }
 
     /// Validates config object **without** touching the filesystem.
-    fn validate(self) -> Result<Self, Report> {
+    fn validate(self) -> Result<Self> {
         let mut group_name_rec: std::collections::HashSet<String> =
             std::collections::HashSet::new();
         for group in &self.local {
             // Empty group name
             if group.name.is_empty() {
-                return Err(eyre!("Empty group name"));
+                return Err(AppError::ConfigError(
+                    "empty group name".to_owned(),
+                ));
             }
             // Empty basedir
             if group.basedir.to_str().unwrap().is_empty() {
-                return Err(eyre!("Group [{}]: empty basedir", group.name));
+                return Err(AppError::ConfigError(format!(
+                    "empty basedir in group '{}'",
+                    group.name,
+                )));
             }
             // Empty target
             if group.target.to_str().unwrap().is_empty() {
-                return Err(eyre!("Group [{}]: empty target", group.name));
+                return Err(AppError::ConfigError(format!(
+                    "empty target in group '{}'",
+                    group.name,
+                )));
             }
 
             // Duplicated group name
             if group_name_rec.get(&group.name).is_some() {
-                return Err(eyre!(
-                    "Duplicated local group name: {}",
-                    group.name
-                ));
+                return Err(AppError::ConfigError(format!(
+                    "duplicated local group name: '{}'",
+                    group.name,
+                )));
             }
             group_name_rec.insert(group.name.to_owned());
 
             // Slash in group name
             if group.name.contains('/') {
-                return Err(eyre!(
-                    "Group name cannot contain the '/' character"
-                ));
+                return Err(AppError::ConfigError(format!(
+                    "group name '{}' contains the '/' character",
+                    group.name,
+                )));
             }
 
             // Target and basedir are the same
             if group.basedir == group.target {
-                return Err(eyre!(
-                    "Group [{}]: base directory and its target are the same",
+                return Err(AppError::ConfigError(format!(
+                    "base directory and its target are the same in group '{}'",
                     group.name,
-                ));
+                )));
             }
 
             // basedir contains hostname_sep
@@ -88,18 +98,18 @@ impl DTConfig {
                 &self.global.to_owned().unwrap_or_default(),
             );
             if group.basedir.to_str().unwrap().contains(&hostname_sep) {
-                return Err(eyre!(
-                    "Group [{}]: base directory contains hostname_sep ({})",
-                    group.name,
-                    hostname_sep,
-                ));
+                return Err(AppError::ConfigError(format!(
+                    "base directory contains hostname_sep ({}) in group '{}'",
+                    hostname_sep, group.name,
+                )));
             }
 
             // Source item referencing parent
             if group.sources.iter().any(|s| s.starts_with("../")) {
-                return Err(eyre!(
-                    "Source item cannot reference parent directory",
-                ));
+                return Err(AppError::ConfigError(format!(
+                    "source item references parent directory in group '{}'",
+                    group.name
+                )));
             }
 
             // Source item is absolute
@@ -108,7 +118,10 @@ impl DTConfig {
                 .iter()
                 .any(|s| s.starts_with("/") || s.starts_with("~"))
             {
-                return Err(eyre!("Source item cannot be an absolute path"));
+                return Err(AppError::ConfigError(format!(
+                    "source array contains absolute path in group '{}'",
+                    group.name
+                )));
             }
 
             // Source item contains bad globbing pattern
@@ -116,9 +129,9 @@ impl DTConfig {
                 let s = s.to_str().unwrap();
                 s == ".*" || s.ends_with("/.*")
             }) {
-                return Err(eyre!(
-                    "Do not use globbing patterns like '.*', because it also matches current directory (.) and parent directory (..)"
-                ));
+                return Err(AppError::ConfigError(format!(
+                    "bad globbing pattern"
+                )));
             }
 
             // Source item contains hostname_sep
@@ -126,11 +139,10 @@ impl DTConfig {
                 let s = s.to_str().unwrap();
                 s.contains(&hostname_sep)
             }) {
-                return Err(eyre!(
-                    "Group [{}]: a source item contains hostname_sep ({})",
-                    group.name,
-                    hostname_sep,
-                ));
+                return Err(AppError::ConfigError(format!(
+                    "a source item contains hostname_sep ({}) in group '{}'",
+                    hostname_sep, group.name,
+                )));
             }
 
             if group.ignored.is_some() {
@@ -441,6 +453,7 @@ mod overriding_global_config {
     use std::{path::PathBuf, str::FromStr};
 
     use color_eyre::Report;
+    use pretty_assertions::assert_eq;
 
     use super::{DTConfig, SyncMethod};
 
@@ -590,6 +603,7 @@ mod tilde_expansion {
     use std::{path::PathBuf, str::FromStr};
 
     use color_eyre::Report;
+    use pretty_assertions::assert_eq;
 
     use super::DTConfig;
 
@@ -619,15 +633,22 @@ mod validation {
     use std::{path::PathBuf, str::FromStr};
 
     use color_eyre::{eyre::eyre, Report};
+    use pretty_assertions::assert_eq;
 
     use super::DTConfig;
+    use crate::error::Error as AppError;
 
     #[test]
     fn empty_group_name() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/validation-empty_group_name.toml",
         )?) {
-            assert_eq!(msg.to_string(), "Empty group name");
+            assert_eq!(
+                err,
+                AppError::ConfigError("empty group name".to_owned()),
+                "{}",
+                err,
+            );
             Ok(())
         } else {
             Err(eyre!("This config should not be loaded because a group's name is empty"))
@@ -636,12 +657,16 @@ mod validation {
 
     #[test]
     fn empty_basedir() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/validation-empty_basedir.toml",
         )?) {
             assert_eq!(
-                msg.to_string(),
-                "Group [empty basedir]: empty basedir",
+                err,
+                AppError::ConfigError(
+                    "empty basedir in group 'empty basedir'".to_owned(),
+                ),
+                "{}",
+                err,
             );
             Ok(())
         } else {
@@ -651,10 +676,17 @@ mod validation {
 
     #[test]
     fn empty_target() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/validation-empty_target.toml",
         )?) {
-            assert_eq!(msg.to_string(), "Group [empty target]: empty target");
+            assert_eq!(
+                err,
+                AppError::ConfigError(
+                    "empty target in group 'empty target'".to_owned(),
+                ),
+                "{}",
+                err,
+            );
             Ok(())
         } else {
             Err(eyre!("This config should not be loaded because a group's basedir is empty"))
@@ -663,12 +695,17 @@ mod validation {
 
     #[test]
     fn same_names_in_multiple_local_groups() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/validation-same_names_in_multiple_locals.toml",
         )?) {
             assert_eq!(
-                msg.to_string(),
-                "Duplicated local group name: wubba lubba dub dub",
+                err,
+                AppError::ConfigError(
+                    "duplicated local group name: 'wubba lubba dub dub'"
+                        .to_owned()
+                ),
+                "{}",
+                err,
             );
             Ok(())
         } else {
@@ -678,12 +715,17 @@ mod validation {
 
     #[test]
     fn slash_in_group_name() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/validation-slash_in_group_name.toml",
         )?) {
             assert_eq!(
-                msg.to_string(),
-                "Group name cannot contain the '/' character",
+                err,
+                AppError::ConfigError(
+                    "group name 'this/group/name/contains/slash' contains the '/' character"
+                        .to_owned()
+                ),
+                "{}",
+                err,
             );
             Ok(())
         } else {
@@ -693,12 +735,17 @@ mod validation {
 
     #[test]
     fn basedir_is_target() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-basedir_is_target.toml",
         )?) {
             assert_eq!(
-                msg.to_string(),
-                "Group [basedir is target]: base directory and its target are the same",
+                err,
+                AppError::ConfigError(
+                    "base directory and its target are the same in group 'basedir is target'"
+                        .to_owned(),
+                ),
+                "{}",
+                err,
             );
             Ok(())
         } else {
@@ -708,12 +755,17 @@ mod validation {
 
     #[test]
     fn basedir_contains_hostname_sep() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/validation-basedir_contains_hostname_sep.toml",
         )?) {
             assert_eq!(
-                msg.to_string(),
-                "Group [basedir contains hostname_sep]: base directory contains hostname_sep (@@)",
+                err,
+                AppError::ConfigError(
+                    "base directory contains hostname_sep (@@) in group 'basedir contains hostname_sep'"
+                        .to_owned(),
+                ),
+                "{}",
+                err,
             );
             Ok(())
         } else {
@@ -723,12 +775,17 @@ mod validation {
 
     #[test]
     fn source_item_referencing_parent() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/validation-source_item_referencing_parent.toml",
         )?) {
             assert_eq!(
-                msg.to_string(),
-                "Source item cannot reference parent directory",
+                err,
+                AppError::ConfigError(
+                    "source item references parent directory in group 'source item references parent dir'"
+                        .to_owned(),
+                ),
+                "{}",
+                err,
             );
             Ok(())
         } else {
@@ -738,12 +795,17 @@ mod validation {
 
     #[test]
     fn source_item_is_absolute() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/validation-source_item_is_absolute.toml",
         )?) {
             assert_eq!(
-                msg.to_string(),
-                "Source item cannot be an absolute path",
+                err,
+                AppError::ConfigError(
+                    "source array contains absolute path in group 'source item is absolute'"
+                        .to_owned(),
+                ),
+                "{}",
+                err,
             );
             Ok(())
         } else {
@@ -753,12 +815,14 @@ mod validation {
 
     #[test]
     fn except_dot_asterisk_glob() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/validation-except_dot_asterisk_glob.toml",
         )?) {
             assert_eq!(
-                msg.to_string(),
-                "Do not use globbing patterns like '.*', because it also matches current directory (.) and parent directory (..)",
+                err,
+                AppError::ConfigError("bad globbing pattern".to_owned()),
+                "{}",
+                err,
             );
             Ok(())
         } else {
@@ -768,12 +832,17 @@ mod validation {
 
     #[test]
     fn source_item_contains_hostname_sep() -> Result<(), Report> {
-        if let Err(msg) = DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/validation-source_item_contains_hostname_sep.toml",
         )?) {
             assert_eq!(
-                msg.to_string(),
-                "Group [@@ in source item]: a source item contains hostname_sep (@@)",
+                err,
+                AppError::ConfigError(
+                    "a source item contains hostname_sep (@@) in group '@@ in source item'"
+                        .to_owned()
+                ),
+                "{}",
+                err,
             );
             Ok(())
         } else {

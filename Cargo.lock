@@ -252,7 +252,6 @@ dependencies = [
 name = "dt-cli"
 version = "0.3.0"
 dependencies = [
- "color-eyre",
  "dirs",
  "dt-core",
  "log",
@@ -280,7 +279,6 @@ dependencies = [
 name = "dt-server"
 version = "0.1.0"
 dependencies = [
- "color-eyre",
  "dirs",
  "dt-core",
  "log",
