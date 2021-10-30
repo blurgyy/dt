@@ -287,16 +287,18 @@ fn check(config: &DTConfig) -> Result<()> {
         };
         // Wrong type of existing staging path
         if staging.exists() && staging.is_dir().not() {
-            return Err(AppError::ConfigError(format!(
-                "staging root path exists but is not a valid directory",
-            )));
+            return Err(AppError::ConfigError(
+                "staging root path exists but is not a valid directory"
+                    .to_owned(),
+            ));
         }
 
         // Path to staging root contains readonly parent directory
         if staging.parent_readonly() {
-            return Err(AppError::ConfigError(format!(
+            return Err(AppError::ConfigError(
                 "staging root path cannot be created due to insufficient permissions"
-            )));
+                    .to_owned(),
+            ));
         }
     }
 

@@ -135,9 +135,9 @@ impl DTConfig {
                 let s = s.to_str().unwrap();
                 s == ".*" || s.ends_with("/.*")
             }) {
-                return Err(AppError::ConfigError(format!(
-                    "bad globbing pattern"
-                )));
+                return Err(AppError::ConfigError(
+                    "bad globbing pattern".to_owned(),
+                ));
             }
 
             // Source item contains hostname_sep
