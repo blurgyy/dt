@@ -1,0 +1,5 @@
+[[local]]
+name = "basedir unreadable (permission denied)"
+basedir = "../testroot/items/syncing/invalid_configs/basedir_unreadable/basedir"
+sources = []
+target = "."

@@ -1,0 +1,5 @@
+[[local]]
+name = "basedir unreadable (not a directory)"
+basedir = "../Cargo.toml"
+sources = []
+target = "."

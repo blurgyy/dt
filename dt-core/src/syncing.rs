@@ -716,6 +716,82 @@ mod invalid_configs {
     use super::expand;
 
     #[test]
+    fn basedir_unreadable() -> Result<(), Report> {
+        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
+            "../testroot/configs/syncing/invalid_configs-basedir_unreadable-not_a_directory.toml",
+        ).unwrap())?) {
+            assert_eq!(
+                err,
+                AppError::IoError(
+                    "Not a directory (os error 20)".to_owned(),
+                ),
+                "{}",
+                err,
+            );
+        } else {
+            return Err(eyre!(
+                "This config should not be loaded because basedir is not a directory",
+            ));
+        }
+
+        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
+            "../testroot/configs/syncing/invalid_configs-basedir_unreadable-nonexistent.toml",
+        ).unwrap())?) {
+            assert_eq!(
+                err,
+                AppError::IoError(
+                    "No such file or directory (os error 2)"
+                        .to_owned(),
+                ),
+                "{}",
+                err,
+            );
+        } else {
+            return Err(eyre!(
+                "This config should not be loaded because basedir does not exist",
+            ));
+        }
+
+        std::fs::set_permissions(
+            PathBuf::from_str(
+                "../testroot/items/syncing/invalid_configs/basedir_unreadable/basedir"
+            ).unwrap(),
+            std::fs::Permissions::from_mode(0o333),
+        )?;
+        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
+            "../testroot/configs/syncing/invalid_configs-basedir_unreadable-permission_denied.toml",
+        ).unwrap())?) {
+            assert_eq!(
+                err,
+                AppError::IoError(
+                    "Permission denied (os error 13)"
+                        .to_owned(),
+                ),
+                "{}",
+                err,
+            );
+            std::fs::set_permissions(
+                PathBuf::from_str(
+                    "../testroot/items/syncing/invalid_configs/basedir_unreadable/basedir"
+                ).unwrap(),
+                std::fs::Permissions::from_mode(0o755),
+            )?;
+        } else {
+            std::fs::set_permissions(
+                PathBuf::from_str(
+                    "../testroot/items/syncing/invalid_configs/basedir_unreadable/basedir"
+                ).unwrap(),
+                std::fs::Permissions::from_mode(0o755),
+            )?;
+            return Err(eyre!(
+                "This config should not be loaded because insufficient permissions to basedir",
+            ));
+        }
+
+        Ok(())
+    }
+
+    #[test]
     fn target_is_file_relative() -> Result<(), Report> {
         if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-target_is_file_relative.toml",
