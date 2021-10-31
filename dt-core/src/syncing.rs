@@ -253,6 +253,13 @@ fn check(config: &DTConfig) -> Result<()> {
         }
 
         for s in &group.sources {
+            // Ignore cargo-clippy warnings here, since using
+            // ```rust
+            // std::fs::File::open(s)?;
+            // ```
+            // here will result in an IoError, while in this context, a
+            // ConfigError should be thrown.
+            #[allow(clippy::question_mark)]
             if std::fs::File::open(s).is_err() {
                 return Err(AppError::ConfigError(format!(
                     "there exists one or more source item(s) that is not readable in group '{}'",

@@ -82,11 +82,9 @@ fn main() {
             log::error!("{}", e);
             std::process::exit(2);
         }
-    } else {
-        if let Err(e) = syncing::sync(&config, &opt.local_name) {
-            log::error!("{}", e);
-            std::process::exit(3);
-        }
+    } else if let Err(e) = syncing::sync(&config, &opt.local_name) {
+        log::error!("{}", e);
+        std::process::exit(3);
     }
 }
 
