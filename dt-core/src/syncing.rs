@@ -843,7 +843,7 @@ mod invalid_configs {
             .join("d6a8e0bc1647c38548432ccfa1d79355");
         assert!(
             filepath.exists().not(),
-            "A previous test seem to abort abnormally, remove the file d6a8e0bc1647c38548432ccfa1d79355 in your $HOME to continue testing",
+            "A previous test seems to have aborted abnormally, remove the file '$HOME/d6a8e0bc1647c38548432ccfa1d79355' to continue testing",
         );
         std::fs::write(&filepath, "Created by `dt` when testing")?;
 
@@ -860,14 +860,15 @@ mod invalid_configs {
                 "{}",
                 err,
             );
+            // clean up
+            std::fs::remove_file(filepath)?;
         } else {
+            // clean up
+            std::fs::remove_file(filepath)?;
             return Err(eyre!(
                 "This config should not be loaded because target is not a directory",
             ));
         }
-
-        // clean up
-        std::fs::remove_file(filepath)?;
 
         Ok(())
     }
