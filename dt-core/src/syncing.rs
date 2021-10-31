@@ -152,7 +152,7 @@ fn expand_recursive(
                 .map(|x| {
                     x.unwrap_or_else(|_| {
                         panic!(
-                            "Failed globbing source path {}",
+                            "Failed globbing source path '{}'",
                             path.display(),
                         )
                     })
@@ -163,7 +163,7 @@ fn expand_recursive(
                 .map(|x| {
                     x.absolute().unwrap_or_else(|_| {
                         panic!(
-                            "Failed converting to absolute path: {}",
+                            "Failed converting to absolute path '{}'",
                             x.display(),
                         )
                     })
@@ -190,7 +190,7 @@ fn expand_recursive(
         let initial: Vec<PathBuf> = std::fs::read_dir(path)?
             .map(|x| {
                 x.unwrap_or_else(|_| {
-                    panic!("Cannot read dir properly: {}", path.display())
+                    panic!("Cannot read dir properly '{}'", path.display())
                 })
                 .path()
             })
@@ -526,7 +526,7 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
     let tpath = spath.make_target(&hostname_sep, &basedir, &tparent)?;
     std::fs::create_dir_all(tpath.parent().unwrap_or_else(|| {
         panic!(
-            "Structrue of target directory could not be created at {}",
+            "Structrue of target directory could not be created at '{}'",
             tpath.display(),
         )
     }))?;
@@ -537,7 +537,7 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
         spath.make_target(&hostname_sep, &basedir, &staging)?;
     std::fs::create_dir_all(staging_path.parent().unwrap_or_else(|| {
         panic!(
-            "Structrue of staging directory could not be created at {}",
+            "Structrue of staging directory could not be created at '{}'",
             staging_path.display(),
         )
     }))?;

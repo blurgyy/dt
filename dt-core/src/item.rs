@@ -34,14 +34,14 @@ where
             .file_name()
             .unwrap_or_else(|| {
                 panic!(
-                    "Failed extracting file name from path {}",
+                    "Failed extracting file name from path '{}'",
                     path.display()
                 )
             })
             .to_str()
             .unwrap_or_else(|| {
                 panic!(
-                    "Failed converting &OsStr to &str for path: {}",
+                    "Failed converting &OsStr to &str for path '{}'",
                     path.display(),
                 )
             });
@@ -92,14 +92,14 @@ where
                 .file_name()
                 .unwrap_or_else(|| {
                     panic!(
-                        "Failed extracting file name from path {}",
+                        "Failed extracting file name from path '{}'",
                         path.display(),
                     )
                 })
                 .to_str()
                 .unwrap_or_else(|| {
                     panic!(
-                        "Failed converting &OsStr to &str for path: {}",
+                        "Failed converting &OsStr to &str for path: '{}'",
                         path.display(),
                     )
                 })
@@ -142,7 +142,7 @@ where
             .map(|s| {
                 s.unwrap_or_else(|| {
                     panic!(
-                        "Failed extracting path components from {}",
+                        "Failed extracting path components from '{}'",
                         path.display()
                     )
                 })
@@ -153,7 +153,7 @@ where
                     .first()
                     .unwrap_or_else(|| {
                         panic!(
-                            "Failed extracting basename from component {} of path {}",
+                            "Failed extracting basename from component '{}' of path '{}'",
                             s,
                             path.display()
                         )
