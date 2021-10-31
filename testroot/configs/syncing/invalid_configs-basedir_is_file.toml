@@ -1,5 +1,0 @@
-[[local]]
-name = "basedir path is file"
-basedir = "Cargo.toml"
-sources = []
-target = "."

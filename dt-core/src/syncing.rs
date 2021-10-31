@@ -77,14 +77,23 @@ fn expand(config: &DTConfig) -> Result<DTConfig> {
                 unreachable!("The [global] object is already a `Some`, this message should never be seen");
             }));
 
-        // Check for host-specific basedir
+        // Check for host-specific `basedir`
         let host_specific_basedir =
             next.basedir.host_specific(&group_hostname_sep);
         if host_specific_basedir.exists() {
             next.basedir = host_specific_basedir;
         }
 
-        // Check for host-specific sources
+        // Check read permission of `basedir`
+        if let Err(e) = std::fs::read_dir(&next.basedir) {
+            log::error!(
+                "Could not read basedir '{}'",
+                next.basedir.display(),
+            );
+            return Err(e.into());
+        }
+
+        // Check for host-specific `sources`
         let sources: Vec<PathBuf> = original
             .sources
             .iter()
@@ -226,22 +235,6 @@ fn check(config: &DTConfig) -> Result<()> {
                 == SyncMethod::Symlink
         {
             has_symlink = true;
-        }
-
-        // Non-existing basedir
-        if group.basedir.exists().not() {
-            return Err(AppError::ConfigError(format!(
-                "basedir path does not exist in group '{}'",
-                group.name,
-            )));
-        }
-
-        // Wrong type of existing basedir path
-        if group.basedir.is_dir().not() {
-            return Err(AppError::ConfigError(format!(
-                "basedir path exists but is not a valid directory in group '{}'",
-                group.name,
-            )));
         }
 
         // Wrong type of existing target path
@@ -718,48 +711,6 @@ mod invalid_configs {
     use crate::error::Error as AppError;
 
     use super::expand;
-
-    #[test]
-    fn non_existing_basedir() -> Result<(), Report> {
-        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/syncing/invalid_configs-non_existing_basedir.toml"
-        ).unwrap())?) {
-            assert_eq!(
-                err,
-                AppError::ConfigError(
-                    "basedir path does not exist in group 'non-existing basedir'"
-                        .to_owned()
-                ),
-                "{}",
-                err,
-            );
-            Ok(())
-        } else {
-            Err(eyre!(""))
-        }
-    }
-
-    #[test]
-    fn basedir_is_file() -> Result<(), Report> {
-        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/syncing/invalid_configs-basedir_is_file.toml",
-        ).unwrap())?) {
-            assert_eq!(
-                err,
-                AppError::ConfigError(
-                    "basedir path exists but is not a valid directory in group 'basedir path is file'"
-                        .to_owned(),
-                ),
-                "{}",
-                err,
-            );
-            Ok(())
-        } else {
-            Err(eyre!(
-                "This config should not be loaded because basedir is not a directory",
-            ))
-        }
-    }
 
     #[test]
     fn target_is_file_relative() -> Result<(), Report> {

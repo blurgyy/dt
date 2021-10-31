@@ -1,5 +1,0 @@
-[[local]]
-name = "non-existing basedir"
-basedir = "../e52e04c1d71dd984b145ae3bfa5a2fa2"
-sources = []
-target = "."
