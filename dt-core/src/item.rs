@@ -1,8 +1,5 @@
 use path_clean::PathClean;
-use std::{
-    ops::Not,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 use crate::{error, utils};
 
@@ -54,7 +51,7 @@ where
         path.display(),
     );
         assert!(
-            splitted.first().unwrap().is_empty().not(),
+            !splitted.first().unwrap().is_empty(),
             "hostname_sep ({}) appears to be a prefix of this path: {}",
             hostname_sep,
             path.display(),

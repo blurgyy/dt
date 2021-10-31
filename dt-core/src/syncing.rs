@@ -1,5 +1,4 @@
 use std::{
-    ops::Not,
     path::{Path, PathBuf},
     str::FromStr,
 };
@@ -167,7 +166,7 @@ fn expand_recursive(
                     })
                 })
                 // Filter out paths that are meant for other hosts
-                .filter(|x| x.is_for_other_host(hostname_sep).not())
+                .filter(|x| !x.is_for_other_host(hostname_sep))
                 // Convert to absolute paths
                 .map(|x| {
                     x.absolute().unwrap_or_else(|_| {
@@ -203,7 +202,7 @@ fn expand_recursive(
                 })
                 .path()
             })
-            .filter(|x| x.is_for_other_host(hostname_sep).not())
+            .filter(|x| !x.is_for_other_host(hostname_sep))
             .collect();
 
         let mut ret: Vec<PathBuf> = Vec::new();
@@ -230,7 +229,7 @@ fn check(config: &DTConfig) -> Result<()> {
     let mut has_symlink: bool = false;
 
     for group in &config.local {
-        if has_symlink.not()
+        if !has_symlink
             && group.get_method(&config.global.to_owned().unwrap_or_default())
                 == SyncMethod::Symlink
         {
@@ -282,7 +281,7 @@ fn check(config: &DTConfig) -> Result<()> {
                 .to_owned()
         };
         // Wrong type of existing staging path
-        if staging.exists() && staging.is_dir().not() {
+        if staging.exists() && !staging.is_dir() {
             return Err(AppError::ConfigError(
                 "staging root path exists but is not a valid directory"
                     .to_owned(),
@@ -311,7 +310,7 @@ pub fn sync(config: &DTConfig, local_name: &[String]) -> Result<()> {
         .unwrap_or_default()
         .staging
         .unwrap_or_else(|| GlobalConfig::default().staging.unwrap());
-    if staging.exists().not() {
+    if !staging.exists() {
         log::trace!(
             "Creating non-existing staging root '{}'",
             staging.display(),
@@ -363,7 +362,7 @@ pub fn sync(config: &DTConfig, local_name: &[String]) -> Result<()> {
 
         let group_staging =
             staging.join(PathBuf::from_str(&group.name).unwrap());
-        if group_staging.exists().not() {
+        if !group_staging.exists() {
             log::trace!(
                 "Creating non-existing staging directory '{}'",
                 group_staging.display(),
@@ -405,9 +404,9 @@ pub fn dry_sync(config: &DTConfig, local_name: &[String]) -> Result<()> {
         .unwrap_or_default()
         .staging
         .unwrap_or_else(|| GlobalConfig::default().staging.unwrap());
-    if staging.exists().not() {
+    if !staging.exists() {
         log::info!("Staging root does not exist, will be automatically created when syncing");
-    } else if staging.is_dir().not() {
+    } else if !staging.is_dir() {
         log::error!("Staging root seems to exist and is not a directory");
     }
 
@@ -455,9 +454,9 @@ pub fn dry_sync(config: &DTConfig, local_name: &[String]) -> Result<()> {
 
         let group_staging =
             staging.join(PathBuf::from_str(&group.name).unwrap());
-        if group_staging.exists().not() {
+        if !group_staging.exists() {
             log::info!("Staging directory does not exist, will be automatically created when syncing");
-        } else if staging.is_dir().not() {
+        } else if !staging.is_dir() {
             log::error!(
                 "Staging directory seems to exist and is not a directory"
             )
@@ -501,7 +500,7 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
         basedir,
         hostname_sep,
     } = params;
-    if tparent.exists().not() {
+    if !tparent.exists() {
         if dry {
             log::warn!(
                 "DRYRUN [{}]> Non-existing target directory '{}'",
@@ -582,7 +581,7 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
                     tpath.display()
                 );
             }
-        } else if tpath.exists() && allow_overwrite.not() {
+        } else if tpath.exists() && !allow_overwrite {
             log::warn!(
                 "SYNC::SKIP [{}]> Target path ('{}') exists",
                 group_name,
@@ -662,23 +661,21 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
             };
         }
 
-        if tpath.exists().not()
-            || method == SyncMethod::Symlink && staging_path.exists().not()
+        if !tpath.exists()
+            || method == SyncMethod::Symlink && !staging_path.exists()
         {
             if dry {
                 log::warn!(
                     "DRYRUN [{}]> Non-existing directory: '{}'",
                     group_name,
-                    if tpath.exists().not() {
+                    if !tpath.exists() {
                         tpath.display()
                     } else {
                         staging_path.display()
                     },
                 );
             } else {
-                if method == SyncMethod::Symlink
-                    && staging_path.exists().not()
-                {
+                if method == SyncMethod::Symlink && !staging_path.exists() {
                     log::trace!(
                         "SYNC::STAGE::CREATE [{}]> '{}'",
                         group_name,
@@ -686,7 +683,7 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
                     );
                     std::fs::create_dir_all(staging_path)?;
                 }
-                if tpath.exists().not() {
+                if !tpath.exists() {
                     log::trace!(
                         "SYNC::CREATE [{}]> '{}'",
                         group_name,
@@ -703,8 +700,7 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
 #[cfg(test)]
 mod invalid_configs {
     use std::{
-        ops::Not, os::unix::prelude::PermissionsExt, path::PathBuf,
-        str::FromStr,
+        os::unix::prelude::PermissionsExt, path::PathBuf, str::FromStr,
     };
 
     use color_eyre::{eyre::eyre, Report};
@@ -842,7 +838,7 @@ mod invalid_configs {
             .unwrap()
             .join("d6a8e0bc1647c38548432ccfa1d79355");
         assert!(
-            filepath.exists().not(),
+            !filepath.exists(),
             "A previous test seems to have aborted abnormally, remove the file '$HOME/d6a8e0bc1647c38548432ccfa1d79355' to continue testing",
         );
         std::fs::write(&filepath, "Created by `dt` when testing")?;
