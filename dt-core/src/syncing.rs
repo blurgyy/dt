@@ -523,11 +523,7 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
     }
 
     // First, get target path (without the per-host suffix).
-    let tpath = tparent.join(
-        spath
-            .non_host_specific(&hostname_sep)
-            .strip_prefix(basedir.non_host_specific(&hostname_sep))?,
-    );
+    let tpath = spath.make_target(&hostname_sep, &basedir, &tparent)?;
     std::fs::create_dir_all(tpath.parent().unwrap_or_else(|| {
         panic!(
             "Structrue of target directory could not be created at {}",
@@ -537,11 +533,8 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
 
     // Finally, get the staging path with source path (staging path does not
     // have host-specific suffix).
-    let staging_path = staging.join(
-        spath
-            .non_host_specific(&hostname_sep)
-            .strip_prefix(basedir.non_host_specific(&hostname_sep))?,
-    );
+    let staging_path =
+        spath.make_target(&hostname_sep, &basedir, &staging)?;
     std::fs::create_dir_all(staging_path.parent().unwrap_or_else(|| {
         panic!(
             "Structrue of staging directory could not be created at {}",

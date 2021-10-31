@@ -28,7 +28,7 @@ where
     /// this function to panic.
     ///
     /// [`hostname_sep`]: crate::config::GlobalConfig::hostname_sep
-    fn is_for_other_host(&'a self, hostname_sep: &'a str) -> bool {
+    fn is_for_other_host(&self, hostname_sep: &str) -> bool {
         let path = self.as_ref();
         let filename = path
             .file_name()
@@ -67,7 +67,7 @@ where
     /// Gets the absolute path of `self`, **without** traversing symlinks.
     ///
     /// Reference: <https://stackoverflow.com/a/54817755/13482274>
-    fn absolute(&'a self) -> Result<Self> {
+    fn absolute(&self) -> Result<Self> {
         let path = self.as_ref();
 
         let absolute_path = if path.is_absolute() {
@@ -112,7 +112,7 @@ where
 
     /// Converts a path to a non-host-specific path.  If the input path is
     /// already non-host-specific, returns itself;  Otherwise returns a
-    /// path where every component of the path is converted to
+    /// path where every component of the path is converted to a
     /// non-host-specific one.
     ///
     /// ```rust
@@ -134,7 +134,7 @@ where
     ///     );
     /// # }
     /// ```
-    fn non_host_specific(&'a self, hostname_sep: &'a str) -> Self {
+    fn non_host_specific(&self, hostname_sep: &str) -> Self {
         let path = self.as_ref();
         path
             .iter()
@@ -177,6 +177,29 @@ where
             .unwrap()
             .permissions()
             .readonly()
+    }
+
+    fn make_target<T>(
+        &self,
+        hostname_sep: &str,
+        basedir: T,
+        targetbase: T,
+    ) -> Result<Self>
+    where
+        T: Into<Self> + AsRef<Path>,
+    {
+        // Get non-host-specific counterpart of `self`
+        let nhself = self.non_host_specific(hostname_sep);
+
+        // Get non-host-specific counterpart of `basedir`
+        let basedir = basedir.into().non_host_specific(hostname_sep);
+
+        // The tail of the target path is the non-host-specific `self` without
+        // its `basedir` prefix path
+        let tail = nhself.as_ref().strip_prefix(basedir)?;
+
+        // The target is the target base appended with `tail`
+        Ok(targetbase.as_ref().join(tail).into())
     }
 }
 
