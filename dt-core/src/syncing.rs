@@ -254,11 +254,14 @@ fn check(config: &DTConfig) -> Result<()> {
         }
 
         for s in &group.sources {
-            if s.is_file() && std::fs::File::open(s).is_err() {
+            if std::fs::File::open(s).is_err() {
                 return Err(AppError::ConfigError(format!(
                     "there exists one or more source item(s) that is not readable in group '{}'",
                     group.name,
                 )));
+            }
+            if !s.is_file() {
+                unreachable!();
             }
         }
     }
