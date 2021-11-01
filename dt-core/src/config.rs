@@ -43,7 +43,7 @@ impl DTConfig {
     pub fn from_path(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
         let confstr = std::fs::read_to_string(path).unwrap_or_else(|_| {
-            panic!("Could not load config from {}", path.display())
+            panic!("Could not load config from '{}'", path.display())
         });
         Self::from_str(&confstr)
     }
@@ -77,7 +77,7 @@ impl DTConfig {
             // Duplicated group name
             if group_name_rec.get(&group.name).is_some() {
                 return Err(AppError::ConfigError(format!(
-                    "duplicated local group name: '{}'",
+                    "duplicated local group name '{}'",
                     group.name,
                 )));
             }
@@ -167,7 +167,7 @@ impl DTConfig {
                 ))
                 .unwrap_or_else(|_| {
                     panic!(
-                        "Failed expanding tilde in `global.staging`: {}",
+                        "Failed expanding tilde in `global.staging` ({})",
                         staging.display(),
                     )
                 });
@@ -182,7 +182,7 @@ impl DTConfig {
             ))
             .unwrap_or_else(|_| {
                 panic!(
-                    "Failed expanding tilde in `local.basedir`: {}",
+                    "Failed expanding tilde in `local.basedir` '{}'",
                     group.basedir.display(),
                 )
             });
@@ -193,7 +193,7 @@ impl DTConfig {
             ))
             .unwrap_or_else(|_| {
                 panic!(
-                    "Failed expanding tilde in `local.target`: {}",
+                    "Failed expanding tilde in `local.target` '{}'",
                     group.target.display(),
                 )
             });
@@ -728,7 +728,7 @@ mod validation {
             assert_eq!(
                 err,
                 AppError::ConfigError(
-                    "duplicated local group name: 'wubba lubba dub dub'"
+                    "duplicated local group name 'wubba lubba dub dub'"
                         .to_owned()
                 ),
                 "{}",
