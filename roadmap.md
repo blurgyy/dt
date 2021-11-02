@@ -59,6 +59,10 @@
   Paths in log messages should be single quoted.
 - [ ] Keep track of items that are synced last time, so that deletion of
       source items can also be propagated to local fs properly.
+- [ ] ?Make `target` an array
+- [ ] ?Expand globs in `target` to sync to multiple target directories (use
+      case: `user.js` under Firefox user profile, which is named
+      `xxxxxxxx.$profile_name` and can be globbed)
 
 ## CLI
 
