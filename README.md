@@ -96,7 +96,7 @@ Alternatively, you can:
 ## Contributing
 
 There are many ways to contribute to this project.  Get started
-[here](./CONTRIBUTING.md)!
+[here](https://github.com/blurgyy/dt/blob/main/CONTRIBUTING.md)!
 
 ## License
 
