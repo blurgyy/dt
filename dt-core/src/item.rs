@@ -32,7 +32,7 @@ where
             .unwrap_or_else(|| {
                 panic!(
                     "Failed extracting file name from path '{}'",
-                    path.display()
+                    path.display(),
                 )
             })
             .to_str()
@@ -124,7 +124,7 @@ where
     ///         PathBuf::from_str("/some/long/path").unwrap(),
     ///     );
     ///
-    ///     let itm: PathBuf = "/some@@watson/long/path@@watson".into();
+    ///     let itm: PathBuf = "/some@@john/long/path@@watson".into();
     ///     assert_eq!(
     ///         itm.non_host_specific("@@"),
     ///         PathBuf::from_str("/some/long/path").unwrap(),
@@ -140,7 +140,7 @@ where
                 s.unwrap_or_else(|| {
                     panic!(
                         "Failed extracting path components from '{}'",
-                        path.display()
+                        path.display(),
                     )
                 })
             })
@@ -152,7 +152,7 @@ where
                         panic!(
                             "Failed extracting basename from component '{}' of path '{}'",
                             s,
-                            path.display()
+                            path.display(),
                         )
                     })
                     .to_owned()

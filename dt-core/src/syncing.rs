@@ -571,7 +571,7 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
                         "DRYRUN::OVERWRITE [{}]> '{}' -> '{}'",
                         group_name,
                         spath.display(),
-                        tpath.display()
+                        tpath.display(),
                     );
                 } else {
                     log::error!(
@@ -585,7 +585,7 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
                     "DRYRUN [{}]> '{}' -> '{}'",
                     group_name,
                     spath.display(),
-                    tpath.display()
+                    tpath.display(),
                 );
             }
         } else if tpath.exists() && !allow_overwrite {
@@ -601,13 +601,13 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
                     "SYNC::COPY [{}]> '{}' => '{}'",
                     group_name,
                     spath.display(),
-                    tpath.display()
+                    tpath.display(),
                 );
                 if std::fs::remove_file(&tpath).is_ok() {
                     log::trace!(
                         "SYNC::OVERWRITE [{}]> '{}'",
                         group_name,
-                        tpath.display()
+                        tpath.display(),
                     )
                 }
                 std::fs::copy(spath, tpath)?;
@@ -694,7 +694,7 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
                     log::trace!(
                         "SYNC::CREATE [{}]> '{}'",
                         group_name,
-                        tpath.display()
+                        tpath.display(),
                     );
                     std::fs::create_dir_all(&tpath)?;
                 }
@@ -1112,7 +1112,7 @@ mod expansion {
                     )
                     .unwrap()
                     .absolute()?,
-                ]
+                ],
             );
         }
         Ok(())

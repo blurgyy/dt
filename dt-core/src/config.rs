@@ -114,7 +114,7 @@ impl DTConfig {
             if group.sources.iter().any(|s| s.starts_with("../")) {
                 return Err(AppError::ConfigError(format!(
                     "source item references parent directory in group '{}'",
-                    group.name
+                    group.name,
                 )));
             }
 
@@ -126,7 +126,7 @@ impl DTConfig {
             {
                 return Err(AppError::ConfigError(format!(
                     "source array contains absolute path in group '{}'",
-                    group.name
+                    group.name,
                 )));
             }
 
