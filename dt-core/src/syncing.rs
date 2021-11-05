@@ -61,12 +61,12 @@ fn expand(config: &DTConfig) -> Result<DTConfig> {
             }),
             None => Some(GlobalConfig::default()),
         },
-        local: vec![],
+        local: Vec::new(),
     };
     for original in &config.local {
         let mut next = LocalGroup {
             basedir: original.basedir.absolute()?,
-            sources: vec![],
+            sources: Vec::new(),
             target: original.target.absolute()?,
             ..original.to_owned()
         };
@@ -595,7 +595,12 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
                 tpath.display(),
             );
         } else {
-            // Overwrites are allowed in this block.
+            // In this block, either:
+            //
+            //  - `tpath` does not exist
+            //  - `allow_overwrite` is true
+            //
+            // or both are true.
             if method == SyncMethod::Copy {
                 log::trace!(
                     "SYNC::COPY [{}]> '{}' => '{}'",
@@ -603,13 +608,20 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
                     spath.display(),
                     tpath.display(),
                 );
-                if std::fs::remove_file(&tpath).is_ok() {
-                    log::trace!(
-                        "SYNC::OVERWRITE [{}]> '{}'",
-                        group_name,
-                        tpath.display(),
-                    )
+                if let Ok(tmetadata) = tpath.symlink_metadata() {
+                    // If `tpath` exists already, check its permission
+                    if tmetadata.permissions().readonly() {
+                        // If `tpath` is readonly, then `std::fs::copy` won't
+                        // work because it does not have write permission, so
+                        // remove `tpath` here.
+                        std::fs::remove_file(&tpath)?;
+                    }
                 }
+                log::trace!(
+                    "SYNC::OVERWRITE [{}]> '{}'",
+                    group_name,
+                    tpath.display(),
+                );
                 std::fs::copy(spath, tpath)?;
             } else if method == SyncMethod::Symlink {
                 // Staging
@@ -620,13 +632,16 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
                     staging_path.display(),
                 );
 
-                if std::fs::remove_file(&staging_path).is_ok() {
-                    log::trace!(
-                        "SYNC::OVERWRITE [{}]> '{}'",
-                        group_name,
-                        staging_path.display(),
-                    )
+                if let Ok(stmetadata) = staging_path.symlink_metadata() {
+                    if stmetadata.permissions().readonly() {
+                        std::fs::remove_file(&staging_path)?;
+                    }
                 }
+                log::trace!(
+                    "SYNC::OVERWRITE [{}]> '{}'",
+                    group_name,
+                    staging_path.display(),
+                );
                 std::fs::copy(spath, &staging_path)?;
 
                 // Symlinking

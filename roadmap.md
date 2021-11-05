@@ -63,7 +63,7 @@
 - [ ] ?Expand globs in `target` to sync to multiple target directories (use
       case: `user.js` under Firefox user profile, which is named
       `xxxxxxxx.$profile_name` and can be globbed)
-- [ ] Do not _remove_ existing target file when _overwriting_, because it
+- [x] Do not _remove_ existing target file when _overwriting_, because it
       causes some X compositor (like picom) to flash or fail to
       automatically load config file after overwriting
 
