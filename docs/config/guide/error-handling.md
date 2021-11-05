@@ -34,7 +34,7 @@ string patterns.  This is for spotting obvious errors as fast as possible.
 ## Sources Expanding
 
 If the above validating step passed successfully, `dt-cli` begins to iterate
-through every group, recursively expand all sources according their file
+through every group, recursively expand all sources according to their file
 hierarchy, the `basedir`s are also expanded to [host-specific](/host-specific)
 ones wherever possible.  The following cases are considered invalid while
 expanding `sources` and `basedir`:
