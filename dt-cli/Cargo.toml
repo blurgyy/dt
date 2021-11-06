@@ -1,14 +1,14 @@
 [package]
 name = "dt-cli"
 description = "Syncing dotfiles and more"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 authors = ["Gaoyang Zhang <gy@blurgy.xyz>"]
 documentation = "https://dt-cli-docs.blurgy.xyz/"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/blurgyy/dt"
 categories = ["command-line-utilities", "config"]
-keywords = ["dotfiles", "manager", "syncing", "config"]
+keywords = ["config", "dotfile", "dotfiles", "manager"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
