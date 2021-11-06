@@ -14,7 +14,7 @@ keywords = ["config", "dotfile", "dotfiles", "manager"]
 
 [dependencies]
 dirs = "4.0.0"
-dt-core = { path = "../dt-core", version = "0.3.0" }
+dt-core = { path = "../dt-core", version = "0.3.1" }
 log = "0.4.14"
 pretty_env_logger = "0.4.0"
 structopt = "0.3.23"
