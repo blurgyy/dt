@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     path::{Path, PathBuf},
     str::FromStr,
 };
@@ -135,6 +136,8 @@ fn expand(config: &DTConfig) -> Result<DTConfig> {
         ret.local.push(next);
     }
 
+    let ret = resolve(ret);
+
     check(&ret)?;
 
     Ok(ret)
@@ -231,6 +234,65 @@ fn expand_recursive(
         }
 
         Ok(ret)
+    }
+}
+
+/// Resolve priorities within expanded ret, this function is called before
+/// [`check`] because it does not have to query the filesystem.
+///
+/// [`check`]: check
+fn resolve(config: DTConfig) -> DTConfig {
+    // Maps an item to the index of the group which holds the highest priority
+    // of it.
+    let mut mapping: HashMap<&PathBuf, usize> = HashMap::new();
+
+    // Get each item's highest priority group.
+    for i in 0..config.local.len() {
+        let current_priority =
+            &config.local[i].scope.as_ref().unwrap_or_default();
+        for ref mut s in &config.local[i].sources {
+            // if Some(prev_group_idx) = mapping.get(s) {
+            match mapping.get(s) {
+                Some(prev_group_idx) => {
+                    let prev_priority = config.local[*prev_group_idx]
+                        .scope
+                        .as_ref()
+                        .unwrap_or_default();
+                    // Only replace group index when current group has
+                    // strictly higher priority than previous group, thus
+                    // achieving "former defined groups of the same scope have
+                    // higher priority" effect.
+                    if *current_priority > prev_priority {
+                        mapping.insert(s, i);
+                    }
+                }
+                None => {
+                    mapping.insert(s, i);
+                }
+            }
+        }
+    }
+
+    // Remove redundant groups.
+    DTConfig {
+        local: config
+            .local
+            .iter()
+            .enumerate()
+            .map(|(cur_id, group)| LocalGroup {
+                sources: group
+                    .sources
+                    .iter()
+                    .filter(|s| {
+                        let best_id = *mapping.get(s).unwrap();
+                        best_id == cur_id
+                    })
+                    .map(|s| s.to_owned())
+                    .collect(),
+                ..group.to_owned()
+            })
+            .collect(),
+        ..config
     }
 }
 

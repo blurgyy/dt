@@ -215,11 +215,124 @@ impl DTConfig {
     }
 }
 
+/// Scope of a group, used to resolve _priority_ of possibly duplicated items,
+/// to ensure every target path is pointed from only one source item.
+///
+/// The order of priority is:
+///
+/// [`Dropin`] > [`App`] > [`General`]
+///
+/// **Within the same scope**, the first defined group in the config file for
+/// DT has the **highest** priority, later defined groups have lower priority.
+///
+/// Groups without a given scope is treated as of [`General`] scope.
+///
+/// [`Dropin`]: DTScope::Dropin
+/// [`App`]: DTScope::App
+/// [`General`]: DTScope::General
+///
+/// # Example
+///
+/// When you want to populate all your config files for apps that follows [the
+/// XDG standard], you might write a config file for DT that looks like this:
+///
+/// [the XDG standard]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
+///
+/// ```toml
+/// [[local]]
+/// name = "xdg_config_home"
+/// basedir = "/path/to/your/xdg/config/directory"
+/// sources = ["*"]
+/// target = "~/.config"
+/// ```
+///
+/// Let's say after some weeks or months, you have decided to also include
+/// `/usr/share/fontconfig/conf.avail/10-sub-pixel-rgb.conf` to your
+/// fontconfig directory, which is `~/.config/fontconfig/conf.d`, you do so by
+/// adding another [[local]] group into your config file for DT:
+///
+/// ```toml
+/// [[local]]
+/// name = "fontconfig-system"
+/// basedir = "/usr/share/fontconfig/conf.avail"
+/// sources = ["10-sub-pixel-rgb.conf"]
+/// target = "~/.config/fontconfig/conf.d"
+/// ```
+///
+/// A problem arises when you also maintain a version of
+/// `10-sub-pixel-rgb.conf`: If DT syncs the `fontconfig-system` group
+/// **last**, the final config file in your `$XDG_CONFIG_HOME` is the system
+/// version;  While if DT syncs the `xdg_config_home` group **last**, that
+/// file ended up being your previously maintained version.
+///
+/// Actually DT is quite predictable, it only perform operations in the order
+/// your groups are defined in the config file.  You can totally avoid the
+/// ambiguity above by defining the `fontconfig-system` group at last.
+///
+/// But since the config file is written by you, a human, whose species is
+/// known for making mistakes, it's cool if DT could always know what to do
+/// when duplicated items are found in the config file.  So, instead of
+/// keeping the groups with higher priority at the last of your config file,
+/// you could simply define their `scope`s in their definition:
+///
+/// ```toml
+/// [[local]]
+/// name = "fontconfig-system"
+/// scope = "Dropin"
+/// ...
+/// [[local]]
+/// name = "xdg_config_home"
+/// scope = "General"
+/// ...
+/// ```
+///
+/// Now, with the `scope` being set, DT will first remove the source item
+/// `10-sub-pixel-rgb.conf` (if it exists) from group `xdg_config_home`, then
+/// perform its syncing process.
+///
+/// This is also useful with `dt-cli`'s `-l|--local-name` option, which gives
+/// you more granular control over items to be synced.
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+pub enum DTScope {
+    /// The scope with lowest priority, this is the default scope,
+    /// recommended for directories that contains config files for many
+    /// un-categorized applications.
+    General,
+
+    /// The scope for a specific app, it's priority is higher than
+    /// [`General`] while lower than [`Dropin`].
+    ///
+    /// [`General`]: DTScope::General
+    /// [`Dropin`]: DTScope::Dropin
+    App,
+
+    /// The scope for drop-in replacements, it has the highest priority.
+    Dropin,
+}
+
+impl Default for DTScope {
+    fn default() -> Self {
+        DTScope::General
+    }
+}
+
+impl<'a> Default for &'a DTScope {
+    fn default() -> &'a DTScope {
+        &DTScope::General
+    }
+}
+
 /// Configures how local items (files/directories) are synced.
 #[derive(Default, Clone, Deserialize, Debug)]
 pub struct LocalGroup {
     /// Name of this group, used as namespace in staging root directory.
     pub name: String,
+
+    /// The priority of this group, used to resolve possibly duplicated
+    /// items.  See [`DTScope`] for details.
+    ///
+    /// [`DTScope`]: DTScope
+    pub scope: Option<DTScope>,
 
     /// The base directory of all source items.  This simplifies
     /// configuration files with common prefixes in the [`sources`]
