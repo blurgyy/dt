@@ -112,6 +112,8 @@ where
     /// path where every component of the path is converted to a
     /// non-host-specific one.
     ///
+    /// # Example
+    ///
     /// ```rust
     /// # use dt_core::item::DTItem;
     /// # use std::path::PathBuf;
@@ -176,6 +178,30 @@ where
             .readonly()
     }
 
+    /// Given a `hostname_sep`, a `basedir`, and a `targetbase`, create the
+    /// path where `self` would be synced to.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use dt_core::item::DTItem;
+    /// # use std::path::PathBuf;
+    /// # use std::str::FromStr;
+    /// # use dt_core::error::Result;
+    /// #
+    /// # fn main() -> Result<()> {
+    ///     let itm: PathBuf = "/path/to/source@@john/item".into();
+    ///     let basedir: PathBuf = "/path/to/source".into();
+    ///     let targetbase: PathBuf = "/path/to/target".into();
+    ///
+    ///     assert_eq!(
+    ///         itm.make_target("@@", basedir, targetbase)?,
+    ///         PathBuf::from_str("/path/to/target/item").unwrap(),
+    ///     );
+    /// #
+    /// #   Ok(())
+    /// # }
+    /// ```
     fn make_target<T>(
         &self,
         hostname_sep: &str,

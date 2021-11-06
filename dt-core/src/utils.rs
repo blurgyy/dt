@@ -3,6 +3,8 @@ use std::path::{Path, PathBuf};
 /// Gets the default config file path, according to `$XDG_CONFIG_HOME` or
 /// `$HOME`, with last component specified by `filename`.
 ///
+/// # Example
+///
 /// ```rust
 /// # use dt_core::utils::default_config_path;
 /// # use std::path::PathBuf;
