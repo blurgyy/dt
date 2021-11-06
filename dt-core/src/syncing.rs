@@ -177,6 +177,9 @@ fn expand_recursive(
                     })
                 })
                 .collect();
+        if initial.is_empty() {
+            log::warn!("'{}' did not match anything", path.display());
+        }
 
         let mut ret: Vec<PathBuf> = Vec::new();
         for p in initial {
