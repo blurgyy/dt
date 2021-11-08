@@ -70,7 +70,7 @@ fn main() {
         }
     };
 
-    let config = match DTConfig::from_path(config_path) {
+    let mut config = match DTConfig::from_path(config_path) {
         Ok(config) => config,
         Err(e) => {
             log::error!("{}", e);
@@ -78,11 +78,11 @@ fn main() {
         }
     };
     if opt.dry_run {
-        if let Err(e) = syncing::dry_sync(&config, &opt.local_name) {
+        if let Err(e) = syncing::dry_sync(&mut config, &opt.local_name) {
             log::error!("{}", e);
             std::process::exit(2);
         }
-    } else if let Err(e) = syncing::sync(&config, &opt.local_name) {
+    } else if let Err(e) = syncing::sync(&mut config, &opt.local_name) {
         log::error!("{}", e);
         std::process::exit(3);
     }

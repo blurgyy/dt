@@ -311,8 +311,27 @@ fn check(config: &DTConfig) -> Result<()> {
 }
 
 /// Syncs items specified with given configuration object.
-pub fn sync(config: &DTConfig, local_name: &[String]) -> Result<()> {
-    let config = expand(config)?;
+pub fn sync(config: &mut DTConfig, local_name: &[String]) -> Result<()> {
+    if !local_name.is_empty() {
+        local_name.iter().for_each(|n| {
+            if config.local.iter().all(|g| g.name != *n) {
+                log::warn!("Group [{}] is not recognized", n);
+            }
+        });
+        config.local = config
+            .local
+            .iter()
+            .filter(|g| local_name.contains(&g.name))
+            .map(|g| g.to_owned())
+            .collect();
+    };
+    if config.local.is_empty() {
+        log::warn!("Nothing to be synced");
+        return Ok(());
+    }
+    log::trace!("Local groups to process: {:#?}", config.local);
+
+    let config = expand(&config)?;
 
     let staging = &config
         .global
@@ -328,28 +347,7 @@ pub fn sync(config: &DTConfig, local_name: &[String]) -> Result<()> {
         std::fs::create_dir_all(staging)?;
     }
 
-    let local_groups: Vec<LocalGroup> = if local_name.is_empty() {
-        config.local
-    } else {
-        local_name.iter().for_each(|n| {
-            if config.local.iter().all(|g| g.name != *n) {
-                log::warn!("Group [{}] is not recognized", n);
-            }
-        });
-        config
-            .local
-            .iter()
-            .filter(|g| local_name.contains(&g.name))
-            .map(|g| g.to_owned())
-            .collect()
-    };
-    log::trace!("Local groups to process: {:#?}", local_groups);
-    if local_groups.is_empty() {
-        log::warn!("Nothing to be synced");
-        return Ok(());
-    }
-
-    for group in local_groups {
+    for group in config.local {
         log::info!("Local group: [{}]", group.name);
         if group.sources.is_empty() {
             log::debug!(
@@ -405,8 +403,27 @@ pub fn sync(config: &DTConfig, local_name: &[String]) -> Result<()> {
 
 /// Show changes to be made according to configuration, without actually
 /// syncing items.
-pub fn dry_sync(config: &DTConfig, local_name: &[String]) -> Result<()> {
-    let config = expand(config)?;
+pub fn dry_sync(config: &mut DTConfig, local_name: &[String]) -> Result<()> {
+    if !local_name.is_empty() {
+        local_name.iter().for_each(|n| {
+            if config.local.iter().all(|g| g.name != *n) {
+                log::warn!("Group [{}] is not recognized", n);
+            }
+        });
+        config.local = config
+            .local
+            .iter()
+            .filter(|g| local_name.contains(&g.name))
+            .map(|g| g.to_owned())
+            .collect();
+    };
+    if config.local.is_empty() {
+        log::warn!("Nothing to be synced");
+        return Ok(());
+    }
+    log::trace!("Local groups to process: {:#?}", config.local);
+
+    let config = expand(&config)?;
 
     let staging = &config
         .global
@@ -420,28 +437,7 @@ pub fn dry_sync(config: &DTConfig, local_name: &[String]) -> Result<()> {
         log::error!("Staging root seems to exist and is not a directory");
     }
 
-    let local_groups: Vec<LocalGroup> = if local_name.is_empty() {
-        config.local
-    } else {
-        local_name.iter().for_each(|n| {
-            if config.local.iter().all(|g| g.name != *n) {
-                log::warn!("Group [{}] is not recognized", n);
-            }
-        });
-        config
-            .local
-            .iter()
-            .filter(|g| local_name.contains(&g.name))
-            .map(|g| g.to_owned())
-            .collect()
-    };
-    log::trace!("Local groups to process: {:#?}", local_groups);
-    if local_groups.is_empty() {
-        log::warn!("Nothing to be synced");
-        return Ok(());
-    }
-
-    for group in local_groups {
+    for group in config.local {
         log::info!("Dry-running with local group: [{}]", group.name);
         if group.sources.is_empty() {
             log::debug!(
