@@ -350,7 +350,7 @@ pub fn sync(config: &DTConfig, local_name: &[String]) -> Result<()> {
     }
 
     for group in local_groups {
-        log::info!("Syncing local group: [{}]", group.name);
+        log::info!("Local group: [{}]", group.name);
         if group.sources.is_empty() {
             log::debug!(
                 "Group [{}]: skipping due to empty group",
