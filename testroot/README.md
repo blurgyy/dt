@@ -1,10 +1,7 @@
 # Testing
 
-To run unit tests, **go to the project's root directory** and run
-
-```shell
-$ cargo test
-```
+This directory contains config files and items that are to be manipulated
+during unit testing.
 
 ## File hierarchy
 
