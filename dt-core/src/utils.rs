@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 /// # use dt_core::utils::default_config_path;
 /// # use std::path::PathBuf;
 /// # use std::str::FromStr;
-///
+/// #
 /// # fn main() {
 ///     std::env::set_var("HOME", "/tmp/john");
 ///     std::env::set_var("XDG_CONFIG_HOME", "/tmp/watson/.config");
