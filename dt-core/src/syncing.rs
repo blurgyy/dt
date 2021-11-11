@@ -83,13 +83,20 @@ fn expand(config: &DTConfig) -> Result<DTConfig> {
             next.basedir = host_specific_basedir;
         }
 
-        // Check read permission of `basedir`
-        if let Err(e) = std::fs::read_dir(&next.basedir) {
-            log::error!(
-                "Could not read basedir '{}'",
-                next.basedir.display(),
-            );
-            return Err(e.into());
+        // Above process does not guarantee the `basedir` to exist, since a
+        // warning will be emitted later in the expanding process (see
+        // function `expand_recursive()`), just don't attempt to read
+        // non-existent `basedir` here by first checking its
+        // existence.
+        if next.basedir.exists() {
+            // Check read permission of `basedir`
+            if let Err(e) = std::fs::read_dir(&next.basedir) {
+                log::error!(
+                    "Could not read basedir '{}'",
+                    next.basedir.display(),
+                );
+                return Err(e.into());
+            }
         }
 
         // Check for host-specific `sources`
@@ -748,24 +755,6 @@ mod invalid_configs {
         } else {
             return Err(eyre!(
                 "This config should not be loaded because basedir is not a directory",
-            ));
-        }
-
-        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/syncing/invalid_configs-basedir_unreadable-nonexistent.toml",
-        ).unwrap())?) {
-            assert_eq!(
-                err,
-                AppError::IoError(
-                    "No such file or directory (os error 2)"
-                        .to_owned(),
-                ),
-                "{}",
-                err,
-            );
-        } else {
-            return Err(eyre!(
-                "This config should not be loaded because basedir does not exist",
             ));
         }
 
