@@ -5,5 +5,11 @@ members = [
     "dt-server",
 ]
 
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+
 # Author: Blurgy <gy@blurgy.xyz>
 # Date:   Sep 17 2021, 21:19 [CST]
