@@ -48,6 +48,20 @@ impl DTConfig {
         Self::from_str(&confstr)
     }
 
+    /// Construct another [`DTConfig`] object with only groups with matched
+    /// names remaining.
+    pub fn filter_names(self, local_names: Vec<String>) -> Self {
+        Self {
+            global: self.global,
+            local: self
+                .local
+                .iter()
+                .filter(|l| local_names.iter().any(|n| l.name == *n))
+                .map(|l| l.to_owned())
+                .collect(),
+        }
+    }
+
     /// Validates config object **without** touching the filesystem.
     fn validate(self) -> Result<Self> {
         let mut group_name_rec: std::collections::HashSet<String> =

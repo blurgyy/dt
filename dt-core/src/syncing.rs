@@ -318,20 +318,7 @@ fn check(config: &DTConfig) -> Result<()> {
 }
 
 /// Syncs items specified with given configuration object.
-pub fn sync(config: &mut DTConfig, local_name: &[String]) -> Result<()> {
-    if !local_name.is_empty() {
-        local_name.iter().for_each(|n| {
-            if config.local.iter().all(|g| g.name != *n) {
-                log::warn!("Group [{}] is not recognized", n);
-            }
-        });
-        config.local = config
-            .local
-            .iter()
-            .filter(|g| local_name.contains(&g.name))
-            .map(|g| g.to_owned())
-            .collect();
-    };
+pub fn sync(config: DTConfig) -> Result<()> {
     if config.local.is_empty() {
         log::warn!("Nothing to be synced");
         return Ok(());
@@ -410,20 +397,7 @@ pub fn sync(config: &mut DTConfig, local_name: &[String]) -> Result<()> {
 
 /// Show changes to be made according to configuration, without actually
 /// syncing items.
-pub fn dry_sync(config: &mut DTConfig, local_name: &[String]) -> Result<()> {
-    if !local_name.is_empty() {
-        local_name.iter().for_each(|n| {
-            if config.local.iter().all(|g| g.name != *n) {
-                log::warn!("Group [{}] is not recognized", n);
-            }
-        });
-        config.local = config
-            .local
-            .iter()
-            .filter(|g| local_name.contains(&g.name))
-            .map(|g| g.to_owned())
-            .collect();
-    };
+pub fn dry_sync(config: DTConfig) -> Result<()> {
     if config.local.is_empty() {
         log::warn!("Nothing to be synced");
         return Ok(());
