@@ -118,20 +118,17 @@ where
     /// # use dt_core::item::DTItem;
     /// # use std::path::PathBuf;
     /// # use std::str::FromStr;
-    /// #
-    /// # fn main() {
-    ///     let itm: PathBuf = "/some/long/path".into();
-    ///     assert_eq!(
-    ///         itm.non_host_specific("@@"),
-    ///         PathBuf::from_str("/some/long/path").unwrap(),
-    ///     );
+    /// let itm: PathBuf = "/some/long/path".into();
+    /// assert_eq!(
+    ///     itm.non_host_specific("@@"),
+    ///     PathBuf::from_str("/some/long/path").unwrap(),
+    /// );
     ///
-    ///     let itm: PathBuf = "/some@@john/long/path@@watson".into();
-    ///     assert_eq!(
-    ///         itm.non_host_specific("@@"),
-    ///         PathBuf::from_str("/some/long/path").unwrap(),
-    ///     );
-    /// # }
+    /// let itm: PathBuf = "/some@@john/long/path@@watson".into();
+    /// assert_eq!(
+    ///     itm.non_host_specific("@@"),
+    ///     PathBuf::from_str("/some/long/path").unwrap(),
+    /// );
     /// ```
     fn non_host_specific(&self, hostname_sep: &str) -> Self {
         let path = self.as_ref();
@@ -187,20 +184,16 @@ where
     /// # use dt_core::item::DTItem;
     /// # use std::path::PathBuf;
     /// # use std::str::FromStr;
-    /// # use dt_core::error::Result;
-    /// #
-    /// # fn main() -> Result<()> {
-    ///     let itm: PathBuf = "/path/to/source@@john/item".into();
-    ///     let basedir: PathBuf = "/path/to/source".into();
-    ///     let targetbase: PathBuf = "/path/to/target".into();
+    /// # use dt_core::error::Error as AppError;
+    /// let itm: PathBuf = "/path/to/source@@john/item".into();
+    /// let basedir: PathBuf = "/path/to/source".into();
+    /// let targetbase: PathBuf = "/path/to/target".into();
     ///
-    ///     assert_eq!(
-    ///         itm.make_target("@@", basedir, targetbase)?,
-    ///         PathBuf::from_str("/path/to/target/item").unwrap(),
-    ///     );
-    /// #
-    /// #   Ok(())
-    /// # }
+    /// assert_eq!(
+    ///     itm.make_target("@@", basedir, targetbase)?,
+    ///     PathBuf::from_str("/path/to/target/item").unwrap(),
+    /// );
+    /// # Ok::<(), AppError>(())
     /// ```
     fn make_target<T>(
         &self,

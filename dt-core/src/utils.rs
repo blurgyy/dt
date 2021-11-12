@@ -9,21 +9,18 @@ use std::path::{Path, PathBuf};
 /// # use dt_core::utils::default_config_path;
 /// # use std::path::PathBuf;
 /// # use std::str::FromStr;
-/// #
-/// # fn main() {
-///     std::env::set_var("HOME", "/tmp/john");
-///     std::env::set_var("XDG_CONFIG_HOME", "/tmp/watson/.config");
-///     assert_eq!(
-///         default_config_path("cli.toml"),
-///         PathBuf::from_str("/tmp/watson/.config/dt/cli.toml").unwrap(),
-///     );
+///  std::env::set_var("HOME", "/tmp/john");
+///  std::env::set_var("XDG_CONFIG_HOME", "/tmp/watson/.config");
+///  assert_eq!(
+///      default_config_path("cli.toml"),
+///      PathBuf::from_str("/tmp/watson/.config/dt/cli.toml").unwrap(),
+///  );
 ///
-///     std::env::remove_var("XDG_CONFIG_HOME");
-///     assert_eq!(
-///         default_config_path("cli.toml"),
-///         PathBuf::from_str("/tmp/john/.config/dt/cli.toml").unwrap(),
-///     );
-/// # }
+///  std::env::remove_var("XDG_CONFIG_HOME");
+///  assert_eq!(
+///      default_config_path("cli.toml"),
+///      PathBuf::from_str("/tmp/john/.config/dt/cli.toml").unwrap(),
+///  );
 /// ```
 pub fn default_config_path(filename: impl AsRef<Path>) -> PathBuf {
     dirs::config_dir()
