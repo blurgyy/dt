@@ -1200,5 +1200,139 @@ mod expansion {
     }
 }
 
+#[cfg(test)]
+mod priority_resolving {
+    use std::str::FromStr;
+
+    use crate::{config::*, error::*, syncing::expand};
+
+    #[test]
+    fn former_group_has_higher_priority_within_same_scope() -> Result<()> {
+        let config = expand(&DTConfig::from_str(
+            r#"
+                [[local]]
+                name = "highest"
+                # Scope is omitted to use default scope (i.e. General)
+                basedir = ".."
+                sources = ["README.md"]
+                target = "."
+                [[local]]
+                name = "low"
+                # Scope is omitted to use default scope (i.e. General)
+                basedir = ".."
+                sources = ["README.md"]
+                target = "../testroot"
+        "#,
+        )?)?;
+
+        assert!(!config.local[0].sources.is_empty());
+        assert!(config.local[1].sources.is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn dropin_has_highest_priority() -> Result<()> {
+        let config = expand(&DTConfig::from_str(
+            r#"
+                [[local]]
+                name = "lowest"
+                scope = "General"
+                basedir = ".."
+                sources = ["README.md"]
+                target = "."
+                [[local]]
+                name = "medium"
+                scope = "App"
+                basedir = ".."
+                sources = ["README.md"]
+                target = "."
+                [[local]]
+                name = "highest"
+                scope = "Dropin"
+                basedir = ".."
+                sources = ["README.md"]
+                target = "."
+            "#,
+        )?)?;
+
+        assert!(config.local[0].sources.is_empty());
+        assert!(config.local[1].sources.is_empty());
+        assert!(!config.local[2].sources.is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn app_has_medium_priority() -> Result<()> {
+        let config = expand(&DTConfig::from_str(
+            r#"
+                [[local]]
+                name = "lowest"
+                scope = "General"
+                basedir = ".."
+                sources = ["README.md"]
+                target = "."
+                [[local]]
+                name = "medium"
+                scope = "App"
+                basedir = ".."
+                sources = ["README.md"]
+                target = "."
+            "#,
+        )?)?;
+
+        assert!(config.local[0].sources.is_empty());
+        assert!(!config.local[1].sources.is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn default_scope_is_general() -> Result<()> {
+        let config = expand(&DTConfig::from_str(
+            r#"
+                [[local]]
+                name = "omitted scope but defined first, has higher priority"
+                # Scope is omitted to use default scope (i.e. General)
+                basedir = ".."
+                sources = ["README.md"]
+                target = "."
+                [[local]]
+                name = "specified scope but defined last, has lower priority"
+                scope = "General"
+                basedir = ".."
+                sources = ["README.md"]
+                target = "."
+            "#,
+        )?)?;
+
+        assert!(!config.local[0].sources.is_empty());
+        assert!(config.local[1].sources.is_empty());
+
+        let config = expand(&DTConfig::from_str(
+            r#"
+                [[local]]
+                name = "omitted scope, uses general"
+                # Scope is omitted to use default scope (i.e. General)
+                basedir = ".."
+                sources = ["README.md"]
+                target = "."
+                [[local]]
+                name = "specified scope with higher priority"
+                scope = "App"
+                basedir = ".."
+                sources = ["README.md"]
+                target = "."
+            "#,
+        )?)?;
+
+        assert!(config.local[0].sources.is_empty());
+        assert!(!config.local[1].sources.is_empty());
+
+        Ok(())
+    }
+}
+
 // Author: Blurgy <gy@blurgy.xyz>
 // Date:   Sep 23 2021, 00:05 [CST]
