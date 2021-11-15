@@ -588,8 +588,19 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
                     spath.display(),
                     tpath.display(),
                 );
-                if let Ok(tmetadata) = tpath.symlink_metadata() {
-                    // If `tpath` exists already, check its permission
+                // Treat `tpath` as a symlink if `std::fs::read_link` returns
+                // Ok on `tpath`.
+                // Note: `Path::is_symlink()` has been stablized
+                // (rust-lang/rust#89677), might be a good idea to switch to
+                // it as soon as it enters stable Rust..
+                if std::fs::read_link(&tpath).is_ok() {
+                    // If `tpath` is a symlink, we want to delete the symlink
+                    // because SyncMethod is Copy, if we don't remove it
+                    // first, we will write to the symlink's destination
+                    // instead of our desired target path.
+                    std::fs::remove_file(&tpath)?;
+                } else if let Ok(tmetadata) = tpath.symlink_metadata() {
+                    // If `tpath` exists already, check its permission.
                     if tmetadata.permissions().readonly() {
                         // If `tpath` is readonly, then `std::fs::copy` won't
                         // work because it does not have write permission, so
