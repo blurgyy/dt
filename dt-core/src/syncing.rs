@@ -624,7 +624,11 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
                 );
 
                 if let Ok(stmetadata) = staging_path.symlink_metadata() {
+                    // If `staging_path` exists already, check its permission
                     if stmetadata.permissions().readonly() {
+                        // If `staging_path` is readonly, then `std::fs::copy`
+                        // won't work because it does not have write
+                        // permission, so remove `staging_path` here.
                         std::fs::remove_file(&staging_path)?;
                     }
                 }
@@ -636,22 +640,49 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
                 std::fs::copy(spath, &staging_path)?;
 
                 // Symlinking
-                if std::fs::remove_file(&tpath).is_ok() {
-                    {
+                // Do not remove target file if it is already a symlink that
+                // points to the correct location.
+                if let Ok(dest) = std::fs::read_link(&tpath) {
+                    if dest == staging_path {
+                        log::trace!(
+                            "SYNC::SYMLINK [{}]> '{}' is already a symlink pointing to '{}'",
+                            group_name,
+                            tpath.display(),
+                            staging_path.display(),
+                        );
+                    } else {
                         log::trace!(
                             "SYNC::OVERWRITE [{}]> '{}'",
                             group_name,
                             tpath.display(),
                         );
+                        std::fs::remove_file(&tpath)?;
+                        log::trace!(
+                            "SYNC::SYMLINK [{}]> '{}' => '{}'",
+                            group_name,
+                            staging_path.display(),
+                            tpath.display(),
+                        );
+                        std::os::unix::fs::symlink(&staging_path, &tpath)?;
                     }
                 }
-                log::trace!(
-                    "SYNC::SYMLINK [{}]> '{}' => '{}'",
-                    group_name,
-                    staging_path.display(),
-                    tpath.display(),
-                );
-                std::os::unix::fs::symlink(staging_path, tpath)?;
+                // Else if target is not a symlink, remove it and make a
+                // symlink.
+                else {
+                    log::trace!(
+                        "SYNC::OVERWRITE [{}]> '{}'",
+                        group_name,
+                        tpath.display(),
+                    );
+                    std::fs::remove_file(&tpath)?;
+                    log::trace!(
+                        "SYNC::SYMLINK [{}]> '{}' => '{}'",
+                        group_name,
+                        staging_path.display(),
+                        tpath.display(),
+                    );
+                    std::os::unix::fs::symlink(&staging_path, &tpath)?;
+                }
             }
         }
     } else if spath.is_dir() {
