@@ -72,7 +72,7 @@ install it with your favorite package manager:
 $ paru -S dt-cli
 ```
 
-### Alternative Ways
+### Alternative ways
 
 Alternatively, you can:
 
