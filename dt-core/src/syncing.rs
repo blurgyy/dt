@@ -728,15 +728,27 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
                         std::os::unix::fs::symlink(&staging_path, &tpath)?;
                     }
                 }
-                // Else if target is not a symlink, remove it and make a
-                // symlink.
-                else {
+                // If target file exists but is not a symlink, try to remove
+                // it first, then also make a symlink from `staging_path` to
+                // `tpath`.
+                else if tpath.exists() {
                     log::trace!(
                         "SYNC::OVERWRITE [{}]> '{}'",
                         group_name,
                         tpath.display(),
                     );
                     std::fs::remove_file(&tpath)?;
+                    log::trace!(
+                        "SYNC::SYMLINK [{}]> '{}' => '{}'",
+                        group_name,
+                        staging_path.display(),
+                        tpath.display(),
+                    );
+                    std::os::unix::fs::symlink(&staging_path, &tpath)?;
+                }
+                // The final case is that when `tpath` does not exist yet, we
+                // can then directly create a symlink.
+                else {
                     log::trace!(
                         "SYNC::SYMLINK [{}]> '{}' => '{}'",
                         group_name,
