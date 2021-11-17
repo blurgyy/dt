@@ -581,7 +581,7 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
     // have host-specific suffix).
     let staging_path =
         spath.make_target(&hostname_sep, &basedir, &staging)?;
-    if !dry {
+    if !dry && method == SyncMethod::Symlink {
         std::fs::create_dir_all(staging_path.parent().unwrap_or_else(
             || {
                 panic!(
