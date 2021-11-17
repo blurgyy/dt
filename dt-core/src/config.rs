@@ -146,9 +146,17 @@ impl DTConfig {
 
             // Source item contains bad globbing pattern
             if group.sources.iter().any(|s| {
-                let s = s.to_str().unwrap();
-                s == ".*" || s.ends_with("/.*")
+                s.to_str()
+                    .unwrap()
+                    .split('/')
+                    .any(|component| component == ".*")
             }) {
+                log::error!(
+                    "'.*' is prohibited for globbing sources because it also matches the parent directory.",
+                );
+                log::error!(
+                    "If you want to match all items that starts with a dot, use ['.[!.]*', '..?*'] as sources.",
+                );
                 return Err(AppError::ConfigError(
                     "bad globbing pattern".to_owned(),
                 ));
