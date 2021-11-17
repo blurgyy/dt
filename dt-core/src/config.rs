@@ -50,13 +50,13 @@ impl DTConfig {
 
     /// Construct another [`DTConfig`] object with only groups with matched
     /// names remaining.
-    pub fn filter_names(self, local_names: Vec<String>) -> Self {
+    pub fn filter_names(self, group_names: Vec<String>) -> Self {
         Self {
             global: self.global,
             local: self
                 .local
                 .iter()
-                .filter(|l| local_names.iter().any(|n| l.name == *n))
+                .filter(|l| group_names.iter().any(|n| l.name == *n))
                 .map(|l| l.to_owned())
                 .collect(),
         }

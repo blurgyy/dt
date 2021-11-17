@@ -59,7 +59,10 @@ $ dt-cli
 | Options | Description |
 |---:|:---|
 | `-c\|--config-path` `<path>` | Specifies path to config file. |
-| `-l\|--local-name` `<name>` | Specifies name(s) of the local group(s) to be processed |
+
+| Args | Description |
+|---:|:---|
+| `<group-name>...` | Specifies name(s) of the group(s) to be processed |
 
 ## Install
 

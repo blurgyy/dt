@@ -12,12 +12,8 @@ struct Opt {
     #[structopt(help = "Specifies path to config file", short, long)]
     config_path: Option<PathBuf>,
 
-    #[structopt(
-        help = "Specifies name(s) of the local group(s) to be processed",
-        short,
-        long
-    )]
-    local_name: Vec<String>,
+    #[structopt(help = "Specifies name(s) of the group(s) to be processed")]
+    group_names: Vec<String>,
 
     #[structopt(
         help = "Shows changes to be made without actually syncing files",
@@ -78,10 +74,10 @@ fn main() {
         }
     };
     // Filter groups when appropriate
-    let config = if opt.local_name.is_empty() {
+    let config = if opt.group_names.is_empty() {
         config
     } else {
-        config.filter_names(opt.local_name)
+        config.filter_names(opt.group_names)
     };
     if opt.dry_run {
         if let Err(e) = syncing::dry_sync(config) {
