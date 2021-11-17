@@ -230,10 +230,10 @@ impl DTConfig {
 ///
 /// [`Dropin`] > [`App`] > [`General`]
 ///
-/// **Within the same scope**, the first defined group in the config file for
-/// DT has the **highest** priority, later defined groups have lower priority.
+/// Within the same scope, the first defined group in the config file for DT
+/// has the highest priority, later defined groups have lower priority.
 ///
-/// Groups without a given scope is treated as of [`General`] scope.
+/// Groups without a given scope are treated as of [`General`] scope.
 ///
 /// [`Dropin`]: DTScope::Dropin
 /// [`App`]: DTScope::App
@@ -257,7 +257,7 @@ impl DTConfig {
 /// Let's say after some weeks or months, you have decided to also include
 /// `/usr/share/fontconfig/conf.avail/10-sub-pixel-rgb.conf` to your
 /// fontconfig directory, which is `~/.config/fontconfig/conf.d`, you do so by
-/// adding another [[local]] group into your config file for DT:
+/// adding another `[[local]]` group into your config file for DT:
 ///
 /// ```toml
 /// [[local]]
@@ -268,20 +268,21 @@ impl DTConfig {
 /// ```
 ///
 /// A problem arises when you also maintain a version of
-/// `10-sub-pixel-rgb.conf`: If DT syncs the `fontconfig-system` group
-/// **last**, the final config file in your `$XDG_CONFIG_HOME` is the system
-/// version;  While if DT syncs the `xdg_config_home` group **last**, that
+/// `10-sub-pixel-rgb.conf` of your own: If DT syncs the `fontconfig-system`
+/// group last, the resulting config file in your `$XDG_CONFIG_HOME` is the
+/// system version;  While if DT syncs the `xdg_config_home` group last, that
 /// file ended up being your previously maintained version.
 ///
-/// Actually DT is quite predictable, it only perform operations in the order
-/// your groups are defined in the config file.  You can totally avoid the
-/// ambiguity above by defining the `fontconfig-system` group at last.
+/// Actually, DT is quite predictable: it only performs operations in the
+/// order defined in the config file for your groups.  By defining the
+/// `fontconfig-system` group last, you can completely avoid the ambiguity
+/// above.
 ///
-/// But since the config file is written by you, a human, whose species is
-/// known for making mistakes, it's cool if DT could always know what to do
-/// when duplicated items are found in the config file.  So, instead of
-/// keeping the groups with higher priority at the last of your config file,
-/// you could simply define their `scope`s in their definition:
+/// However, since the config file was written by you, a human, and humans are
+/// notorious for making mistakes, it would be great if DT could always know
+/// what to do when duplicated items are discovered in the config file.
+/// Instead of putting the groups with higher priority at the end of your
+/// config file, you could simply define `scope`s in their definitions:
 ///
 /// ```toml
 /// [[local]]
@@ -299,7 +300,7 @@ impl DTConfig {
 /// perform its syncing process.
 ///
 /// This is also useful with `dt-cli`'s `-l|--local-name` option, which gives
-/// you more granular control over items to be synced.
+/// you more granular control over how items are synced.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum DTScope {
     /// The scope with lowest priority, this is the default scope,
