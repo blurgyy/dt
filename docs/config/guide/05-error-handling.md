@@ -35,9 +35,9 @@ string patterns.  This is for spotting obvious errors as fast as possible.
 
 If the above validating step passed successfully, `dt-cli` begins to iterate
 through every group, recursively expand all sources according to their file
-hierarchy, the `basedir`s are also expanded to [host-specific](/host-specific)
-ones wherever possible.  The following cases are considered invalid while
-expanding `sources` and `basedir`:
+hierarchy, the `basedir`s are also expanded to
+[host-specific](/features/host-specific) ones wherever possible.  The following
+cases are considered invalid while expanding `sources` and `basedir`:
 
 - The group's `basedir` exists but is not a directory
 - The group's `target` exists and is not a directory

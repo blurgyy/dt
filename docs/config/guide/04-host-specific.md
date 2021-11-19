@@ -1,8 +1,8 @@
 # Host-specific Configuration
 
 When you want to maintain multiple configurations for different machines, you
-will have to deal with [host-specific syncing](/host-specific).  This section
-describes how to use this feature of `dt-cli` properly.
+will have to deal with [host-specific syncing](/features/host-specific).  This
+section describes how to use this feature of `dt-cli` properly.
 
 ## Separator
 
@@ -30,7 +30,7 @@ Knowing what your `hostname_sep` is, you can now specify your source items.
 
 `dt-cli` automatically deals with the logic for host-specific syncing,
 thus you **should not** contain a [hostname
-suffix](/host-specific#hostname-suffix) when specifying your sources.
+suffix](/features/host-specific#hostname-suffix) when specifying your sources.
 
 ### `basedir`
 

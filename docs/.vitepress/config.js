@@ -52,17 +52,30 @@ module.exports = {
         },
       ],
       "/": [
-        {text: "Overview", link: "/"},
         {
-          text: "Installation",
+          text: "👀 Overview",
+          link: "/",
+        },
+        {
+          text: "🚀 Installation",
           link: "/installation"
         },
         {
-          text: "Host-specific Syncing",
-          link: "/host-specific",
+          text: "💠 Features",
+          link: "/features/",
+          children: [
+            {
+              text: "Host-specific Syncing",
+              link: "/features/host-specific",
+            },
+            {
+              text: "Priority Resolving",
+              link: "/features/scope",
+            },
+          ]
         },
         {
-          text: "Contributing",
+          text: "📨 Contributing",
           link: "/contributing",
         },
       ],
