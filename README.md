@@ -14,7 +14,7 @@ The command line interface `dt-cli` accepts a path to the configuration file
 as an argument and performs the syncing process specified in the file.
 
 Configuration guides and detailed usages can be found in the
-[documentations](https://dt-cli-docs.blurgy.xyz/)
+[documentations](https://dt-cli-docs.blurgy.xyz/).
 
 ### Example
 
