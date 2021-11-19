@@ -1,6 +1,3 @@
----
-title: Defining Default Behaviours
----
 # Defining Default Behaviours
 
 Note that when syncing our configuration files for `Neovim` in the [basic

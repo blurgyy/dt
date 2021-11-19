@@ -1,7 +1,3 @@
----
-title: Key References
----
-
 # Key References
 
 This chapter lists available configuration keys.

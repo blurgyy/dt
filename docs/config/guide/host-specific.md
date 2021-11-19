@@ -1,7 +1,3 @@
----
-title: Host-specific Configuration
----
-
 # Host-specific Configuration
 
 When you want to maintain multiple configurations for different machines, you

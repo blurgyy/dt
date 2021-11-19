@@ -1,10 +1,6 @@
----
-title: Overview
----
-
 # Overview
 
-## Synopsis
+## Name
 
 `dt-cli` is a highly customizable dotfile manager.
 

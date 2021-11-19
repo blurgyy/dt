@@ -1,7 +1,3 @@
----
-title: Contributing
----
-
 # Contributing
 
 Thank you for your interest in contributing! There are many ways to contribute

@@ -1,7 +1,3 @@
----
-title: Host-specific Syncing
----
-
 # Host-specific Syncing
 
 :::tip
