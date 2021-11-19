@@ -39,7 +39,6 @@ hierarchy, the `basedir`s are also expanded to [host-specific](/host-specific)
 ones wherever possible.  The following cases are considered invalid while
 expanding `sources` and `basedir`:
 
-- The group's `basedir` is non-existent
 - The group's `basedir` exists but is not a directory
 - The group's `target` exists and is not a directory
 - The group's `target` is non-existent but cannot be created
@@ -47,6 +46,11 @@ expanding `sources` and `basedir`:
   method](/config/guide/03-syncing-methods):
   - `staging` exists but iis not a directory
   - `staging` is non-existent but cannot be created
+
+:::info
+Non-existent `basedir` will not trigger an error but only a warning that
+complains about not matching anything.
+:::
 
 :::info
 Broken symlinks and item types other than `file` or `directory` are ignored
