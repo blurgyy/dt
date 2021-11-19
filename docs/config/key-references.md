@@ -63,6 +63,15 @@ staging directory.  For example, if `global.staging` is set to `/some/dir`, a
 local group with `name` set to `Dotfiles` will have a staging directory as
 `/some/dir/Dotfiles`.  Cannot contain slash (`/`).
 
+### `scope`
+
+> [optional] `General`|`App`|`Dropin`
+
+Priority of the current group, useful when selecting groups via command line.
+The syncing priority order is `Dropin` > `App` > `General`.  The first group
+in the config file has the highest priority when multiple groups with a same
+`scope` contain a same item.  If omitted, uses `General`.
+
 ### `basedir`
 
 > [required] string
