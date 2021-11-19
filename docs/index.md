@@ -38,4 +38,5 @@ $ dt-cli
 
 ## Configuration
 
-See the [hands-on guide](/config/guide/) for creating a configuration file.
+Create a configuration file by following the steps in the [hands-on
+guide](/config/guide/).

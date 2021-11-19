@@ -44,7 +44,7 @@ expanding `sources` and `basedir`:
 - The group's `target` exists and is not a directory
 - The group's `target` is non-existent but cannot be created
 - When any group uses the `Symlink` [syncing
-  method](/config/guide/syncing-methods):
+  method](/config/guide/03-syncing-methods):
   - `staging` exists but iis not a directory
   - `staging` is non-existent but cannot be created
 

@@ -26,23 +26,23 @@ module.exports = {
             },
             {
               text: "Defining Default Behaviours",
-              link: "/config/guide/default-behaviours",
+              link: "/config/guide/01-default-behaviours",
             },
             {
               text: "Groups",
-              link: "/config/guide/groups",
+              link: "/config/guide/02-groups",
             },
             {
               text: "Syncing Methods",
-              link: "/config/guide/syncing-methods",
+              link: "/config/guide/03-syncing-methods",
             },
             {
               text: "Host-specific Config",
-              link: "/config/guide/host-specific",
+              link: "/config/guide/04-host-specific",
             },
             {
               text: "Error Handling",
-              link: "/config/guide/error-handling",
+              link: "/config/guide/05-error-handling",
             },
           ],
         },

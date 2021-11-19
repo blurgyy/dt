@@ -27,8 +27,8 @@ This content causes `dt-cli` to perform the following steps:
    directory (`~/.config/nvim`), abort if a target file already exists.
 
 :::tip
-Details of above steps are explained in the [Syncing Methods](syncing-methods)
-section.
+Details of above steps are explained in the [Syncing
+Methods](03-syncing-methods) section.
 :::
 
 :::warning

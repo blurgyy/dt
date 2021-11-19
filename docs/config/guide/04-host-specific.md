@@ -115,6 +115,6 @@ target = "~/.config/alacritty"
 :::warning
 Do **NOT** include the host-specific part in the `sources` array (like
 `alacritty.yml@@laptop` or `alacritty.yml@@workstation`), see the [Error
-Handling](/config/guide/error-handling#config-validating) section for more
+Handling](/config/guide/05-error-handling#config-validating) section for more
 details on this.
 :::

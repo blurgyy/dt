@@ -57,4 +57,4 @@ directory is marked as host-specific, all of its children will only be synced
 when the directory is for current machine.
 
 For configuration of host-specific syncing, see the [hands-on guide on how to
-configure host-specific syncing](/config/guide/host-specific).
+configure host-specific syncing](/config/guide/04-host-specific).

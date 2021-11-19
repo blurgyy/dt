@@ -28,7 +28,7 @@ The syncing method.  Available values are:
 
 If omitted, uses `Symlink`.  When `method` is set to `Copy`, the
 [`staging`](#staging) setting will be disabled.  For more details, see
-[Syncing Methods](/config/guide/syncing-methods).
+[Syncing Methods](/config/guide/03-syncing-methods).
 
 ### `allow_overwrite`
 
