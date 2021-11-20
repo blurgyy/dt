@@ -49,6 +49,7 @@ jobs:
     - name: Strip debug symbols
       run: |
         strip target/release/dt-cli
+        mv target/release/dt-cli dt-cli-$(git describe HEAD)
     - name: Create release with compiled binary
       uses: softprops/action-gh-release@v1
       env:
@@ -60,7 +61,7 @@ jobs:
         name: Release ${{ steps.get_tag_name.outputs.tag_name }}
         body: ${{ steps.changelog.outputs.release_body }}
         files: |
-          target/release/dt-cli
+          dt-cli-v*.*.*
           LICENSE-APACHE
           LICENSE-MIT
 
