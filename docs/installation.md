@@ -9,7 +9,7 @@ install it with your favorite package manager:
 $ paru -S dt-cli
 ```
 
-## Alternative Ways
+## Alternative ways
 
 Alternatively, you can:
 
@@ -24,7 +24,7 @@ Alternatively, you can:
 - Build from source:
   
   ```shell
-  $ git clone github.com:blurgyy/dt.git
+  $ git clone git@github.com:blurgyy/dt.git
   $ cd dt
   $ cargo test --release
   $ cargo install --path=dt-cli
