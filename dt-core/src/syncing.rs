@@ -136,7 +136,7 @@ fn expand(config: &DTConfig) -> Result<DTConfig> {
         ret.local.push(next);
     }
 
-    let ret = resolve(ret);
+    let ret = resolve(ret)?;
 
     check(&ret)?;
 
@@ -241,18 +241,24 @@ fn expand_recursive(
 /// [`check`] because it does not have to query the filesystem.
 ///
 /// [`check`]: check
-fn resolve(config: DTConfig) -> DTConfig {
+fn resolve(config: DTConfig) -> Result<DTConfig> {
     // Maps an item to the index of the group which holds the highest priority
     // of it.
-    let mut mapping: HashMap<&PathBuf, usize> = HashMap::new();
+    let mut mapping: HashMap<PathBuf, usize> = HashMap::new();
 
     // Get each item's highest priority group.
     for i in 0..config.local.len() {
         let current_priority =
-            &config.local[i].scope.as_ref().unwrap_or_default();
+            config.local[i].scope.as_ref().unwrap_or_default();
         for ref mut s in &config.local[i].sources {
-            // if Some(prev_group_idx) = mapping.get(s) {
-            match mapping.get(s) {
+            let t = s.make_target(
+                &config.local[i].get_hostname_sep(
+                    &config.global.to_owned().unwrap_or_default(),
+                ),
+                &config.local[i].basedir,
+                &config.local[i].target,
+            )?;
+            match mapping.get(&t) {
                 Some(prev_group_idx) => {
                     let prev_priority = config.local[*prev_group_idx]
                         .scope
@@ -262,19 +268,19 @@ fn resolve(config: DTConfig) -> DTConfig {
                     // strictly higher priority than previous group, thus
                     // achieving "former defined groups of the same scope have
                     // higher priority" effect.
-                    if *current_priority > prev_priority {
-                        mapping.insert(s, i);
+                    if current_priority > prev_priority {
+                        mapping.insert(t, i);
                     }
                 }
                 None => {
-                    mapping.insert(s, i);
+                    mapping.insert(t, i);
                 }
             }
         }
     }
 
     // Remove redundant groups.
-    DTConfig {
+    Ok(DTConfig {
         local: config
             .local
             .iter()
@@ -284,7 +290,19 @@ fn resolve(config: DTConfig) -> DTConfig {
                     .sources
                     .iter()
                     .filter(|s| {
-                        let best_id = *mapping.get(s).unwrap();
+                        let t = s
+                            .make_target(
+                                &group.get_hostname_sep(
+                                    &config
+                                        .global
+                                        .to_owned()
+                                        .unwrap_or_default(),
+                                ),
+                                &group.basedir,
+                                &group.target,
+                            )
+                            .unwrap();
+                        let best_id = *mapping.get(&t).unwrap();
                         best_id == cur_id
                     })
                     .map(|s| s.to_owned())
@@ -293,7 +311,7 @@ fn resolve(config: DTConfig) -> DTConfig {
             })
             .collect(),
         ..config
-    }
+    })
 }
 
 /// Checks validity of the given `config`.
@@ -1225,21 +1243,34 @@ mod priority_resolving {
     use crate::{config::*, error::*, syncing::expand};
 
     #[test]
+    fn proper_priority_orders() -> Result<()> {
+        assert!(DTScope::Dropin > DTScope::App);
+        assert!(DTScope::App > DTScope::General);
+        assert!(DTScope::Dropin > DTScope::General);
+
+        assert!(DTScope::App < DTScope::Dropin);
+        assert!(DTScope::General < DTScope::App);
+        assert!(DTScope::General < DTScope::Dropin);
+
+        Ok(())
+    }
+
+    #[test]
     fn former_group_has_higher_priority_within_same_scope() -> Result<()> {
         let config = expand(&DTConfig::from_str(
             r#"
                 [[local]]
                 name = "highest"
                 # Scope is omitted to use default scope (i.e. General)
-                basedir = ".."
-                sources = ["README.md"]
+                basedir = "../dt-cli"
+                sources = ["Cargo.toml"]
                 target = "."
                 [[local]]
                 name = "low"
                 # Scope is omitted to use default scope (i.e. General)
-                basedir = ".."
-                sources = ["README.md"]
-                target = "../testroot"
+                basedir = "../dt-server"
+                sources = ["Cargo.toml"]
+                target = "."
         "#,
         )?)?;
 
@@ -1256,20 +1287,20 @@ mod priority_resolving {
                 [[local]]
                 name = "lowest"
                 scope = "General"
-                basedir = ".."
-                sources = ["README.md"]
+                basedir = "../dt-cli"
+                sources = ["Cargo.toml"]
                 target = "."
                 [[local]]
                 name = "medium"
                 scope = "App"
-                basedir = ".."
-                sources = ["README.md"]
+                basedir = "../dt-server"
+                sources = ["Cargo.toml"]
                 target = "."
                 [[local]]
                 name = "highest"
                 scope = "Dropin"
                 basedir = ".."
-                sources = ["README.md"]
+                sources = ["Cargo.toml"]
                 target = "."
             "#,
         )?)?;
@@ -1288,14 +1319,14 @@ mod priority_resolving {
                 [[local]]
                 name = "lowest"
                 scope = "General"
-                basedir = ".."
-                sources = ["README.md"]
+                basedir = "../dt-cli"
+                sources = ["Cargo.toml"]
                 target = "."
                 [[local]]
                 name = "medium"
                 scope = "App"
-                basedir = ".."
-                sources = ["README.md"]
+                basedir = "../dt-server"
+                sources = ["Cargo.toml"]
                 target = "."
             "#,
         )?)?;
@@ -1313,14 +1344,14 @@ mod priority_resolving {
                 [[local]]
                 name = "omitted scope but defined first, has higher priority"
                 # Scope is omitted to use default scope (i.e. General)
-                basedir = ".."
-                sources = ["README.md"]
+                basedir = "../dt-cli"
+                sources = ["Cargo.toml"]
                 target = "."
                 [[local]]
                 name = "specified scope but defined last, has lower priority"
                 scope = "General"
-                basedir = ".."
-                sources = ["README.md"]
+                basedir = "../dt-server"
+                sources = ["Cargo.toml"]
                 target = "."
             "#,
         )?)?;
@@ -1334,13 +1365,13 @@ mod priority_resolving {
                 name = "omitted scope, uses general"
                 # Scope is omitted to use default scope (i.e. General)
                 basedir = ".."
-                sources = ["README.md"]
+                sources = ["Cargo.toml"]
                 target = "."
                 [[local]]
                 name = "specified scope with higher priority"
                 scope = "App"
                 basedir = ".."
-                sources = ["README.md"]
+                sources = ["Cargo.toml"]
                 target = "."
             "#,
         )?)?;
