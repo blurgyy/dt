@@ -67,6 +67,7 @@
       causes some X compositor (like picom) to flash or fail to
       automatically load config file after overwriting
 - [ ] Add `global.include` array to allow including other config files
+- [ ] Templating
 
 ## CLI
 
