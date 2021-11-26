@@ -10,16 +10,16 @@ provides a CLI tool `dt-cli`.
 
 ## Usage
 
-The command line interface `dt-cli` takes a path to the configuration file as
-argument and issues the syncing process defined in the configuration file.
+The command line interface `dt-cli` accepts a path to the configuration file
+as an argument and performs the syncing process specified in the file.
 
-See [documentations](https://dt-cli-docs.blurgy.xyz/) for configuration guides
-and detailed usages.
+Configuration guides and detailed usages can be found in the
+[documentations](https://dt-cli-docs.blurgy.xyz/).
 
 ### Example
 
-A minimal working configuration file to sync all files that matches
-`*init.vim` from `~/dt/nvim` to `~/.config/nvim` can be written as:
+A simple working configuration file to sync all files from `~/dt/nvim` to
+`~/.config/nvim` that matches `*init.vim` can be written as:
 
 ```toml
 [[local]]
@@ -59,7 +59,10 @@ $ dt-cli
 | Options | Description |
 |---:|:---|
 | `-c\|--config-path` `<path>` | Specifies path to config file. |
-| `-l\|--local-name` `<name>` | Specifies name(s) of the local group(s) to be processed |
+
+| Args | Description |
+|---:|:---|
+| `<group-name>...` | Specifies name(s) of the group(s) to be processed |
 
 ## Install
 
@@ -72,22 +75,22 @@ install it with your favorite package manager:
 $ paru -S dt-cli
 ```
 
-### Alternative Ways
+### Alternative ways
 
 Alternatively, you can:
 
 - Download latest [release](https://github.com/blurgyy/dt/releases/latest)
   from GitHub
 - Install from [crates.io](https://crates.io/crates/dt-cli/):
-  
+
   ```shell
   $ cargo install dt-cli
   ```
-  
+
 - Build from source:
-  
+
   ```shell
-  $ git clone github.com:blurgyy/dt.git
+  $ git clone git@github.com:blurgyy/dt.git
   $ cd dt
   $ cargo test --release
   $ cargo install --path=dt-cli
@@ -95,8 +98,8 @@ Alternatively, you can:
 
 ## Contributing
 
-There are many ways to contribute to this project.  Get started
-[here](https://github.com/blurgyy/dt/blob/main/CONTRIBUTING.md)!
+There are numerous ways to help with this project.  Let's [get
+started](https://github.com/blurgyy/dt/blob/main/CONTRIBUTING.md)!
 
 ## License
 
