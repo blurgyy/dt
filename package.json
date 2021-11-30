@@ -3,7 +3,7 @@
   "version": "0.2.1",
   "description": "Documentations for dt-cli <https://github.com/blurgyy/dt>",
   "main": "index.js",
-  "repository": "https://github.com/blurgyy/dt-cli-docs",
+  "repository": "https://github.com/blurgyy/dt",
   "author": "Gaoyang Zhang <gy@blurgy.xyz>",
   "license": "MIT OR Apache 2.0",
   "devDependencies": {
