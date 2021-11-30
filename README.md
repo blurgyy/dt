@@ -2,7 +2,7 @@
 
 [![release](https://github.com/blurgyy/dt/actions/workflows/release.yml/badge.svg)](https://github.com/blurgyy/dt/actions/workflows/release.yml)
 [![tests](https://github.com/blurgyy/dt/actions/workflows/tests.yml/badge.svg)](https://github.com/blurgyy/dt/actions/workflows/tests.yml)
-[![docs](https://github.com/blurgyy/dt/actions/workflows/docs.yml/badge.svg)](https://dt-cli-docs.blurgy.xyz/)
+[![docs](https://github.com/blurgyy/dt/actions/workflows/docs.yml/badge.svg)](https://dt.cli.rs/)
 [![crates.io](https://img.shields.io/crates/v/dt-cli?style=flat&labelColor=1C2C2E&color=C96329&logo=Rust&logoColor=white)](https://crates.io/crates/dt-cli)
 
 `DT` allows you to sync/populate configuration files at will.  It currently
@@ -14,7 +14,7 @@ The command line interface `dt-cli` accepts a path to the configuration file
 as an argument and performs the syncing process specified in the file.
 
 Configuration guides and detailed usages can be found in the
-[documentations](https://dt-cli-docs.blurgy.xyz/).
+[documentations](https://dt.cli.rs/).
 
 ### Example
 
