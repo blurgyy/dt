@@ -3,8 +3,8 @@
 ## Background
 
 :::tip
-Here explains why such a feature is desirable, feel free to skip this
-subsection.
+Here explains why such a feature is desirable, feel free to [skip this
+subsection](#scope).
 :::
 
 Since `dt-cli` syncs your dotfiles on a per-group basis, you don't want to run
