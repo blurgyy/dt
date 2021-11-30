@@ -41,8 +41,12 @@ module.exports = {
               link: "/config/guide/04-host-specific",
             },
             {
+              text: "Scopes",
+              link: "/config/guide/05-priority",
+            },
+            {
               text: "Error Handling",
-              link: "/config/guide/05-error-handling",
+              link: "/config/guide/06-error-handling",
             },
           ],
         },
