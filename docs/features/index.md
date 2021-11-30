@@ -4,3 +4,4 @@
 managing dotfiles.  To be specific, `dt-cli` supports:
 
 - [Host-specific Syncing](host-specific)
+- [Priority Resolving](scope)
