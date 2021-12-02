@@ -1,14 +1,14 @@
 # Scopes
 
 A group's [`scope`](/config/key-references#scope) decides the priority of its
-items.  When multiple groups contains a same item, only the group with the
+items.  When multiple groups contain a same item, only the group with the
 highest priority will do sync that specific item.  This machanism minimizes
-filesystem I/O operations, which makes `dt-cli` appear faster, and achieves
+filesystem I/O operations, which makes `dt-cli` to appear faster, and achieves
 finer control over what to sync with `dt-cli` without having to picking out
 each application's config files from your dotfile library.
 
 :::tip
-Finer control is meant to be used with `dt-cli`'s [command-line
+This feature is meant to be used with `dt-cli`'s [command-line
 argument](/#usage), see the [Background](/features/scope) subsection of this
 feature's introduction for more details.
 :::

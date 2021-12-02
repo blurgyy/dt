@@ -50,9 +50,9 @@ A group's [`scope`](/config/key-references#scope) decides the priority of it
 being synced.  There are 3 predefined scopes, namely `Dropin`, `App` and
 `General`.  The names are pretty much self-explanatory:
 
-- `General` groups have the lowest priority.  They are typically meant for the
-  parent directories of your dotfile library.
-- `Dropin` groups have the highest priority.  They are typically meant for
+- `General` groups have the **lowest** priority.  They are typically meant for
+  the parent directories of your dotfile library.
+- `Dropin` groups have the **highest** priority.  They are typically meant for
   those items that come from external sources as drop-in replacements, such as
   files from a system directory that is managed by your system's package
   manager.
@@ -61,7 +61,7 @@ being synced.  There are 3 predefined scopes, namely `Dropin`, `App` and
   for GUI applications, or a group containing your shell/editor
   preferences/init scripts, etc..
 
-:::info NOTE
+:::info
 A `scope` key in a group's definition is optional.  When omitted, the default
 value of `scope` is `General`.
 :::
@@ -72,8 +72,8 @@ Generally, a larger scope has a lower priority.
 
 :::warning
 If a file is included in multiple groups that have the same `scope`, it will
-only be synced by the first group, later defined groups (with the same `scope`)
-won't repeatedly sync the file.
+only be synced by the first group appeared in your config file, later defined
+groups (with the same `scope`) won't repeatedly sync the file.
 :::
 
 ## Examples
