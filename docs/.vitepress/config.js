@@ -2,6 +2,29 @@ module.exports = {
   lang: "en-US",
   title: "dt-cli",
   description: "Documentations for dt-cli <https://github.com/blurgyy/dt>",
+  head: [
+    [
+      "meta",
+      {
+        property: "og:image",
+        content: "/home-everywhere.png",
+      },
+    ],
+    [
+      "meta",
+      {
+        property: "og:image:width",
+        content: "931",
+      },
+    ],
+    [
+      "meta",
+      {
+        property: "og:image:height",
+        content: "616",
+      },
+    ],
+  ],
 
   themeConfig: {
     repo: "blurgyy/dt",
