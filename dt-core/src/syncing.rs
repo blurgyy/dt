@@ -668,12 +668,6 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
             //
             // or both are true.
             if method == SyncMethod::Copy {
-                log::trace!(
-                    "SYNC::COPY [{}]> '{}' => '{}'",
-                    group_name,
-                    spath.display(),
-                    tpath.display(),
-                );
                 // Treat `tpath` as a symlink if `std::fs::read_link` returns
                 // Ok on `tpath`.
                 // Note: `Path::is_symlink()` has been stablized
@@ -684,46 +678,112 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
                     // because SyncMethod is Copy, if we don't remove it
                     // first, we will write to the symlink's destination
                     // instead of our desired target path.
+                    log::trace!(
+                        "SYNC::COPY [{}]> '{}' is a symlink, removing it",
+                        group_name,
+                        tpath.display(),
+                    );
                     std::fs::remove_file(&tpath)?;
-                } else if let Ok(tmetadata) = tpath.symlink_metadata() {
-                    // If `tpath` exists already, check its permission.
-                    if tmetadata.permissions().readonly() {
-                        // If `tpath` is readonly, then `std::fs::copy` won't
-                        // work because it does not have write permission, so
-                        // remove `tpath` here.
+                }
+                if let Ok(dest_content) = std::fs::read(&tpath) {
+                    let src_content = std::fs::read(&spath)?;
+                    if src_content == dest_content {
+                        log::trace!(
+                            "SYNC::COPY::SKIP [{}]> '{}' has identical content as '{}'",
+                            group_name,
+                            staging_path.display(),
+                            spath.display(),
+                        );
+                    } else {
+                        if let Err(_) = std::fs::copy(&spath, &tpath) {
+                            log::warn!(
+                                "SYNC::COPY::OVERWRITE [{}]> '{}' seems to be readonly, trying to remove it first ..",
+                                group_name,
+                                staging_path.display(),
+                            );
+                            std::fs::remove_file(&staging_path)?;
+                            log::trace!(
+                                "SYNC::COPY::OVERWRITE [{}]> '{}' => '{}'",
+                                group_name,
+                                spath.display(),
+                                tpath.display(),
+                            );
+                            std::fs::copy(spath, &staging_path)?;
+                        }
+                    }
+                } else {
+                    if tpath.exists() {
+                        log::warn!(
+                            "SYNC::COPY::OVERWRITE [{}]> Could not read content of target file ('{}'), trying to remove it first ..",
+                            group_name,
+                            tpath.display(),
+                        );
                         std::fs::remove_file(&tpath)?;
+                        log::trace!(
+                            "SYNC::COPY::OVERWRITE [{}]> '{}' => '{}'",
+                            group_name,
+                            spath.display(),
+                            tpath.display(),
+                        );
+                        std::fs::copy(spath, &tpath)?;
+                    } else {
+                        log::trace!(
+                            "SYNC::COPY [{}]> '{}' => '{}'",
+                            group_name,
+                            spath.display(),
+                            tpath.display(),
+                        );
+                        std::fs::copy(spath, &tpath)?;
                     }
                 }
-                log::trace!(
-                    "SYNC::OVERWRITE [{}]> '{}'",
-                    group_name,
-                    tpath.display(),
-                );
-                std::fs::copy(spath, tpath)?;
             } else if method == SyncMethod::Symlink {
                 // Staging
-                log::trace!(
-                    "SYNC::STAGE [{}]> '{}' => '{}'",
-                    group_name,
-                    spath.display(),
-                    staging_path.display(),
-                );
-
-                if let Ok(stmetadata) = staging_path.symlink_metadata() {
-                    // If `staging_path` exists already, check its permission
-                    if stmetadata.permissions().readonly() {
-                        // If `staging_path` is readonly, then `std::fs::copy`
-                        // won't work because it does not have write
-                        // permission, so remove `staging_path` here.
+                // Check if the content of destination is already the same as
+                // source first. This operation is significantly faster than
+                // copying to an existing target file when the file is large.
+                if let Ok(dest_content) = std::fs::read(&staging_path) {
+                    let src_content = std::fs::read(&spath)?;
+                    if src_content == dest_content {
+                        log::trace!(
+                            "SYNC::STAGE::SKIP [{}]> '{}' has identical content as '{}'",
+                            group_name,
+                            staging_path.display(),
+                            spath.display(),
+                        );
+                    } else {
+                        if let Err(_) = std::fs::copy(&spath, &staging_path) {
+                            log::warn!(
+                                "SYNC::STAGE::OVERWRITE [{}]> '{}' seems to be readonly, trying to remove it first ..",
+                                group_name,
+                                staging_path.display(),
+                            );
+                            std::fs::remove_file(&staging_path)?;
+                            log::trace!(
+                                "SYNC::STAGE [{}]> '{}' => '{}'",
+                                group_name,
+                                spath.display(),
+                                staging_path.display(),
+                            );
+                            std::fs::copy(spath, &staging_path)?;
+                        }
+                    }
+                } else {
+                    log::warn!(
+                        "SYNC::COPY::OVERWRITE [{}]> Could not read content of staging file ('{}'), trying to remove it first ..",
+                        group_name,
+                        staging_path.display(),
+                    );
+                    if staging_path.exists() {
                         std::fs::remove_file(&staging_path)?;
                     }
+                    log::trace!(
+                        "SYNC::STAGE [{}]> '{}' => '{}'",
+                        group_name,
+                        spath.display(),
+                        staging_path.display(),
+                    );
+                    std::fs::copy(spath, &staging_path)?;
                 }
-                log::trace!(
-                    "SYNC::OVERWRITE [{}]> '{}'",
-                    group_name,
-                    staging_path.display(),
-                );
-                std::fs::copy(spath, &staging_path)?;
 
                 // Symlinking
                 // Do not remove target file if it is already a symlink that
@@ -731,24 +791,19 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
                 if let Ok(dest) = std::fs::read_link(&tpath) {
                     if dest == staging_path {
                         log::trace!(
-                            "SYNC::SYMLINK [{}]> '{}' is already a symlink pointing to '{}'",
+                            "SYNC::SYMLINK::SKIP [{}]> '{}' is already a symlink pointing to '{}'",
                             group_name,
                             tpath.display(),
                             staging_path.display(),
                         );
                     } else {
                         log::trace!(
-                            "SYNC::OVERWRITE [{}]> '{}'",
-                            group_name,
-                            tpath.display(),
-                        );
-                        std::fs::remove_file(&tpath)?;
-                        log::trace!(
-                            "SYNC::SYMLINK [{}]> '{}' => '{}'",
+                            "SYNC::SYMLINK::OVERWRITE [{}]> '{}' => '{}'",
                             group_name,
                             staging_path.display(),
                             tpath.display(),
                         );
+                        std::fs::remove_file(&tpath)?;
                         std::os::unix::fs::symlink(&staging_path, &tpath)?;
                     }
                 }
@@ -757,17 +812,12 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
                 // `tpath`.
                 else if tpath.exists() {
                     log::trace!(
-                        "SYNC::OVERWRITE [{}]> '{}'",
-                        group_name,
-                        tpath.display(),
-                    );
-                    std::fs::remove_file(&tpath)?;
-                    log::trace!(
-                        "SYNC::SYMLINK [{}]> '{}' => '{}'",
+                        "SYNC::SYMLINK::OVERWRITE [{}]> '{}' => '{}'",
                         group_name,
                         staging_path.display(),
                         tpath.display(),
                     );
+                    std::fs::remove_file(&tpath)?;
                     std::os::unix::fs::symlink(&staging_path, &tpath)?;
                 }
                 // The final case is that when `tpath` does not exist yet, we
@@ -803,8 +853,10 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
             };
         }
 
-        if !tpath.exists()
-            || method == SyncMethod::Symlink && !staging_path.exists()
+        // `staging_path` and `tpath` should be directories at this point, if
+        // they exist.
+        if method == SyncMethod::Symlink && !staging_path.exists()
+            || !tpath.exists()
         {
             if dry {
                 log::warn!(
