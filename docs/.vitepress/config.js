@@ -14,14 +14,14 @@ module.exports = {
       "meta",
       {
         property: "og:image:width",
-        content: "931",
+        content: "1200",
       },
     ],
     [
       "meta",
       {
         property: "og:image:height",
-        content: "616",
+        content: "794",
       },
     ],
   ],
