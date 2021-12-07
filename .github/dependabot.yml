@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/dt-core"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/dt-cli"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "cargo"
+    directory: "/dt-server"
+    schedule:
+      interval: "daily"
