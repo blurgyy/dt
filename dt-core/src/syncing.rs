@@ -415,7 +415,7 @@ pub fn sync(config: DTConfig) -> Result<()> {
         .unwrap_or_else(|| GlobalConfig::default().staging.unwrap());
     if !staging.exists() {
         log::trace!(
-            "Creating non-existing staging root '{}'",
+            "Creating non-existing staging root at '{}'",
             staging.display(),
         );
         std::fs::create_dir_all(staging)?;
@@ -446,7 +446,7 @@ pub fn sync(config: DTConfig) -> Result<()> {
             staging.join(PathBuf::from_str(&group.name).unwrap());
         if !group_staging.exists() {
             log::trace!(
-                "Creating non-existing staging directory '{}'",
+                "Creating non-existing staging directory at '{}'",
                 group_staging.display(),
             );
             std::fs::create_dir_all(&group_staging)?;
@@ -768,21 +768,29 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
                         }
                     }
                 } else {
-                    log::warn!(
-                        "SYNC::COPY::OVERWRITE [{}]> Could not read content of staging file ('{}'), trying to remove it first ..",
-                        group_name,
-                        staging_path.display(),
-                    );
                     if staging_path.exists() {
+                        log::warn!(
+                            "SYNC::COPY::OVERWRITE [{}]> Could not read content of staging file ('{}'), trying to remove it first ..",
+                            group_name,
+                            staging_path.display(),
+                        );
                         std::fs::remove_file(&staging_path)?;
+                        log::trace!(
+                            "SYNC::STAGE::OVERWRITE [{}]> '{}' => '{}'",
+                            group_name,
+                            spath.display(),
+                            staging_path.display(),
+                        );
+                        std::fs::copy(spath, &staging_path)?;
+                    } else {
+                        log::trace!(
+                            "SYNC::STAGE [{}]> '{}' => '{}'",
+                            group_name,
+                            spath.display(),
+                            staging_path.display(),
+                        );
+                        std::fs::copy(spath, &staging_path)?;
                     }
-                    log::trace!(
-                        "SYNC::STAGE [{}]> '{}' => '{}'",
-                        group_name,
-                        spath.display(),
-                        staging_path.display(),
-                    );
-                    std::fs::copy(spath, &staging_path)?;
                 }
 
                 // Symlinking
