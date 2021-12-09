@@ -694,47 +694,43 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
                             staging_path.display(),
                             spath.display(),
                         );
-                    } else {
-                        if let Err(_) = std::fs::copy(&spath, &tpath) {
-                            log::warn!(
+                    } else if std::fs::copy(&spath, &tpath).is_err() {
+                        log::warn!(
                                 "SYNC::COPY::OVERWRITE [{}]> '{}' seems to be readonly, trying to remove it first ..",
                                 group_name,
                                 staging_path.display(),
                             );
-                            std::fs::remove_file(&staging_path)?;
-                            log::trace!(
-                                "SYNC::COPY::OVERWRITE [{}]> '{}' => '{}'",
-                                group_name,
-                                spath.display(),
-                                tpath.display(),
-                            );
-                            std::fs::copy(spath, &staging_path)?;
-                        }
-                    }
-                } else {
-                    if tpath.exists() {
-                        log::warn!(
-                            "SYNC::COPY::OVERWRITE [{}]> Could not read content of target file ('{}'), trying to remove it first ..",
-                            group_name,
-                            tpath.display(),
-                        );
-                        std::fs::remove_file(&tpath)?;
+                        std::fs::remove_file(&staging_path)?;
                         log::trace!(
                             "SYNC::COPY::OVERWRITE [{}]> '{}' => '{}'",
                             group_name,
                             spath.display(),
                             tpath.display(),
                         );
-                        std::fs::copy(spath, &tpath)?;
-                    } else {
-                        log::trace!(
-                            "SYNC::COPY [{}]> '{}' => '{}'",
+                        std::fs::copy(spath, &staging_path)?;
+                    }
+                } else if tpath.exists() {
+                    log::warn!(
+                            "SYNC::COPY::OVERWRITE [{}]> Could not read content of target file ('{}'), trying to remove it first ..",
                             group_name,
-                            spath.display(),
                             tpath.display(),
                         );
-                        std::fs::copy(spath, &tpath)?;
-                    }
+                    std::fs::remove_file(&tpath)?;
+                    log::trace!(
+                        "SYNC::COPY::OVERWRITE [{}]> '{}' => '{}'",
+                        group_name,
+                        spath.display(),
+                        tpath.display(),
+                    );
+                    std::fs::copy(spath, &tpath)?;
+                } else {
+                    log::trace!(
+                        "SYNC::COPY [{}]> '{}' => '{}'",
+                        group_name,
+                        spath.display(),
+                        tpath.display(),
+                    );
+                    std::fs::copy(spath, &tpath)?;
                 }
             } else if method == SyncMethod::Symlink {
                 // Staging
@@ -750,39 +746,13 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
                             staging_path.display(),
                             spath.display(),
                         );
-                    } else {
-                        if let Err(_) = std::fs::copy(&spath, &staging_path) {
-                            log::warn!(
+                    } else if std::fs::copy(&spath, &staging_path).is_err() {
+                        log::warn!(
                                 "SYNC::STAGE::OVERWRITE [{}]> '{}' seems to be readonly, trying to remove it first ..",
                                 group_name,
                                 staging_path.display(),
                             );
-                            std::fs::remove_file(&staging_path)?;
-                            log::trace!(
-                                "SYNC::STAGE [{}]> '{}' => '{}'",
-                                group_name,
-                                spath.display(),
-                                staging_path.display(),
-                            );
-                            std::fs::copy(spath, &staging_path)?;
-                        }
-                    }
-                } else {
-                    if staging_path.exists() {
-                        log::warn!(
-                            "SYNC::COPY::OVERWRITE [{}]> Could not read content of staging file ('{}'), trying to remove it first ..",
-                            group_name,
-                            staging_path.display(),
-                        );
                         std::fs::remove_file(&staging_path)?;
-                        log::trace!(
-                            "SYNC::STAGE::OVERWRITE [{}]> '{}' => '{}'",
-                            group_name,
-                            spath.display(),
-                            staging_path.display(),
-                        );
-                        std::fs::copy(spath, &staging_path)?;
-                    } else {
                         log::trace!(
                             "SYNC::STAGE [{}]> '{}' => '{}'",
                             group_name,
@@ -791,6 +761,28 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
                         );
                         std::fs::copy(spath, &staging_path)?;
                     }
+                } else if staging_path.exists() {
+                    log::warn!(
+                            "SYNC::COPY::OVERWRITE [{}]> Could not read content of staging file ('{}'), trying to remove it first ..",
+                            group_name,
+                            staging_path.display(),
+                        );
+                    std::fs::remove_file(&staging_path)?;
+                    log::trace!(
+                        "SYNC::STAGE::OVERWRITE [{}]> '{}' => '{}'",
+                        group_name,
+                        spath.display(),
+                        staging_path.display(),
+                    );
+                    std::fs::copy(spath, &staging_path)?;
+                } else {
+                    log::trace!(
+                        "SYNC::STAGE [{}]> '{}' => '{}'",
+                        group_name,
+                        spath.display(),
+                        staging_path.display(),
+                    );
+                    std::fs::copy(spath, &staging_path)?;
                 }
 
                 // Symlinking
