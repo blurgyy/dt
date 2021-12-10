@@ -38,7 +38,7 @@ module.exports = {
     docsDir: "docs",
     nav: [
       {
-        text: "dt-cli",
+        text: "Overview",
         link: "/",
         activeMatch: "^/$|^/host-specific$|^/contributing$|^/installation$",
       },
