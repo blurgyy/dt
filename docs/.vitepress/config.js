@@ -4,6 +4,13 @@ module.exports = {
   description: "Documentations for dt-cli <https://github.com/blurgyy/dt>",
   head: [
     [
+      "link",
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Rubik:wght@300..900",
+      },
+    ],
+    [
       "meta",
       {
         property: "og:image",
