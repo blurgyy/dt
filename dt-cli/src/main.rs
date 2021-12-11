@@ -12,7 +12,10 @@ struct Opt {
     #[structopt(help = "Specifies path to config file", short, long)]
     config_path: Option<PathBuf>,
 
-    #[structopt(help = "Specifies name(s) of the group(s) to be processed")]
+    #[structopt(
+        name = "group_name",
+        help = "Specifies name(s) of the group(s) to be processed"
+    )]
     group_names: Vec<String>,
 
     #[structopt(
