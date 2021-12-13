@@ -13,6 +13,20 @@ module.exports = {
     [
       "meta",
       {
+        property: "twitter:card",
+        content: "summary_large_image",
+      },
+    ],
+    [
+      "meta",
+      {
+        property: "twitter:image",
+        content: "/home-everywhere.png",
+      },
+    ],
+    [
+      "meta",
+      {
         property: "og:image",
         content: "/home-everywhere.png",
       },
