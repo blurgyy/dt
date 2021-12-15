@@ -54,7 +54,7 @@ module.exports = {
       {
         text: "Overview",
         link: "/",
-        activeMatch: "^/$|^/host-specific$|^/contributing$|^/installation$",
+        activeMatch: "^/$|^/host-specific$|^/installation$|^/features|^/contributing$",
       },
       {text: "Guide", link: "/config/guide/"},
       {text: "Key References", link: "/config/key-references"},
