@@ -334,15 +334,21 @@ impl<'a> Default for &'a DTScope {
     }
 }
 
-/// Renaming rule, used for configuring differente names between source items
-/// and their target.
+/// A single enaming rule, used for configuring differente names between
+/// source items and their target.
 #[derive(Clone, Debug, Deserialize_tuple)]
 pub struct RenamingRule {
-    /// The pattern to match against item name.
+    /// A regular expression, specifies the pattern which item names are
+    /// matched against.  Regular expression's capture groups (named or not)
+    /// are supported.  See the [documentation] for more instructions on
+    /// this.
+    ///
+    /// [documentation]: https://dt.cli.rs/
     #[serde(deserialize_with = "serde_regex::deserialize")]
     pub pattern: Regex,
 
-    /// The substitution rule to apply if pattern matches an item.
+    /// The substitution rule to apply if pattern matches an item,
+    /// indexed/named capture groups are allowed.
     pub substitution: String,
 }
 
@@ -498,13 +504,7 @@ pub struct LocalGroup {
 
     /// (Optional) Renaming rules, appends to [`global.rename`].
     ///
-    /// A list of length-2 arrays, each array represents a {`REGEX`:
-    /// `SUBSTITUTION`} rule, when the `REGEX` is matched against an item's
-    /// name (file/directory name), the item, when synced to the target, will
-    /// be renamed into `SUBSTITUTION`.
-    ///
-    /// > Using an array here because arrays are ordered, renaming rules will
-    /// > be applied one-after-another.
+    /// [`global.rename`]: GlobalConfig::rename
     pub rename: Option<Vec<RenamingRule>>,
 }
 
@@ -630,6 +630,8 @@ pub struct GlobalConfig {
     ///
     /// Rules defined here will be prepended to renaming rules of each group.
     /// See [`LocalGroup::rename`].
+    ///
+    /// [`LocalGroup::rename`]: LocalGroup::rename
     pub rename: Option<Vec<RenamingRule>>,
 }
 

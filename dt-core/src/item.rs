@@ -265,6 +265,44 @@ where
     /// # Ok::<(), AppError>(())
     /// ```
     ///
+    /// ## Capture groups
+    ///
+    /// ```rust
+    /// # use dt_core::{
+    /// #   config::RenamingRule,
+    /// #   error::Error as AppError,
+    /// #   item::DTItem
+    /// # };
+    /// # use std::path::PathBuf;
+    /// # use std::str::FromStr;
+    /// let itm: PathBuf = "/path/to/source@@john/_dot_item.ext".into();
+    /// let basedir: PathBuf = "/path/to/source".into();
+    /// let targetbase: PathBuf = "/path/to/target".into();
+    ///
+    /// let named_capture = RenamingRule{
+    ///     // Named capture group, captures "dot" into a group with name
+    ///     // "prefix".
+    ///     pattern: regex::Regex::new("^_(?P<prefix>.*)_").unwrap(),
+    ///     substitution: ".${prefix}.".into(),
+    /// };
+    /// assert_eq!(
+    ///     itm.make_target("@@", &basedir, &targetbase, Some(vec![named_capture]))?,
+    ///     PathBuf::from_str("/path/to/target/.dot.item.ext").unwrap(),
+    /// );
+    ///
+    /// let numbered_capture = RenamingRule{
+    ///     // Numbered capture group, where `${0}` references the whole match,
+    ///     // other groups are indexed from 1.
+    ///     pattern: regex::Regex::new(r#"\.(.*?)$"#).unwrap(),
+    ///     substitution: "_${1}_${0}".into(),
+    /// };
+    /// assert_eq!(
+    ///     itm.make_target("@@", basedir, targetbase, Some(vec![numbered_capture]))?,
+    ///     PathBuf::from_str("/path/to/target/_dot_item_ext_.ext").unwrap(),
+    /// );
+    /// # Ok::<(), AppError>(())
+    /// ```
+    ///
     /// [renaming rules]: crate::config::RenamingRule
     fn make_target<T>(
         &self,
