@@ -1,6 +1,6 @@
 [package]
 name = "dt-server"
-description = "Syncing dotfiles and more"
+description = "$HOME, $HOME everywhere"
 version = "0.1.0"
 edition = "2021"
 authors = ["Gaoyang Zhang <gy@blurgy.xyz>"]
@@ -14,7 +14,7 @@ keywords = ["dotfiles", "manager", "syncing", "config"]
 
 [dependencies]
 dirs = "4.0.0"
-dt-core = { path = "../dt-core", version = "0.5.2" }
+dt-core = { path = "../dt-core", version = "0.6.0" }
 log = "0.4.14"
 pretty_env_logger = "0.4.0"
 structopt = "0.3.25"
