@@ -288,18 +288,14 @@ where
 
         // Apply renaming rules to the tail component
         if let Some(renaming_rules) = renaming_rules {
-            for RenamingRule {
-                pattern,
-                substitution,
-            } in renaming_rules
-            {
-                log::trace!(
-                    "Processing renaming rule: ({}: {})",
-                    pattern,
-                    substitution,
-                );
+            for rr in renaming_rules {
+                log::trace!("Processing renaming rule: {:#?}", rr);
                 log::trace!("Before renaming: {}", tail.display());
 
+                let RenamingRule {
+                    pattern,
+                    substitution,
+                } = rr;
                 tail = tail
                     .iter()
                     .map(|comp| {
