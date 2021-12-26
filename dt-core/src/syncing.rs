@@ -33,6 +33,10 @@ struct SyncingParameters {
     basedir: PathBuf,
     /// Separator for per-host settings.
     hostname_sep: String,
+    /// List of configured [renaming rules].
+    ///
+    /// [renaming rules]: crate::config::LocalGroup::rename
+    rename: Vec<RenamingRule>,
 }
 
 /// Expands tilde and globs in [`sources`], returns new config object.
@@ -257,6 +261,9 @@ fn resolve(config: DTConfig) -> Result<DTConfig> {
                 ),
                 &config.local[i].basedir,
                 &config.local[i].target,
+                Some(config.local[i].get_renaming_rules(
+                    &config.global.to_owned().unwrap_or_default(),
+                )),
             )?;
             match mapping.get(&t) {
                 Some(prev_group_idx) => {
@@ -300,6 +307,14 @@ fn resolve(config: DTConfig) -> Result<DTConfig> {
                                 ),
                                 &group.basedir,
                                 &group.target,
+                                Some(
+                                    group.get_renaming_rules(
+                                        &config
+                                            .global
+                                            .to_owned()
+                                            .unwrap_or_default(),
+                                    ),
+                                ),
                             )
                             .unwrap();
                         let best_id = *mapping.get(&t).unwrap();
@@ -468,6 +483,9 @@ pub fn sync(config: DTConfig) -> Result<()> {
                 hostname_sep: group.get_hostname_sep(
                     &config.global.to_owned().unwrap_or_default(),
                 ),
+                rename: group.get_renaming_rules(
+                    &config.global.to_owned().unwrap_or_default(),
+                ),
             };
             sync_core(params)?;
         }
@@ -546,6 +564,9 @@ pub fn dry_sync(config: DTConfig) -> Result<()> {
                 hostname_sep: group.get_hostname_sep(
                     &config.global.to_owned().unwrap_or_default(),
                 ),
+                rename: group.get_renaming_rules(
+                    &config.global.to_owned().unwrap_or_default(),
+                ),
             };
             sync_core(params)?;
         }
@@ -566,6 +587,7 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
         group_name,
         basedir,
         hostname_sep,
+        rename,
     } = params;
     if !tparent.exists() {
         if dry {
@@ -585,7 +607,8 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
     }
 
     // First, get target path (without the per-host suffix).
-    let tpath = spath.make_target(&hostname_sep, &basedir, &tparent)?;
+    let tpath =
+        spath.make_target(&hostname_sep, &basedir, &tparent, Some(rename))?;
     if !dry {
         std::fs::create_dir_all(tpath.parent().unwrap_or_else(|| {
             panic!(
@@ -597,8 +620,11 @@ fn sync_core(params: SyncingParameters) -> Result<()> {
 
     // Finally, get the staging path with source path (staging path does not
     // have host-specific suffix).
+    // Disable renaming here (pass None to the `renaming_rules` parameter) to
+    // show source filenames in the staging directory and save computational
+    // resources.
     let staging_path =
-        spath.make_target(&hostname_sep, &basedir, &staging)?;
+        spath.make_target(&hostname_sep, &basedir, &staging, None)?;
     if !dry && method == SyncMethod::Symlink {
         std::fs::create_dir_all(staging_path.parent().unwrap_or_else(
             || {

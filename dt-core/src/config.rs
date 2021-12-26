@@ -4,7 +4,10 @@ use std::{
     str::FromStr,
 };
 
+use regex::Regex;
 use serde::Deserialize;
+use serde_regex;
+use serde_tuple::Deserialize_tuple;
 
 use crate::error::{Error as AppError, Result};
 
@@ -331,6 +334,18 @@ impl<'a> Default for &'a DTScope {
     }
 }
 
+/// Renaming rule, used for configuring differente names between source items
+/// and their target.
+#[derive(Clone, Debug, Deserialize_tuple)]
+pub struct RenamingRule {
+    /// The pattern to match against item name.
+    #[serde(deserialize_with = "serde_regex::deserialize")]
+    pub pattern: Regex,
+
+    /// The substitution rule to apply if pattern matches an item.
+    pub substitution: String,
+}
+
 /// Configures how local items (files/directories) are synced.
 #[derive(Default, Clone, Deserialize, Debug)]
 pub struct LocalGroup {
@@ -480,6 +495,17 @@ pub struct LocalGroup {
     ///
     /// [`global.method`]: GlobalConfig::method
     pub method: Option<SyncMethod>,
+
+    /// (Optional) Renaming rules, appends to [`global.rename`].
+    ///
+    /// A list of length-2 arrays, each array represents a {`REGEX`:
+    /// `SUBSTITUTION`} rule, when the `REGEX` is matched against an item's
+    /// name (file/directory name), the item, when synced to the target, will
+    /// be renamed into `SUBSTITUTION`.
+    ///
+    /// > Using an array here because arrays are ordered, renaming rules will
+    /// > be applied one-after-another.
+    pub rename: Option<Vec<RenamingRule>>,
 }
 
 impl LocalGroup {
@@ -519,6 +545,32 @@ impl LocalGroup {
                 .to_owned()
                 .unwrap_or_else(|| DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
         }
+    }
+
+    /// Gets the list of [renaming rules] of this group, which is an array
+    /// of (REGEX, SUBSTITUTION) tuples composed of [`global.rename`] and
+    /// [`local.rename`], used in [`DTItem::make_target`] to rename the item.
+    ///
+    /// [renaming rules]: LocalGroup::rename
+    /// [`global.rename`]: GlobalConfig::rename
+    /// [`local.rename`]: LocalGroup::rename
+    /// [`DTItem::make_target`]: crate::item::DTItem::make_target
+    pub fn get_renaming_rules(
+        &self,
+        global_config: &GlobalConfig,
+    ) -> Vec<RenamingRule> {
+        let mut ret: Vec<RenamingRule> = Vec::new();
+        if let Some(ref global_renaming_rules) = global_config.rename {
+            for rs in global_renaming_rules {
+                ret.push(rs.to_owned());
+            }
+        }
+        if let Some(ref group_renaming_rules) = self.rename {
+            for rs in group_renaming_rules {
+                ret.push(rs.to_owned());
+            }
+        }
+        ret
     }
 }
 
@@ -569,10 +621,16 @@ pub struct GlobalConfig {
 
     /// The hostname separator.
     ///
-    /// Default value when [`LocalGroup::hostname_sep`] is not set.
+    /// Specifies default value when [`LocalGroup::hostname_sep`] is not set.
     ///
     /// [`LocalGroup::hostname_sep`]: LocalGroup::hostname_sep
     pub hostname_sep: Option<String>,
+
+    /// Global item renaming rules.
+    ///
+    /// Rules defined here will be prepended to renaming rules of each group.
+    /// See [`LocalGroup::rename`].
+    pub rename: Option<Vec<RenamingRule>>,
 }
 
 impl Default for GlobalConfig {
@@ -588,6 +646,7 @@ impl Default for GlobalConfig {
             method: Some(SyncMethod::default()),
             allow_overwrite: Some(DEFAULT_ALLOW_OVERWRITE),
             hostname_sep: Some(DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
+            rename: None,
         }
     }
 }

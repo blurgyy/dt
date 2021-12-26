@@ -1,7 +1,8 @@
-use path_clean::PathClean;
 use std::path::{Path, PathBuf};
 
-use crate::{error, utils};
+use path_clean::PathClean;
+
+use crate::{config::RenamingRule, error, utils};
 
 type Result<T> = std::result::Result<T, error::Error>;
 
@@ -175,31 +176,102 @@ where
             .readonly()
     }
 
-    /// Given a `hostname_sep`, a `basedir`, and a `targetbase`, create the
-    /// path where `self` would be synced to.
+    /// Given a `hostname_sep`, a `basedir`, a `targetbase`, and optionally a
+    /// list of [renaming rules], create the path where `self` would be synced
+    /// to.  Renaming rules are applied after host-specific suffixes are
+    /// stripped.
     ///
     /// # Example
     ///
+    /// ## No renaming rule
+    ///
     /// ```rust
-    /// # use dt_core::item::DTItem;
+    /// # use dt_core::{
+    /// #   config::RenamingRule,
+    /// #   error::Error as AppError,
+    /// #   item::DTItem
+    /// # };
     /// # use std::path::PathBuf;
     /// # use std::str::FromStr;
-    /// # use dt_core::error::Error as AppError;
     /// let itm: PathBuf = "/path/to/source@@john/item".into();
     /// let basedir: PathBuf = "/path/to/source".into();
     /// let targetbase: PathBuf = "/path/to/target".into();
     ///
     /// assert_eq!(
-    ///     itm.make_target("@@", basedir, targetbase)?,
+    ///     itm.make_target("@@", basedir, targetbase, None)?,
     ///     PathBuf::from_str("/path/to/target/item").unwrap(),
     /// );
     /// # Ok::<(), AppError>(())
     /// ```
+    ///
+    /// ## Single renaming rule
+    ///
+    /// ```rust
+    /// # use dt_core::{
+    /// #   config::RenamingRule,
+    /// #   error::Error as AppError,
+    /// #   item::DTItem
+    /// # };
+    /// # use std::path::PathBuf;
+    /// # use std::str::FromStr;
+    /// let itm: PathBuf = "/path/to/source@@john/_dot_item".into();
+    /// let basedir: PathBuf = "/path/to/source".into();
+    /// let targetbase: PathBuf = "/path/to/target".into();
+    /// let rules = vec![
+    ///     RenamingRule{
+    ///         pattern: regex::Regex::new("^_dot_").unwrap(),
+    ///         substitution: ".".into(),
+    ///     },
+    /// ];
+    ///
+    /// assert_eq!(
+    ///     itm.make_target("@@", basedir, targetbase, Some(rules))?,
+    ///     PathBuf::from_str("/path/to/target/.item").unwrap(),
+    /// );
+    /// # Ok::<(), AppError>(())
+    /// ```
+    ///
+    /// ## Multiple renaming rules
+    ///
+    /// When multiple renaming rules are supplied, they are applied one after
+    /// another.
+    ///
+    /// ```rust
+    /// # use dt_core::{
+    /// #   config::RenamingRule,
+    /// #   error::Error as AppError,
+    /// #   item::DTItem
+    /// # };
+    /// # use std::path::PathBuf;
+    /// # use std::str::FromStr;
+    /// let itm: PathBuf = "/path/to/source@@john/_dot_item.ext".into();
+    /// let basedir: PathBuf = "/path/to/source".into();
+    /// let targetbase: PathBuf = "/path/to/target".into();
+    /// let rules = vec![
+    ///     RenamingRule{
+    ///         pattern: regex::Regex::new("^_dot_").unwrap(),
+    ///         substitution: ".".into(),
+    ///     },
+    ///     RenamingRule{
+    ///         pattern: regex::Regex::new("^.").unwrap(),
+    ///         substitution: "_dotted_".into(),
+    ///     },
+    /// ];
+    ///
+    /// assert_eq!(
+    ///     itm.make_target("@@", basedir, targetbase, Some(rules))?,
+    ///     PathBuf::from_str("/path/to/target/_dotted_item.ext").unwrap(),
+    /// );
+    /// # Ok::<(), AppError>(())
+    /// ```
+    ///
+    /// [renaming rules]: crate::config::RenamingRule
     fn make_target<T>(
         &self,
         hostname_sep: &str,
         basedir: T,
         targetbase: T,
+        renaming_rules: Option<Vec<RenamingRule>>,
     ) -> Result<Self>
     where
         T: Into<Self> + AsRef<Path>,
@@ -210,9 +282,36 @@ where
         // Get non-host-specific counterpart of `basedir`
         let basedir = basedir.into().non_host_specific(hostname_sep);
 
-        // The tail of the target path is the non-host-specific `self` without
-        // its `basedir` prefix path
-        let tail = nhself.as_ref().strip_prefix(basedir)?;
+        // The tail of the target path, which is the non-host-specific `self`
+        // without its `basedir` prefix path
+        let mut tail = nhself.as_ref().strip_prefix(basedir)?.to_owned();
+
+        // Apply renaming rules to the tail component
+        if let Some(renaming_rules) = renaming_rules {
+            for RenamingRule {
+                pattern,
+                substitution,
+            } in renaming_rules
+            {
+                log::trace!(
+                    "Processing renaming rule: ({}: {})",
+                    pattern,
+                    substitution,
+                );
+                log::trace!("Before renaming: {}", tail.display());
+
+                tail = tail
+                    .iter()
+                    .map(|comp| {
+                        pattern
+                            .replace(comp.to_str().unwrap(), &substitution)
+                            .into_owned()
+                    })
+                    .collect();
+
+                log::trace!("After renaming: '{}'", tail.display());
+            }
+        }
 
         // The target is the target base appended with `tail`
         Ok(targetbase.as_ref().join(tail).into())

@@ -17,7 +17,10 @@ gethostname = "0.2.1"
 glob = "0.3.0"
 log = "0.4.14"
 path-clean = "0.1.0"
+regex = "1.5.4"
 serde = { version = "1.0.130", features = ["derive"] }
+serde_regex = "1.1.0"
+serde_tuple = "0.5.0"
 shellexpand = "2.1.0"
 toml = "0.5.8"
 
