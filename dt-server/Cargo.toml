@@ -7,7 +7,7 @@ authors = ["Gaoyang Zhang <gy@blurgy.xyz>"]
 documentation = "https://dt.cli.rs/"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/blurgyy/dt"
-categories = ["command-line-utilities", "config"]
+categories = ["command-line-utilities"]
 keywords = ["dotfiles", "manager", "syncing", "config"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
