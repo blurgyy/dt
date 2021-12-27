@@ -585,9 +585,9 @@ pub struct GlobalConfig {
     /// directory with their group name), then symlinked (as of `ln -sf`)
     /// from their staging directory to the target directory.
     ///
-    /// Default to `$XDG_CACHE_HOME/dt/staging` if `XDG_CACHE_HOME` is set,
+    /// Default to `$XDG_DATA_HOME/dt/staging` if `XDG_DATA_HOME` is set,
     /// or `$HOME/.cache/dt/staging` if `HOME` is set.  Panics when
-    /// neither `XDG_CACHE_HOME` nor `HOME` is set and config file does
+    /// neither `XDG_DATA_HOME` nor `HOME` is set and config file does
     /// not specify this.
     ///
     /// [`method`]: GlobalConfig::method
@@ -638,10 +638,10 @@ pub struct GlobalConfig {
 impl Default for GlobalConfig {
     fn default() -> Self {
         let default_staging: PathBuf;
-        if let Some(cache_dir) = dirs::cache_dir() {
+        if let Some(cache_dir) = dirs::data_dir() {
             default_staging = cache_dir.join("dt").join("staging");
         } else {
-            panic!("Cannot infer default staging directory, set either XDG_CACHE_HOME or HOME to solve this.");
+            panic!("Cannot infer default staging directory, set either XDG_DATA_HOME or HOME to solve this.");
         }
         GlobalConfig {
             staging: Some(default_staging),
