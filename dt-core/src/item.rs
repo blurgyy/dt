@@ -328,7 +328,7 @@ where
         if let Some(renaming_rules) = renaming_rules {
             for rr in renaming_rules {
                 log::trace!("Processing renaming rule: {:#?}", rr);
-                log::trace!("Before renaming: {}", tail.display());
+                log::trace!("Before renaming: '{}'", tail.display());
 
                 let RenamingRule {
                     pattern,
