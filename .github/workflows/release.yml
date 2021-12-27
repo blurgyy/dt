@@ -58,7 +58,7 @@ jobs:
         draft: true
         prerelease: false
         tag_name: ${{ github.ref }}
-        name: Release ${{ steps.get_tag_name.outputs.tag_name }}
+        name: ${{ steps.get_tag_name.outputs.tag_name }}
         body: ${{ steps.changelog.outputs.release_body }}
         files: |
           dt-cli-v*.*.*-*
