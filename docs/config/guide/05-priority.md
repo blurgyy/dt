@@ -3,9 +3,10 @@
 A group's [`scope`](/config/key-references#scope) decides the priority of its
 items.  When multiple groups contain a same item, only the group with the
 highest priority will do sync that specific item.  This machanism minimizes
-filesystem I/O operations, which makes `dt-cli` to appear faster, and achieves
-finer control over what to sync with `dt-cli` without having to picking out
-each application's config files from your dotfile library.
+total number of filesystem I/O operations, which makes `dt-cli` to appear
+faster, and achieves finer control over what to sync with `dt-cli` without
+having to picking out each application's config files from your dotfile
+library.
 
 :::tip
 This feature is meant to be used with `dt-cli`'s [command-line
