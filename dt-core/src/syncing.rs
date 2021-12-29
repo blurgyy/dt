@@ -1459,6 +1459,56 @@ mod priority_resolving {
 
         Ok(())
     }
+
+    #[test]
+    fn duplicated_item_same_name_same_scope() -> Result<()> {
+        let config = expand(&DTConfig::from_str(
+            r#"
+                [[local]]
+                name = "dup"
+                scope = "General"
+                basedir = "../dt-cli"
+                sources = ["Cargo.toml"]
+                target = "."
+                [[local]]
+                name = "dup"
+                scope = "General"
+                basedir = "../dt-server"
+                sources = ["Cargo.toml"]
+                target = "."
+            "#,
+        )?)?;
+
+        assert!(!config.local[0].sources.is_empty());
+        assert!(config.local[1].sources.is_empty());
+
+        Ok(())
+    }
+
+    #[test]
+    fn duplicated_item_same_name_different_scope() -> Result<()> {
+        let config = expand(&DTConfig::from_str(
+            r#"
+                [[local]]
+                name = "dup"
+                scope = "General"
+                basedir = "../dt-cli"
+                sources = ["Cargo.toml"]
+                target = "."
+                [[local]]
+                name = "dup"
+                scope = "App"
+                basedir = "../dt-server"
+                sources = ["Cargo.toml"]
+                target = "."
+            "#,
+        )?)?;
+
+        assert!(config.local[0].sources.is_empty());
+        assert!(!config.local[1].sources.is_empty());
+
+        Ok(())
+    }
 }
 
 // Author: Blurgy <gy@blurgy.xyz>
