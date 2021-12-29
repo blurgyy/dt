@@ -48,7 +48,7 @@ jobs:
         fi
     - name: Strip debug symbols
       run: |
-        strip target/release/dt-cli
+        strip --strip-all target/release/dt-cli
         mv target/release/dt-cli dt-cli-$(git describe HEAD)-$(uname -m)
     - name: Create release with compiled binary
       uses: softprops/action-gh-release@v1
