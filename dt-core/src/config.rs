@@ -258,7 +258,7 @@ impl DTConfig {
 /// ```
 ///
 /// Let's say after some weeks or months, you have decided to also include
-/// `/usr/share/fontconfig/conf.avail/10-sub-pixel-rgb.conf` to your
+/// `/usr/share/fontconfig/conf.avail/11-lcdfilter-default.conf` to your
 /// fontconfig directory, which is `~/.config/fontconfig/conf.d`, you do so by
 /// adding another `[[local]]` group into your config file for DT:
 ///
@@ -266,15 +266,16 @@ impl DTConfig {
 /// [[local]]
 /// name = "fontconfig-system"
 /// basedir = "/usr/share/fontconfig/conf.avail"
-/// sources = ["10-sub-pixel-rgb.conf"]
+/// sources = ["11-lcdfilter-default.conf"]
 /// target = "~/.config/fontconfig/conf.d"
 /// ```
 ///
 /// A problem arises when you also maintain a version of
-/// `10-sub-pixel-rgb.conf` of your own: If DT syncs the `fontconfig-system`
-/// group last, the resulting config file in your `$XDG_CONFIG_HOME` is the
-/// system version;  While if DT syncs the `xdg_config_home` group last, that
-/// file ended up being your previously maintained version.
+/// `11-lcdfilter-default.conf` of your own: If DT syncs the
+/// `fontconfig-system` group last, the resulting config file in your
+/// `$XDG_CONFIG_HOME` is the system version;  While if DT syncs the
+/// `xdg_config_home` group last, that file ended up being your previously
+/// maintained version.
 ///
 /// Actually, DT is quite predictable: it only performs operations in the
 /// order defined in the config file for your groups.  By defining the
@@ -299,8 +300,8 @@ impl DTConfig {
 /// ```
 ///
 /// Now, with the `scope` being set, DT will first remove the source item
-/// `10-sub-pixel-rgb.conf` (if it exists) from group `xdg_config_home`, then
-/// perform its syncing process.
+/// `11-lcdfilter-default.conf` (if it exists) from group `xdg_config_home`,
+/// then perform its syncing process.
 ///
 /// This is also useful with `dt-cli`'s `-l|--local-name` option, which gives
 /// you more granular control over how items are synced.
