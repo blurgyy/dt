@@ -48,6 +48,16 @@ files before syncing is recommended.
 Defines the default value when a [group's `hostname_sep`](#hostname-sep-1) is
 not set.  If omitted, uses `@@`.
 
+### `rename`
+
+> [optional] array of 2-tuples
+
+Global item renaming rules.
+
+Rules defined here will be prepended to renaming rules of each group.  For
+full explanation and usage, see [Features
+Manipulation](/features/03-filename-manipulating).
+
 ## Local Groups
 
 > [required] array of [`LocalSyncConfig`](https://docs.rs/dt-core/latest/dt_core/config/struct.LocalSyncConfig.html)s
@@ -147,6 +157,24 @@ way.
 Adding this to config file causes current version of `dt-cli` to panic.
 :::
 
+### `method`
+
+> [optional] `Copy`|`Symlink`
+
+Syncing method, overrides the [global `method`](#method) key.
+
+### `allow_overwrite`
+
+> [optional] bool
+
+Whether to allow overwriting existing files, overrides the [global
+`allow_overwrite`](#allow-overwrite) key.
+
+:::warning Dead symlinks
+Dead symlinks are treated as non-existant, and are always overwrited
+(regardless of this option).
+:::
+
 ### `hostname_sep`
 
 > [optional] string
@@ -197,20 +225,12 @@ will result in the below target (`/tmp/sshconfig`):
 
 Where `/tmp/sshconfig/config` mirrors the content of `~/.ssh/config@watson`.
 
-### `allow_overwrite`
+### rename
 
-> [optional] bool
+> [optional] array of 2-tuples
 
-Whether to allow overwriting existing files, overrides the [global
-`allow_overwrite`](#allow-overwrite) key.
+Renaming rules, appends to [global.rename](#rename).
 
-:::warning Dead symlinks
-Dead symlinks are treated as non-existant, and are always overwrited
-(regardless of this option).
-:::
-
-### `method`
-
-> [optional] `Copy`|`Symlink`
-
-Syncing method, overrides the [global `method`](#method) key.
+Rules defined here will be appended to globally defined renaming.  For full
+explanation and usage, see [Features Manipulation]
+(/features/03-filename-manipulating).

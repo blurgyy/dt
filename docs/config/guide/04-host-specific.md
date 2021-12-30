@@ -1,8 +1,8 @@
 # Host-specific Configuration
 
 When you want to maintain multiple configurations for different machines, you
-will have to deal with [host-specific syncing](/features/host-specific).  This
-section describes how to use this feature of `dt-cli` properly.
+will have to deal with [host-specific syncing](/features/01-host-specific).
+This section describes how to use this feature of `dt-cli` properly.
 
 ## Separator
 
@@ -30,7 +30,8 @@ Knowing what your `hostname_sep` is, you can now specify your source items.
 
 `dt-cli` automatically deals with the logic for host-specific syncing,
 thus you **should not** contain a [hostname
-suffix](/features/host-specific#hostname-suffix) when specifying your sources.
+suffix](/features/01-host-specific#hostname-suffix) when specifying your
+sources.
 
 ### `basedir`
 
@@ -115,6 +116,6 @@ target = "~/.config/alacritty"
 :::warning
 Do **NOT** include the host-specific part in the `sources` array (like
 `alacritty.yml@@laptop` or `alacritty.yml@@workstation`), see the [Error
-Handling](/config/guide/06-error-handling#config-validating) section for more
+Handling](/config/guide/07-error-handling#config-validating) section for more
 details on this.
 :::

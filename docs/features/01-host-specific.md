@@ -1,9 +1,4 @@
-# Host-specific Syncing
-
-:::tip
-You might want to read the [configuration guide](/config/guide/) before
-reading this section (but definitely ok if you read this first).
-:::
+# Host-specific Syncing <sub>[[**Examples**]]</sub>
 
 ## Introduction
 
@@ -14,7 +9,7 @@ one configuration file that works perfectly on one machine does not work well
 on another, be it due to their monitor sizes, network conditions,
 architectures, etc..
 
----
+## Hostname Suffix
 
 What you want is to populate different configuration files for different
 machines.  To allow multiple items with the same name name, `dt-cli` checks
@@ -36,8 +31,6 @@ if no `Current` item exists, `dt-cli` finds `General` items and sync them.
 Items of type `Other` are ignored for current machine.
 :::
 
-## Hostname Suffix
-
 A **hostname suffix** comprises of a **hostname separator** and a
 **hostname**:
 
@@ -56,5 +49,4 @@ The default value (when not configured) for `hostname_sep` is `@@`.  If a
 directory is marked as host-specific, all of its children will only be synced
 when the directory is for current machine.
 
-For configuration of host-specific syncing, see the [hands-on guide on how to
-configure host-specific syncing](/config/guide/04-host-specific).
+[**Examples**]: /config/guide/04-host-specific

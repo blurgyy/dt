@@ -1,11 +1,6 @@
-# Priority Resolving
+# Priority Resolving <sub>[[**Examples**]]</sub>
 
 ## Background
-
-:::tip
-Here explains why such a feature is desirable, feel free to [skip this
-subsection](#scope).
-:::
 
 Since `dt-cli` syncs your dotfiles on a per-group basis, you don't want to run
 through all of the groups when only a single file is modified in your dotfile
@@ -76,7 +71,4 @@ only be synced by the first group appeared in your config file, later defined
 groups (with the same `scope`) won't repeatedly sync the file.
 :::
 
-## Examples
-
-Configuration examples are available in the [hands-on
-guide](/config/guide/05-priority).
+[**Examples**]: /config/guide/05-priority

@@ -10,8 +10,8 @@ library.
 
 :::tip
 This feature is meant to be used with `dt-cli`'s [command-line
-argument](/#usage), see the [Background](/features/scope) subsection of this
-feature's introduction for more details.
+argument](/#usage), see the [Background](/features/02-scope) subsection of
+this feature's introduction for more details.
 :::
 
 ## Examples

@@ -89,8 +89,12 @@ module.exports = {
               link: "/config/guide/05-priority",
             },
             {
+              text: "Filename Manipulating",
+              link: "/config/guide/06-filename-manipulating",
+            },
+            {
               text: "Error Handling",
-              link: "/config/guide/06-error-handling",
+              link: "/config/guide/07-error-handling",
             },
           ],
         },
@@ -114,11 +118,15 @@ module.exports = {
           children: [
             {
               text: "Host-specific Syncing",
-              link: "/features/host-specific",
+              link: "/features/01-host-specific",
             },
             {
               text: "Priority Resolving",
-              link: "/features/scope",
+              link: "/features/02-scope",
+            },
+            {
+              text: "Filename Manipulating",
+              link: "/features/03-filename-manipulating",
             },
           ]
         },
