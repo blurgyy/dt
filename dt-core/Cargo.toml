@@ -28,5 +28,11 @@ toml = "0.5.8"
 color-eyre = "0.5.11"
 pretty_assertions = "1.0.0"
 
+[target.armv7-unknown-linux-gnueabihf]
+linker = "arm-linux-gnueabihf-gcc"
+
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
+
 # Author: Blurgy <gy@blurgy.xyz>
 # Date:   Sep 17 2021, 21:32 [CST]
