@@ -54,7 +54,7 @@ struct SyncingParameters {
 /// [`basedir`]: crate::config::LocalGroup::basedir
 /// [`target`]: crate::config::LocalGroup::target
 /// [`[[local]]`]: crate::config::LocalGroup
-fn expand(config: &DTConfig) -> Result<DTConfig> {
+fn expand(config: DTConfig) -> Result<DTConfig> {
     let mut ret = DTConfig {
         global: match &config.global {
             Some(global) => Some(GlobalConfig {
@@ -68,7 +68,8 @@ fn expand(config: &DTConfig) -> Result<DTConfig> {
         },
         local: Vec::new(),
     };
-    for original in &config.local {
+
+    for original in config.local {
         let mut next = LocalGroup {
             basedir: original.basedir.absolute()?,
             sources: Vec::new(),
@@ -76,10 +77,7 @@ fn expand(config: &DTConfig) -> Result<DTConfig> {
             ..original.to_owned()
         };
 
-        let group_hostname_sep =
-            original.get_hostname_sep(ret.global.as_ref().unwrap_or_else(|| {
-                unreachable!("The [global] object is already a `Some`, this message should never be seen");
-            }));
+        let group_hostname_sep = original.get_hostname_sep();
 
         // Check for host-specific `basedir`
         let host_specific_basedir =
@@ -126,13 +124,7 @@ fn expand(config: &DTConfig) -> Result<DTConfig> {
         // Recursively expand source paths
         for s in &sources {
             let s = next.basedir.join(s);
-            let mut s = expand_recursive(
-                &s,
-                &next.get_hostname_sep(
-                    &config.global.to_owned().unwrap_or_default(),
-                ),
-                true,
-            )?;
+            let mut s = expand_recursive(&s, &next.get_hostname_sep(), true)?;
             next.sources.append(&mut s);
         }
         next.sources.sort();
@@ -256,14 +248,10 @@ fn resolve(config: DTConfig) -> Result<DTConfig> {
             config.local[i].scope.as_ref().unwrap_or_default();
         for ref mut s in &config.local[i].sources {
             let t = s.make_target(
-                &config.local[i].get_hostname_sep(
-                    &config.global.to_owned().unwrap_or_default(),
-                ),
+                &config.local[i].get_hostname_sep(),
                 &config.local[i].basedir,
                 &config.local[i].target,
-                Some(config.local[i].get_renaming_rules(
-                    &config.global.to_owned().unwrap_or_default(),
-                )),
+                Some(config.local[i].get_renaming_rules()),
             )?;
             match mapping.get(&t) {
                 Some(prev_group_idx) => {
@@ -299,22 +287,10 @@ fn resolve(config: DTConfig) -> Result<DTConfig> {
                     .filter(|s| {
                         let t = s
                             .make_target(
-                                &group.get_hostname_sep(
-                                    &config
-                                        .global
-                                        .to_owned()
-                                        .unwrap_or_default(),
-                                ),
+                                &group.get_hostname_sep(),
                                 &group.basedir,
                                 &group.target,
-                                Some(
-                                    group.get_renaming_rules(
-                                        &config
-                                            .global
-                                            .to_owned()
-                                            .unwrap_or_default(),
-                                    ),
-                                ),
+                                Some(group.get_renaming_rules()),
                             )
                             .unwrap();
                         let best_id = *mapping.get(&t).unwrap();
@@ -334,10 +310,7 @@ fn check(config: &DTConfig) -> Result<()> {
     let mut has_symlink: bool = false;
 
     for group in &config.local {
-        if !has_symlink
-            && group.get_method(&config.global.to_owned().unwrap_or_default())
-                == SyncMethod::Symlink
-        {
+        if !has_symlink && group.get_method() == SyncMethod::Symlink {
             has_symlink = true;
         }
 
@@ -420,7 +393,7 @@ pub fn sync(config: DTConfig) -> Result<()> {
     }
     log::trace!("Local groups to process: {:#?}", config.local);
 
-    let config = expand(&config)?;
+    let config = expand(config)?;
 
     let staging = &config
         .global
@@ -471,21 +444,13 @@ pub fn sync(config: DTConfig) -> Result<()> {
                 spath: spath.to_owned(),
                 tparent: group.target.to_owned(),
                 dry: false,
-                allow_overwrite: group.get_allow_overwrite(
-                    &config.global.to_owned().unwrap_or_default(),
-                ),
-                method: group.get_method(
-                    &config.global.to_owned().unwrap_or_default(),
-                ),
+                allow_overwrite: group.get_allow_overwrite(),
+                method: group.get_method(),
                 staging: group_staging.to_owned(),
                 group_name: group.name.to_owned(),
                 basedir: group.basedir.to_owned(),
-                hostname_sep: group.get_hostname_sep(
-                    &config.global.to_owned().unwrap_or_default(),
-                ),
-                rename: group.get_renaming_rules(
-                    &config.global.to_owned().unwrap_or_default(),
-                ),
+                hostname_sep: group.get_hostname_sep(),
+                rename: group.get_renaming_rules(),
             };
             sync_core(params)?;
         }
@@ -502,7 +467,7 @@ pub fn dry_sync(config: DTConfig) -> Result<()> {
     }
     log::trace!("Local groups to process: {:#?}", config.local);
 
-    let config = expand(&config)?;
+    let config = expand(config)?;
 
     let staging = &config
         .global
@@ -552,21 +517,13 @@ pub fn dry_sync(config: DTConfig) -> Result<()> {
                 spath: spath.to_owned(),
                 tparent: group.target.to_owned(),
                 dry: true,
-                allow_overwrite: group.get_allow_overwrite(
-                    &config.global.to_owned().unwrap_or_default(),
-                ),
-                method: group.get_method(
-                    &config.global.to_owned().unwrap_or_default(),
-                ),
+                allow_overwrite: group.get_allow_overwrite(),
+                method: group.get_method(),
                 staging: group_staging.to_owned(),
                 group_name: group.name.to_owned(),
                 basedir: group.basedir.to_owned(),
-                hostname_sep: group.get_hostname_sep(
-                    &config.global.to_owned().unwrap_or_default(),
-                ),
-                rename: group.get_renaming_rules(
-                    &config.global.to_owned().unwrap_or_default(),
-                ),
+                hostname_sep: group.get_hostname_sep(),
+                rename: group.get_renaming_rules(),
             };
             sync_core(params)?;
         }
@@ -933,7 +890,7 @@ mod invalid_configs {
 
     #[test]
     fn basedir_unreadable() -> Result<(), Report> {
-        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = expand(DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-basedir_unreadable-not_a_directory.toml",
         ).unwrap())?) {
             assert_eq!(
@@ -956,7 +913,7 @@ mod invalid_configs {
             ).unwrap(),
             std::fs::Permissions::from_mode(0o333),
         )?;
-        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = expand(DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-basedir_unreadable-permission_denied.toml",
         ).unwrap())?) {
             assert_eq!(
@@ -991,7 +948,7 @@ mod invalid_configs {
 
     #[test]
     fn target_is_file_relative() -> Result<(), Report> {
-        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = expand(DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-target_is_file_relative.toml",
         ).unwrap())?) {
             assert_eq!(
@@ -1013,7 +970,7 @@ mod invalid_configs {
 
     #[test]
     fn target_is_file_absolute() -> Result<(), Report> {
-        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = expand(DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-target_is_file_absolute.toml",
         ).unwrap())?) {
             assert_eq!(
@@ -1046,7 +1003,7 @@ mod invalid_configs {
         std::fs::write(&filepath, "Created by `dt` when testing")?;
 
         // Read config (expected to fail)
-        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = expand(DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-target_is_file_has_tilde.toml",
         ).unwrap())?) {
             assert_eq!(
@@ -1079,7 +1036,7 @@ mod invalid_configs {
             ).unwrap(),
             std::fs::Permissions::from_mode(0o555),
         )?;
-        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = expand(DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-target_readonly.toml",
         ).unwrap())?) {
             assert_eq!(
@@ -1113,7 +1070,7 @@ mod invalid_configs {
 
     #[test]
     fn staging_is_file() -> Result<(), Report> {
-        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = expand(DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-staging_is_file.toml",
         ).unwrap())?) {
             assert_eq!(
@@ -1141,7 +1098,7 @@ mod invalid_configs {
             ).unwrap(),
             std::fs::Permissions::from_mode(0o555),
         )?;
-        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = expand(DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-staging_readonly.toml",
         ).unwrap())?) {
             assert_eq!(
@@ -1179,7 +1136,7 @@ mod invalid_configs {
             "../testroot/items/syncing/invalid_configs/unreadable_source/no_read_access",
             std::fs::Permissions::from_mode(0o222)
         )?;
-        if let Err(err) = expand(&DTConfig::from_path(PathBuf::from_str(
+        if let Err(err) = expand(DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/invalid_configs-unreadable_source.toml",
         ).unwrap())?) {
             assert_eq!(
@@ -1219,7 +1176,7 @@ mod expansion {
 
     #[test]
     fn glob() -> Result<(), Report> {
-        let config = expand(&DTConfig::from_path(
+        let config = expand(DTConfig::from_path(
             PathBuf::from_str(
                 "../testroot/configs/syncing/expansion-glob.toml",
             )
@@ -1270,7 +1227,7 @@ mod expansion {
 
     #[test]
     fn sorting_and_deduping() -> Result<(), Report> {
-        let config = expand(&DTConfig::from_path(PathBuf::from_str(
+        let config = expand(DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/syncing/expansion-sorting_and_deduping.toml",
         ).unwrap())?)?;
         for group in config.local {
@@ -1335,7 +1292,7 @@ mod priority_resolving {
 
     #[test]
     fn former_group_has_higher_priority_within_same_scope() -> Result<()> {
-        let config = expand(&DTConfig::from_str(
+        let config = expand(DTConfig::from_str(
             r#"
                 [[local]]
                 name = "highest"
@@ -1360,7 +1317,7 @@ mod priority_resolving {
 
     #[test]
     fn dropin_has_highest_priority() -> Result<()> {
-        let config = expand(&DTConfig::from_str(
+        let config = expand(DTConfig::from_str(
             r#"
                 [[local]]
                 name = "lowest"
@@ -1392,7 +1349,7 @@ mod priority_resolving {
 
     #[test]
     fn app_has_medium_priority() -> Result<()> {
-        let config = expand(&DTConfig::from_str(
+        let config = expand(DTConfig::from_str(
             r#"
                 [[local]]
                 name = "lowest"
@@ -1417,7 +1374,7 @@ mod priority_resolving {
 
     #[test]
     fn default_scope_is_general() -> Result<()> {
-        let config = expand(&DTConfig::from_str(
+        let config = expand(DTConfig::from_str(
             r#"
                 [[local]]
                 name = "omitted scope but defined first, has higher priority"
@@ -1437,7 +1394,7 @@ mod priority_resolving {
         assert!(!config.local[0].sources.is_empty());
         assert!(config.local[1].sources.is_empty());
 
-        let config = expand(&DTConfig::from_str(
+        let config = expand(DTConfig::from_str(
             r#"
                 [[local]]
                 name = "omitted scope, uses general"
@@ -1462,7 +1419,7 @@ mod priority_resolving {
 
     #[test]
     fn duplicated_item_same_name_same_scope() -> Result<()> {
-        let config = expand(&DTConfig::from_str(
+        let config = expand(DTConfig::from_str(
             r#"
                 [[local]]
                 name = "dup"
@@ -1487,7 +1444,7 @@ mod priority_resolving {
 
     #[test]
     fn duplicated_item_same_name_different_scope() -> Result<()> {
-        let config = expand(&DTConfig::from_str(
+        let config = expand(DTConfig::from_str(
             r#"
                 [[local]]
                 name = "dup"

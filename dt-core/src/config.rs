@@ -1,6 +1,7 @@
 use std::{
     panic,
     path::{Path, PathBuf},
+    rc::Rc,
     str::FromStr,
 };
 
@@ -67,7 +68,11 @@ impl DTConfig {
 
     /// Validates config object **without** touching the filesystem.
     fn validate(self) -> Result<Self> {
-        for group in &self.local {
+        let global_ref = Rc::new(self.global.clone().unwrap_or_default());
+
+        let mut ret: Self = self;
+
+        for mut group in &mut ret.local {
             // Empty group name
             if group.name.is_empty() {
                 return Err(AppError::ConfigError(
@@ -106,9 +111,7 @@ impl DTConfig {
             }
 
             // basedir contains hostname_sep
-            let hostname_sep = group.get_hostname_sep(
-                &self.global.to_owned().unwrap_or_default(),
-            );
+            let hostname_sep = group.get_hostname_sep();
             if group.basedir.to_str().unwrap().contains(&hostname_sep) {
                 return Err(AppError::ConfigError(format!(
                     "base directory contains hostname_sep ({}) in group '{}'",
@@ -168,8 +171,13 @@ impl DTConfig {
             if group.ignored.is_some() {
                 todo!("`ignored` array works poorly and I decided to implement it in the future");
             }
+
+            // If nothing seems bad, intialize the group's refrencing global
+            // config
+            group.global = Rc::clone(&global_ref);
         }
-        Ok(self)
+
+        Ok(ret)
     }
 
     fn expand_tilde(&mut self) {
@@ -345,6 +353,16 @@ pub struct RenamingRule {
 /// Configures how local items (files/directories) are synced.
 #[derive(Default, Clone, Deserialize, Debug)]
 pub struct LocalGroup {
+    /// The global config object loaded from DT's config file, this field
+    /// _does not_ appear in the config file, but is only used by DT
+    /// internally.  Skipping deserializing is achieved via serde's
+    /// [`skip_deserializing`] attribute, which fills a default value when
+    /// deserializing.
+    ///
+    /// [`skip_deserializing`]: https://serde.rs/field-attrs.html#skip_deserializing
+    #[serde(skip_deserializing)]
+    pub global: Rc<GlobalConfig>,
+
     /// Name of this group, used as namespace in staging root directory.
     pub name: String,
 
@@ -503,10 +521,11 @@ impl LocalGroup {
     /// falls back to the `allow_overwrite` from provided global config.
     ///
     /// [`allow_overwrite`]: LocalGroup::allow_overwrite
-    pub fn get_allow_overwrite(&self, global_config: &GlobalConfig) -> bool {
+    pub fn get_allow_overwrite(&self) -> bool {
         match self.allow_overwrite {
             Some(allow_overwrite) => allow_overwrite,
-            _ => global_config
+            _ => self
+                .global
                 .allow_overwrite
                 .unwrap_or(DEFAULT_ALLOW_OVERWRITE),
         }
@@ -516,10 +535,10 @@ impl LocalGroup {
     /// to the `method` from provided global config.
     ///
     /// [`method`]: LocalGroup::method
-    pub fn get_method(&self, global_config: &GlobalConfig) -> SyncMethod {
+    pub fn get_method(&self) -> SyncMethod {
         match self.method {
             Some(method) => method,
-            _ => global_config.method.unwrap_or_default(),
+            _ => self.global.method.unwrap_or_default(),
         }
     }
 
@@ -527,10 +546,11 @@ impl LocalGroup {
     /// back to the [`hostname_sep`] from provided global config.
     ///
     /// [`hostname_sep`]: LocalGroup::hostname_sep
-    pub fn get_hostname_sep(&self, global_config: &GlobalConfig) -> String {
+    pub fn get_hostname_sep(&self) -> String {
         match &self.hostname_sep {
             Some(hostname_sep) => hostname_sep.to_owned(),
-            _ => global_config
+            _ => self
+                .global
                 .hostname_sep
                 .to_owned()
                 .unwrap_or_else(|| DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
@@ -545,12 +565,9 @@ impl LocalGroup {
     /// [`global.rename`]: GlobalConfig::rename
     /// [`local.rename`]: LocalGroup::rename
     /// [`DTItem::make_target`]: crate::item::DTItem::make_target
-    pub fn get_renaming_rules(
-        &self,
-        global_config: &GlobalConfig,
-    ) -> Vec<RenamingRule> {
+    pub fn get_renaming_rules(&self) -> Vec<RenamingRule> {
         let mut ret: Vec<RenamingRule> = Vec::new();
-        if let Some(ref global_renaming_rules) = global_config.rename {
+        if let Some(ref global_renaming_rules) = self.global.rename {
             for rs in global_renaming_rules {
                 ret.push(rs.to_owned());
             }
@@ -677,12 +694,7 @@ mod overriding_global_config {
             "../testroot/configs/config/overriding_global_config-allow_overwrite_no_global.toml",
         )?)?;
         for group in config.local {
-            assert_eq!(
-                group.get_allow_overwrite(
-                    &config.global.to_owned().unwrap_or_default()
-                ),
-                true,
-            );
+            assert_eq!(group.get_allow_overwrite(), true,);
         }
         Ok(())
     }
@@ -693,12 +705,7 @@ mod overriding_global_config {
             "../testroot/configs/config/overriding_global_config-allow_overwrite_with_global.toml",
         )?)?;
         for group in config.local {
-            assert_eq!(
-                group.get_allow_overwrite(
-                    &config.global.to_owned().unwrap_or_default()
-                ),
-                false,
-            );
+            assert_eq!(group.get_allow_overwrite(), false,);
         }
         Ok(())
     }
@@ -709,12 +716,7 @@ mod overriding_global_config {
             "../testroot/configs/config/overriding_global_config-method_no_global.toml",
         )?)?;
         for group in config.local {
-            assert_eq!(
-                group.get_method(
-                    &config.global.to_owned().unwrap_or_default(),
-                ),
-                SyncMethod::Copy,
-            )
+            assert_eq!(group.get_method(), SyncMethod::Copy,)
         }
         Ok(())
     }
@@ -725,12 +727,7 @@ mod overriding_global_config {
             "../testroot/configs/config/overriding_global_config-method_with_global.toml",
         )?)?;
         for group in config.local {
-            assert_eq!(
-                group.get_method(
-                    &config.global.to_owned().unwrap_or_default(),
-                ),
-                SyncMethod::Symlink,
-            )
+            assert_eq!(group.get_method(), SyncMethod::Symlink,)
         }
         Ok(())
     }
@@ -741,18 +738,8 @@ mod overriding_global_config {
             "../testroot/configs/config/overriding_global_config-both_allow_overwrite_and_method_no_global.toml",
         )?)?;
         for group in config.local {
-            assert_eq!(
-                group.get_method(
-                    &config.global.to_owned().unwrap_or_default()
-                ),
-                SyncMethod::Copy,
-            );
-            assert_eq!(
-                group.get_allow_overwrite(
-                    &config.global.to_owned().unwrap_or_default()
-                ),
-                true,
-            );
+            assert_eq!(group.get_method(), SyncMethod::Copy,);
+            assert_eq!(group.get_allow_overwrite(), true,);
         }
         Ok(())
     }
@@ -763,18 +750,8 @@ mod overriding_global_config {
             "../testroot/configs/config/overriding_global_config-both_allow_overwrite_and_method_with_global.toml",
         )?)?;
         for group in config.local {
-            assert_eq!(
-                group.get_method(
-                    &config.global.to_owned().unwrap_or_default()
-                ),
-                SyncMethod::Symlink,
-            );
-            assert_eq!(
-                group.get_allow_overwrite(
-                    &config.global.to_owned().unwrap_or_default()
-                ),
-                false,
-            );
+            assert_eq!(group.get_method(), SyncMethod::Symlink,);
+            assert_eq!(group.get_allow_overwrite(), false,);
         }
         Ok(())
     }
@@ -785,12 +762,7 @@ mod overriding_global_config {
             "../testroot/configs/config/overriding_global_config-hostname_sep_no_global.toml"
         )?)?;
         for group in config.local {
-            assert_eq!(
-                group.get_hostname_sep(
-                    &config.global.to_owned().unwrap_or_default()
-                ),
-                "@-@",
-            );
+            assert_eq!(group.get_hostname_sep(), "@-@",);
         }
         Ok(())
     }
@@ -801,12 +773,7 @@ mod overriding_global_config {
             "../testroot/configs/config/overriding_global_config-hostname_sep_with_global.toml"
         )?)?;
         for group in config.local {
-            assert_eq!(
-                group.get_hostname_sep(
-                    &config.global.to_owned().unwrap_or_default()
-                ),
-                "@-@",
-            );
+            assert_eq!(group.get_hostname_sep(), "@-@",);
         }
         Ok(())
     }
