@@ -1,0 +1,1 @@
+import{_ as e,c as t,o as a,a as s}from"./app.f2490086.js";const m='{"title":"Features","description":"","frontmatter":{},"relativePath":"features/index.md","lastUpdated":1641275420484}',i={},o=s("",4),n=[o];function r(l,c,p,d,h,u){return a(),t("div",null,n)}var _=e(i,[["render",r]]);export{m as __pageData,_ as default};
