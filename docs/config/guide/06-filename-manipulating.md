@@ -1,11 +1,12 @@
 # Filename Manipulating
 
-To this point, our source items are named as their destination requies, most
-"dotfiles" begin their names with a "dot", which is sometimes annoying when
-managing them (like with [`git`]).  In the meantime, for items that have names
-not feasible to be altered, like items from your system directory (e.g. a
-system-provided wallpaper image), according to the previous sections, there
-seem to be no good way to have them tracked by `dt-cli`.
+To this point, our source items must be named as their destination requires,
+most "dotfiles" begin their names with a literal dot (`.`), which is sometimes
+annoying when managing them (like with [`git`]).  In the meantime, for items
+that have names not feasible to be altered --- like items from your system
+directory (e.g. a wallpaper image which is provided as part of a system-wide
+installed package) --- according to the previous sections, there seem to be no
+good way to have them tracked by `dt-cli`.
 
 ## Basics
 
