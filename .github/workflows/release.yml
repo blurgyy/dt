@@ -50,20 +50,20 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        build: [linux-x86_64, linux-armv7l, linux-aarch64]
+        build: [x86_64, armv7l, aarch64]
         include:
-          - build: linux-x86_64
+          - build: x86_64
             toolchain: stable
             target: x86_64-unknown-linux-gnu
             cross: false
             strip_bin: strip
-          - build: linux-armv7l
+          - build: armv7l
             toolchain: stable
             target: armv7-unknown-linux-gnueabihf
             cross: true
             cross_helpers: gcc-arm-linux-gnueabihf binutils-arm-linux-gnueabihf
             strip_bin: arm-linux-gnueabihf-strip
-          - build: linux-aarch64
+          - build: aarch64
             toolchain: stable
             target: aarch64-unknown-linux-gnu
             cross: true
@@ -100,7 +100,7 @@ jobs:
     - name: Strip debug symbols
       run: |
         ${{ matrix.strip_bin }} --strip-all target/${{ matrix.target }}/release/dt-cli
-    - name: Give build binary a name
+    - name: Give a name to built binary
       run: |
         mv target/${{ matrix.target }}/release/dt-cli dt-cli-${{ steps.get_tag_name.outputs.tag_name }}-${{ matrix.build }}
     - name: Upload built assets
