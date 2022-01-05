@@ -54,7 +54,7 @@ $ dt-cli
 | `-h\|--help` | Prints help information. |
 | `-q\|--quiet` | Decreases logging verbosity. |
 | `-v\|--verbose` | Increases logging verbosity. |
-| `-V` | Prints version information. |
+| `-V\|--version` | Prints version information. |
 
 | Options | Description |
 |---:|:---|
