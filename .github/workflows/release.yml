@@ -50,14 +50,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        build: [x86_64, armv7l, aarch64]
+        build: [x86_64, armv7, aarch64]
         include:
           - build: x86_64
             toolchain: stable
             target: x86_64-unknown-linux-gnu
             cross: false
             strip_bin: strip
-          - build: armv7l
+          - build: armv7
             toolchain: stable
             target: armv7-unknown-linux-gnueabihf
             cross: true
