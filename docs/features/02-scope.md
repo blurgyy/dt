@@ -58,7 +58,7 @@ being synced.  There are 3 predefined scopes, namely `Dropin`, `App` and
 
 :::info
 A `scope` key in a group's definition is optional.  When omitted, the default
-value of `scope` is `General`.
+value is `General`.
 :::
 
 :::tip

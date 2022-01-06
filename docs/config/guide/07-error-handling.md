@@ -13,9 +13,8 @@ Firstly, after a config file has been successfully loaded into memory,
 following cases are considered invalid:
 
 - Any group that has empty `name`/`basedir`/`target`
-- Any group name that
-  - is also another group's name (duplicated group name)
-  - contains `/` (used for creating subdirectory under `staging` directory)
+- Any group name that contains `/` (group names are used for subdirectory
+  names under `staging` directory, so slashes are not allowed)
 - Any group that has the same `basedir` and `target`
 - Any group whose `basedir` contains any occurrences of `hostname_sep`
 - Any group whose `sources` contains any item that contains any occurrences of
