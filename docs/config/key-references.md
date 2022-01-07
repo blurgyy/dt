@@ -12,8 +12,8 @@ A global object is defined in the `[global]` section.
 
 > [optional] string
 
-Defines the staging root directory, does not matter when
-[syncing method](#method) is set to `Copy`.  If omitted, uses
+Defines the staging root directory, does not matter when [syncing
+method](#method) is set to `Copy`.  If omitted, uses
 `$XDG_CACHE_HOME/dt/staging` if environment variable `XDG_CACHE_HOME` is set,
 otherwise uses `$HOME/.cache/dt/staging`.
 
@@ -55,7 +55,7 @@ not set.  If omitted, uses `@@`.
 Global item renaming rules.
 
 Rules defined here will be prepended to renaming rules of each group.  For
-full explanation and usage, see [Features
+full explanation and usage, see [Filename
 Manipulation](/features/03-filename-manipulating).
 
 ## Local Groups
@@ -232,5 +232,5 @@ Where `/tmp/sshconfig/config` mirrors the content of `~/.ssh/config@watson`.
 Renaming rules, appends to [global.rename](#rename).
 
 Rules defined here will be appended to globally defined renaming.  For full
-explanation and usage, see [Features Manipulation]
-(/features/03-filename-manipulating).
+explanation and usage, see [Filename
+Manipulation](/features/03-filename-manipulating).
