@@ -1,0 +1,1 @@
+import{_ as n,c as a,o as s,a as t}from"./app.f2490086.js";const f='{"title":"Defining Default Behaviours","description":"","frontmatter":{},"relativePath":"config/guide/01-default-behaviours.md","lastUpdated":1641523476141}',e={},o=t("",4),i=[o];function c(p,r,l,u,d,h){return s(),a("div",null,i)}var k=n(e,[["render",c]]);export{f as __pageData,k as default};
