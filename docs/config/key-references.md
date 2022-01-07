@@ -14,8 +14,8 @@ A global object is defined in the `[global]` section.
 
 Defines the staging root directory, does not matter when [syncing
 method](#method) is set to `Copy`.  If omitted, uses
-`$XDG_CACHE_HOME/dt/staging` if environment variable `XDG_CACHE_HOME` is set,
-otherwise uses `$HOME/.cache/dt/staging`.
+`$XDG_DATA_HOME/dt/staging` if environment variable `XDG_DATA_HOME` is set,
+otherwise uses `$HOME/.local/share/dt/staging`.
 
 ### `method`
 
