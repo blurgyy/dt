@@ -359,8 +359,6 @@ where
     }
 
     fn populate(&self, group: Rc<LocalGroup>) -> Result<()> {
-        let method = group.get_method();
-
         // Create possibly missing parent directories along target's path.
         let tpath = self.make_target(
             &group.get_hostname_sep(),
@@ -370,7 +368,7 @@ where
         )?;
         std::fs::create_dir_all(tpath.as_ref().parent().unwrap())?;
 
-        match method {
+        match group.get_method() {
             SyncMethod::Copy => {
                 // `self` is _always_ a file.  If its target path `tpath` is a
                 // directory, we should return an error.
@@ -594,6 +592,49 @@ where
                     }
                 }
             }
+        }
+
+        Ok(())
+    }
+
+    fn populate_dry(&self, group: Rc<LocalGroup>) -> Result<()> {
+        let tpath = self.make_target(
+            &group.get_hostname_sep(),
+            &group.basedir,
+            &group.target,
+            Some(group.get_renaming_rules()),
+        )?;
+        if tpath.as_ref().exists() {
+            if group.get_allow_overwrite() {
+                if tpath.as_ref().is_dir() {
+                    log::error!(
+                        "DRYRUN [{}]> A directory ('{}') exists at the target path of a source file ('{}')",
+                        group.name,
+                        tpath.as_ref().display(),
+                        self.as_ref().display(),
+                    );
+                } else {
+                    log::debug!(
+                        "DRYRUN [{}]> '{}' -> '{}'",
+                        group.name,
+                        self.as_ref().display(),
+                        tpath.as_ref().display(),
+                    );
+                }
+            } else {
+                log::error!(
+                    "DRYRUN [{}]> Target path ('{}') exists while `allow_overwrite` is set to false",
+                    group.name,
+                    tpath.as_ref().display(),
+                );
+            }
+        } else {
+            log::debug!(
+                "DRYRUN [{}]> '{}' -> '{}'",
+                group.name,
+                self.as_ref().display(),
+                tpath.as_ref().display(),
+            );
         }
 
         Ok(())
