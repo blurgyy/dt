@@ -445,7 +445,12 @@ where
                 let staging_path = self.make_target(
                     &group.get_hostname_sep(),
                     &group.basedir,
-                    &group.global.staging.as_ref().unwrap(),
+                    &group
+                        .global
+                        .staging
+                        .as_ref()
+                        .unwrap()
+                        .join(PathBuf::from(&group.name)),
                     None, // Do not apply renaming on staging path
                 )?;
                 std::fs::create_dir_all(
