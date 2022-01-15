@@ -82,14 +82,9 @@ fn main() {
     } else {
         config.filter_names(opt.group_names)
     };
-    if opt.dry_run {
-        if let Err(e) = syncing::dry_sync(config) {
-            log::error!("{}", e);
-            std::process::exit(2);
-        }
-    } else if let Err(e) = syncing::sync(config) {
+    if let Err(e) = syncing::sync(config, opt.dry_run) {
         log::error!("{}", e);
-        std::process::exit(3);
+        std::process::exit(2);
     }
 }
 

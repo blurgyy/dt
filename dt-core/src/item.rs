@@ -358,6 +358,8 @@ where
         Ok(targetbase.as_ref().join(tail).into())
     }
 
+    /// Populate this item with given group config.  The given group config is
+    /// expected to be the group where this item belongs to.
     fn populate(&self, group: Rc<LocalGroup>) -> Result<()> {
         // Create possibly missing parent directories along target's path.
         let tpath = self.make_target(
@@ -597,6 +599,9 @@ where
         Ok(())
     }
 
+    /// Show what is to be done if this item is to be populated with given
+    /// group config.  The given group config is expected to be the group
+    /// where this item belongs to.
     fn populate_dry(&self, group: Rc<LocalGroup>) -> Result<()> {
         let tpath = self.make_target(
             &group.get_hostname_sep(),

@@ -348,7 +348,7 @@ fn check(config: &DTConfig) -> Result<()> {
 }
 
 /// Syncs items specified with given configuration object.
-pub fn sync(config: DTConfig) -> Result<()> {
+pub fn sync(config: DTConfig, dry_run: bool) -> Result<()> {
     if config.local.is_empty() {
         log::warn!("Nothing to be synced");
         return Ok(());
@@ -380,47 +380,11 @@ pub fn sync(config: DTConfig) -> Result<()> {
 
         let group_ref = Rc::new(group.to_owned());
         for spath in &group.sources {
-            spath.populate(Rc::clone(&group_ref))?;
-        }
-    }
-    Ok(())
-}
-
-/// Show changes to be made according to configuration, without actually
-/// syncing items.
-pub fn dry_sync(config: DTConfig) -> Result<()> {
-    if config.local.is_empty() {
-        log::warn!("Nothing to be synced");
-        return Ok(());
-    }
-    log::trace!("Local groups to process: {:#?}", config.local);
-
-    let config = expand(config)?;
-
-    for group in config.local {
-        log::info!("Dry-running with local group: [{}]", group.name);
-        if group.sources.is_empty() {
-            log::debug!(
-                "Group [{}]: skipping due to empty group",
-                group.name,
-            );
-            continue;
-        } else {
-            log::debug!(
-                "Group [{}]: {} {} detected",
-                group.name,
-                group.sources.len(),
-                if group.sources.len() <= 1 {
-                    "item"
-                } else {
-                    "items"
-                },
-            );
-        }
-
-        let group_ref = Rc::new(group.to_owned());
-        for spath in &group.sources {
-            spath.populate_dry(Rc::clone(&group_ref))?;
+            if dry_run {
+                spath.populate_dry(Rc::clone(&group_ref))?;
+            } else {
+                spath.populate(Rc::clone(&group_ref))?;
+            }
         }
     }
     Ok(())
