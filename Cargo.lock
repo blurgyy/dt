@@ -241,7 +241,7 @@ dependencies = [
 
 [[package]]
 name = "dt-cli"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "dirs",
  "dt-core",
@@ -252,7 +252,7 @@ dependencies = [
 
 [[package]]
 name = "dt-core"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "color-eyre",
  "dirs",
