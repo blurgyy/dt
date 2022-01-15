@@ -68,7 +68,8 @@ impl DTConfig {
 
     /// Validates config object **without** touching the filesystem.
     fn validate(self) -> Result<Self> {
-        let global_ref = Rc::new(self.global.clone().unwrap_or_default());
+        let global_ref =
+            Rc::new(self.global.to_owned().unwrap_or_default().sanitize());
 
         let mut ret: Self = self;
 
@@ -656,6 +657,54 @@ impl Default for GlobalConfig {
             allow_overwrite: Some(DEFAULT_ALLOW_OVERWRITE),
             hostname_sep: Some(DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
             rename: None,
+        }
+    }
+}
+
+impl GlobalConfig {
+    /// Generate a [`GlobalConfig`], such that every `None` value from `self`
+    /// is replaced with a [default] value.
+    ///
+    /// [`GlobalConfig`]: GlobalConfig
+    /// [default]: GlobalConfig::default
+    pub fn sanitize(self) -> Self {
+        let Self {
+            staging: staging_def,
+            method: method_def,
+            allow_overwrite: allow_overwrite_def,
+            hostname_sep: hostname_sep_def,
+            rename: _rename_def,
+        } = Self::default();
+        let Self {
+            staging: staging_self,
+            method: method_self,
+            allow_overwrite: allow_overwrite_self,
+            hostname_sep: hostname_sep_self,
+            rename: rename_self,
+        } = self;
+
+        GlobalConfig {
+            staging: if staging_self.is_some() {
+                staging_self
+            } else {
+                staging_def
+            },
+            method: if method_self.is_some() {
+                method_self
+            } else {
+                method_def
+            },
+            allow_overwrite: if allow_overwrite_self.is_some() {
+                allow_overwrite_self
+            } else {
+                allow_overwrite_def
+            },
+            hostname_sep: if hostname_sep_self.is_some() {
+                hostname_sep_self
+            } else {
+                hostname_sep_def
+            },
+            rename: rename_self,
         }
     }
 }

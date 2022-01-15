@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
+    rc::Rc,
     str::FromStr,
 };
 
@@ -43,11 +44,10 @@ struct SyncingParameters {
 ///
 /// It does the following operations on given config:
 ///
-/// 1. Convert [`global.staging`] to an absolute path.
-/// 2. Convert all [`basedir`]s, [`target`]s in `[[local]]` to absolute paths.
-/// 3. Replace [`basedir`]s and paths in [`sources`] with their host-specific
+/// 1. Convert all [`basedir`]s, [`target`]s in `[[local]]` to absolute paths.
+/// 2. Replace [`basedir`]s and paths in [`sources`] with their host-specific
 ///    counterpart, if there exists any.
-/// 4. Recursively expand globs and directories in [`sources`].
+/// 3. Recursively expand globs and directories in [`sources`].
 ///
 /// [`sources`]: crate::config::LocalGroup::sources
 /// [`global.staging`]: crate::config::GlobalConfig::staging
@@ -56,21 +56,16 @@ struct SyncingParameters {
 /// [`[[local]]`]: crate::config::LocalGroup
 fn expand(config: DTConfig) -> Result<DTConfig> {
     let mut ret = DTConfig {
-        global: match &config.global {
-            Some(global) => Some(GlobalConfig {
-                staging: match &global.staging {
-                    Some(staging) => Some(staging.absolute()?),
-                    None => GlobalConfig::default().staging,
-                },
-                ..global.to_owned()
-            }),
-            None => Some(GlobalConfig::default()),
-        },
+        global: config.global, /* `global` is still in use for checking
+                                * type of staging directory, etc..  So
+                                * directly move original global config to
+                                * the newly constructed one. */
         local: Vec::new(),
     };
 
     for original in config.local {
         let mut next = LocalGroup {
+            global: Rc::clone(&original.global),
             basedir: original.basedir.absolute()?,
             sources: Vec::new(),
             target: original.target.absolute()?,
@@ -430,29 +425,9 @@ pub fn sync(config: DTConfig) -> Result<()> {
             );
         }
 
-        let group_staging =
-            staging.join(PathBuf::from_str(&group.name).unwrap());
-        if !group_staging.exists() {
-            log::trace!(
-                "Creating non-existing staging directory at '{}'",
-                group_staging.display(),
-            );
-            std::fs::create_dir_all(&group_staging)?;
-        }
+        let group_ref = Rc::new(group.to_owned());
         for spath in &group.sources {
-            let params = SyncingParameters {
-                spath: spath.to_owned(),
-                tparent: group.target.to_owned(),
-                dry: false,
-                allow_overwrite: group.get_allow_overwrite(),
-                method: group.get_method(),
-                staging: group_staging.to_owned(),
-                group_name: group.name.to_owned(),
-                basedir: group.basedir.to_owned(),
-                hostname_sep: group.get_hostname_sep(),
-                rename: group.get_renaming_rules(),
-            };
-            sync_core(params)?;
+            spath.populate(Rc::clone(&group_ref))?;
         }
     }
     Ok(())

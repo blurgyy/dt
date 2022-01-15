@@ -1,10 +1,17 @@
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    rc::Rc,
+};
 
 use path_clean::PathClean;
 
-use crate::{config::RenamingRule, error, utils};
+use crate::{
+    config::{LocalGroup, RenamingRule, SyncMethod},
+    error::Error as AppError,
+    utils,
+};
 
-type Result<T> = std::result::Result<T, error::Error>;
+type Result<T> = std::result::Result<T, AppError>;
 
 /// Defines behaviours for an item (a path) used in [DT].
 ///
@@ -312,7 +319,7 @@ where
         renaming_rules: Option<Vec<RenamingRule>>,
     ) -> Result<Self>
     where
-        T: Into<Self> + AsRef<Path>,
+        T: Into<PathBuf> + AsRef<Path>,
     {
         // Get non-host-specific counterpart of `self`
         let nhself = self.non_host_specific(hostname_sep);
@@ -349,6 +356,247 @@ where
 
         // The target is the target base appended with `tail`
         Ok(targetbase.as_ref().join(tail).into())
+    }
+
+    fn populate(&self, group: Rc<LocalGroup>) -> Result<()> {
+        let method = group.get_method();
+
+        // Create possibly missing parent directories along target's path.
+        let tpath = self.make_target(
+            &group.get_hostname_sep(),
+            &group.basedir,
+            &group.target,
+            Some(group.get_renaming_rules()),
+        )?;
+        std::fs::create_dir_all(tpath.as_ref().parent().unwrap())?;
+
+        match method {
+            SyncMethod::Copy => {
+                // `self` is _always_ a file.  If its target path `tpath` is a
+                // directory, we should return an error.
+                if tpath.as_ref().is_dir() {
+                    return Err(
+                        AppError::SyncingError(format!(
+                            "a directory '{}' exists at the target path of a source file '{}'",
+                            tpath.as_ref().display(),
+                            self.as_ref().display(),
+                        ))
+                    );
+                }
+                if tpath.as_ref().is_symlink() {
+                    log::trace!(
+                        "SYNC::COPY [{}]> '{}' is a symlink, removing it",
+                        group.name,
+                        tpath.as_ref().display(),
+                    );
+                    std::fs::remove_file(tpath.as_ref())?;
+                }
+                if let Ok(dest_content) = std::fs::read(tpath.as_ref()) {
+                    let src_content = std::fs::read(self.as_ref())?;
+                    if src_content == dest_content {
+                        log::trace!(
+                            "SYNC::COPY::SKIP [{}]> '{}' has identical content as '{}'",
+                            group.name,
+                            tpath.as_ref().display(),
+                            self.as_ref().display(),
+                        );
+                    } else if std::fs::copy(self.as_ref(), tpath.as_ref())
+                        .is_err()
+                    {
+                        log::warn!(
+                            "SYNC::COPY::OVERWRITE [{}]> '{}' seems to be readonly, trying to remove it first ..",
+                            group.name,
+                            tpath.as_ref().display(),
+                        );
+                        std::fs::remove_file(tpath.as_ref())?;
+                        log::trace!(
+                            "SYNC::COPY::OVERWRITE [{}]> '{}' => '{}'",
+                            group.name,
+                            self.as_ref().display(),
+                            tpath.as_ref().display(),
+                        );
+                        std::fs::copy(self.as_ref(), tpath.as_ref())?;
+                    }
+                } else if tpath.as_ref().exists() {
+                    log::warn!(
+                        "SYNC::COPY::OVERWRITE [{}]> Could not read content of target file ('{}'), trying to remove it first ..",
+                        group.name,
+                        tpath.as_ref().display(),
+                    );
+                    std::fs::remove_file(tpath.as_ref())?;
+                    log::trace!(
+                        "SYNC::COPY::OVERWRITE [{}]> '{}' => '{}'",
+                        group.name,
+                        self.as_ref().display(),
+                        tpath.as_ref().display(),
+                    );
+                    std::fs::copy(self.as_ref(), tpath.as_ref())?;
+                } else {
+                    log::trace!(
+                        "SYNC::COPY [{}]> '{}' => '{}'",
+                        group.name,
+                        self.as_ref().display(),
+                        tpath.as_ref().display(),
+                    );
+                    std::fs::copy(self.as_ref(), tpath.as_ref())?;
+                }
+            }
+            SyncMethod::Symlink => {
+                let staging_path = self.make_target(
+                    &group.get_hostname_sep(),
+                    &group.basedir,
+                    &group.global.staging.as_ref().unwrap(),
+                    None, // Do not apply renaming on staging path
+                )?;
+                std::fs::create_dir_all(
+                    staging_path.as_ref().parent().unwrap(),
+                )?;
+
+                // `self` is _always_ a file.  If its target path `tpath` is a
+                // directory, we should return an error.
+                if tpath.as_ref().is_dir() {
+                    return Err(
+                        AppError::SyncingError(format!(
+                            "a directory '{}' exists at the target path of a source file '{}'",
+                            tpath.as_ref().display(),
+                            self.as_ref().display(),
+                        ))
+                    );
+                }
+
+                if tpath.as_ref().exists() && !group.get_allow_overwrite() {
+                    log::warn!(
+                        "SYNC::SKIP [{}]> Target path ('{}') exists while `allow_overwrite` is set to false",
+                        group.name,
+                        tpath.as_ref().display(),
+                    );
+                } else {
+                    // In this block, either:
+                    //
+                    //  - `tpath` does not exist
+                    //  - `allow_overwrite` is true
+                    //
+                    // or both are true.
+                    //
+                    // 1. Staging
+                    //
+                    // Check if the content of destination is already the
+                    // same as source first.  When the file is large, this
+                    // operation is significantly faster than copying to an
+                    // existing target file.
+                    if let Ok(dest_content) = std::fs::read(&staging_path) {
+                        let src_content = std::fs::read(self.as_ref())?;
+                        if src_content == dest_content {
+                            log::trace!(
+                                "SYNC::STAGE::SKIP [{}]> '{}' has identical content as '{}'",
+                                group.name,
+                                staging_path.as_ref().display(),
+                                self.as_ref().display(),
+                            );
+                        } else if std::fs::copy(self.as_ref(), &staging_path)
+                            .is_err()
+                        {
+                            log::warn!(
+                                "SYNC::STAGE::OVERWRITE [{}]> '{}' seems to be readonly, trying to remove it first ..",
+                                group.name,
+                                staging_path.as_ref().display(),
+                            );
+                            std::fs::remove_file(&staging_path)?;
+                            log::trace!(
+                                "SYNC::STAGE [{}]> '{}' => '{}'",
+                                group.name,
+                                self.as_ref().display(),
+                                staging_path.as_ref().display(),
+                            );
+                            std::fs::copy(self.as_ref(), &staging_path)?;
+                        }
+                    }
+                    // If read of staging file failed but it does exist, then
+                    // the staging file is probably unreadable, so try to
+                    // remove it first, then copy content to `staging_path`.
+                    else if staging_path.as_ref().exists() {
+                        log::warn!(
+                            "SYNC::STAGE::OVERWRITE [{}]> Could not read content of staging file ('{}'), trying to remove it first ..",
+                            group.name,
+                            staging_path.as_ref().display(),
+                        );
+                        std::fs::remove_file(&staging_path)?;
+                        log::trace!(
+                            "SYNC::STAGE::OVERWRITE [{}]> '{}' => '{}'",
+                            group.name,
+                            self.as_ref().display(),
+                            staging_path.as_ref().display(),
+                        );
+                        std::fs::copy(self.as_ref(), &staging_path)?;
+                    }
+                    // If the staging file does not exist --- this is the
+                    // simplest case --- we just copy this file to the
+                    // `staging_path`.
+                    else {
+                        log::trace!(
+                            "SYNC::STAGE [{}]> '{}' => '{}'",
+                            group.name,
+                            self.as_ref().display(),
+                            staging_path.as_ref().display(),
+                        );
+                        std::fs::copy(self.as_ref(), &staging_path)?;
+                    }
+
+                    // 2. Symlinking
+                    //
+                    // Do not remove target file if it is already a symlink
+                    // that points to the correct location.
+                    if let Ok(dest) = std::fs::read_link(&tpath) {
+                        if dest == staging_path.as_ref() {
+                            log::trace!(
+                                "SYNC::SYMLINK::SKIP [{}]> '{}' is already a symlink pointing to '{}'",
+                                group.name,
+                                tpath.as_ref().display(),
+                                staging_path.as_ref().display(),
+                            );
+                        } else {
+                            log::trace!(
+                                "SYNC::SYMLINK::OVERWRITE [{}]> '{}' => '{}'",
+                                group.name,
+                                staging_path.as_ref().display(),
+                                tpath.as_ref().display(),
+                            );
+                            std::fs::remove_file(&tpath)?;
+                            std::os::unix::fs::symlink(
+                                &staging_path,
+                                &tpath,
+                            )?;
+                        }
+                    }
+                    // If target file exists but is not a symlink, try to
+                    // remove it first, then make a symlink from
+                    // `staging_path` to `tpath`.
+                    else if tpath.as_ref().exists() {
+                        log::trace!(
+                            "SYNC::SYMLINK::OVERWRITE [{}]> '{}' => '{}'",
+                            group.name,
+                            staging_path.as_ref().display(),
+                            tpath.as_ref().display(),
+                        );
+                        std::fs::remove_file(&tpath)?;
+                        std::os::unix::fs::symlink(&staging_path, &tpath)?;
+                    }
+                    // The final case is that when `tpath` does not exist
+                    // yet, we can then directly create a symlink.
+                    else {
+                        log::trace!(
+                            "SYNC::SYMLINK [{}]> '{}' => '{}'",
+                            group.name,
+                            staging_path.as_ref().display(),
+                            tpath.as_ref().display(),
+                        );
+                        std::os::unix::fs::symlink(&staging_path, &tpath)?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
