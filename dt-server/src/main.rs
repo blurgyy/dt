@@ -57,7 +57,7 @@ async fn main() {
             p
         }
         None => {
-            let p = default_config_path("cli.toml");
+            let p = default_config_path("server.toml");
             let p = if p.exists() {
                 p
             } else {
