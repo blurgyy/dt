@@ -76,6 +76,7 @@ impl DTConfig {
             Rc::new(self.global.to_owned().unwrap_or_default().sanitize());
         let context_ref =
             Rc::new(self.context.to_owned().unwrap_or_default());
+        let mut group_name_rec = std::collections::HashSet::new();
 
         let mut ret: Self = self;
 
@@ -100,6 +101,15 @@ impl DTConfig {
                     group.name,
                 )));
             }
+
+            // Duplicated group name
+            if group_name_rec.get(&group.name).is_some() {
+                return Err(AppError::ConfigError(format!(
+                    "duplicated local group name '{}'",
+                    group.name,
+                )));
+            }
+            group_name_rec.insert(group.name.to_owned());
 
             // Slash in group name
             if group.name.contains('/') {
@@ -371,8 +381,9 @@ pub struct LocalGroup {
     #[serde(skip_deserializing)]
     pub global: Rc<GlobalConfig>,
 
-    /// The context config object loaded from config file.  Like [`LocalGroup::global`], this
-    /// field _does not_ appear in the config, but is only used by DT internally.
+    /// The context config object loaded from config file.  Like
+    /// [`LocalGroup::global`], this field _does not_ appear in the config,
+    /// but is only used by DT internally.
     ///
     /// [`LocalGroup::global`]: LocalGroup::global
     #[serde(skip_deserializing)]
@@ -943,6 +954,26 @@ mod validation {
             Ok(())
         } else {
             Err(eyre!("This config should not be loaded because a group's basedir is empty"))
+        }
+    }
+
+    #[test]
+    fn same_names_in_multiple_local_groups() -> Result<(), Report> {
+        if let Err(err) = DTConfig::from_path(PathBuf::from_str(
+            "../testroot/configs/config/validation-same_names_in_multiple_locals.toml",
+        )?) {
+            assert_eq!(
+                err,
+                AppError::ConfigError(
+                    "duplicated local group name 'wubba lubba dub dub'"
+                        .to_owned()
+                ),
+                "{}",
+                err,
+            );
+            Ok(())
+        } else {
+            Err(eyre!("This config should not be loaded because there are multiple local groups share the same name"))
         }
     }
 

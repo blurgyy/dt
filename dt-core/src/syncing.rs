@@ -23,8 +23,9 @@ use crate::{config::*, item::DTItem};
 /// [`[[local]]`]: crate::config::LocalGroup
 fn expand(config: DTConfig) -> Result<DTConfig> {
     let mut ret = DTConfig {
-        // Remove `global` and `context` in expanded configuration object.  Further references of
-        // these two values are referenced via Rc from within groups.
+        // Remove `global` and `context` in expanded configuration object.
+        // Further references of these two values are referenced via Rc from
+        // within groups.
         global: None,
         context: None,
         local: Vec::new(),
