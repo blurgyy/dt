@@ -23,10 +23,10 @@ use crate::{config::*, item::DTItem};
 /// [`[[local]]`]: crate::config::LocalGroup
 fn expand(config: DTConfig) -> Result<DTConfig> {
     let mut ret = DTConfig {
-        global: config.global, /* `global` is still in use for checking
-                                * type of staging directory, etc..  So
-                                * directly move original global config to
-                                * the newly constructed one. */
+        // Remove `global` and `context` in expanded configuration object.  Further references of
+        // these two values are referenced via Rc from within groups.
+        global: None,
+        context: None,
         local: Vec::new(),
     };
 
@@ -270,10 +270,13 @@ fn resolve(config: DTConfig) -> Result<DTConfig> {
 /// Checks validity of the given `config`.
 fn check(config: &DTConfig) -> Result<()> {
     let mut has_symlink: bool = false;
+    let mut staging_path: PathBuf = "/".into();
 
     for group in &config.local {
         if !has_symlink && group.get_method() == SyncMethod::Symlink {
             has_symlink = true;
+            staging_path =
+                group.global.staging.to_owned().unwrap_or_default();
         }
 
         // Wrong type of existing target path
@@ -313,22 +316,8 @@ fn check(config: &DTConfig) -> Result<()> {
     }
 
     if has_symlink {
-        let staging = if config.global.is_none()
-            || config.global.as_ref().unwrap().staging.is_none()
-        {
-            GlobalConfig::default().staging.unwrap()
-        } else {
-            config
-                .global
-                .as_ref()
-                .unwrap()
-                .staging
-                .as_ref()
-                .unwrap()
-                .to_owned()
-        };
         // Wrong type of existing staging path
-        if staging.exists() && !staging.is_dir() {
+        if staging_path.exists() && !staging_path.is_dir() {
             return Err(AppError::ConfigError(
                 "staging root path exists but is not a valid directory"
                     .to_owned(),
@@ -336,7 +325,7 @@ fn check(config: &DTConfig) -> Result<()> {
         }
 
         // Path to staging root contains readonly parent directory
-        if staging.parent_readonly() {
+        if staging_path.parent_readonly() {
             return Err(AppError::ConfigError(
                 "staging root path cannot be created due to insufficient permissions"
                     .to_owned(),

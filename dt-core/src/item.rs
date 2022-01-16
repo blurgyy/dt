@@ -3,15 +3,15 @@ use std::{
     rc::Rc,
 };
 
+use minijinja::Environment;
 use path_clean::PathClean;
+use serde::Serialize;
 
 use crate::{
     config::{LocalGroup, RenamingRule, SyncMethod},
-    error::Error as AppError,
+    error::{Error as AppError, Result},
     utils,
 };
-
-type Result<T> = std::result::Result<T, AppError>;
 
 /// Defines behaviours for an item (a path) used in [DT].
 ///
@@ -358,6 +358,15 @@ where
         Ok(targetbase.as_ref().join(tail).into())
     }
 
+    /// Render this item with given context to the `dest` path.
+    fn render<S: Serialize>(&self, ctx: &Rc<S>) -> Result<String> {
+        let name = self.as_ref().to_str().unwrap();
+        let mut env = Environment::new();
+        let original_content = std::fs::read_to_string(self.as_ref())?;
+        env.add_template(name, &original_content)?;
+        Ok(env.get_template(name)?.render(&**ctx)?)
+    }
+
     /// Populate this item with given group config.  The given group config is
     /// expected to be the group where this item belongs to.
     fn populate(&self, group: Rc<LocalGroup>) -> Result<()> {
@@ -391,8 +400,10 @@ where
                     );
                     std::fs::remove_file(tpath.as_ref())?;
                 }
+                // Render the template
+                let src_content: Vec<u8> =
+                    self.render(&group.context)?.into();
                 if let Ok(dest_content) = std::fs::read(tpath.as_ref()) {
-                    let src_content = std::fs::read(self.as_ref())?;
                     if src_content == dest_content {
                         log::trace!(
                             "SYNC::COPY::SKIP [{}]> '{}' has identical content as '{}'",
@@ -400,7 +411,7 @@ where
                             tpath.as_ref().display(),
                             self.as_ref().display(),
                         );
-                    } else if std::fs::copy(self.as_ref(), tpath.as_ref())
+                    } else if std::fs::write(tpath.as_ref(), &src_content)
                         .is_err()
                     {
                         log::warn!(
@@ -415,7 +426,7 @@ where
                             self.as_ref().display(),
                             tpath.as_ref().display(),
                         );
-                        std::fs::copy(self.as_ref(), tpath.as_ref())?;
+                        std::fs::write(tpath.as_ref(), src_content)?;
                     }
                 } else if tpath.as_ref().exists() {
                     log::warn!(
@@ -430,7 +441,7 @@ where
                         self.as_ref().display(),
                         tpath.as_ref().display(),
                     );
-                    std::fs::copy(self.as_ref(), tpath.as_ref())?;
+                    std::fs::write(tpath.as_ref(), src_content)?;
                 } else {
                     log::trace!(
                         "SYNC::COPY [{}]> '{}' => '{}'",
@@ -438,7 +449,7 @@ where
                         self.as_ref().display(),
                         tpath.as_ref().display(),
                     );
-                    std::fs::copy(self.as_ref(), tpath.as_ref())?;
+                    std::fs::write(tpath.as_ref(), src_content)?;
                 }
             }
             SyncMethod::Symlink => {
@@ -483,14 +494,17 @@ where
                     //
                     // or both are true.
                     //
-                    // 1. Staging
+                    // 1. Staging:
                     //
                     // Check if the content of destination is already the
                     // same as source first.  When the file is large, this
                     // operation is significantly faster than copying to an
                     // existing target file.
+
+                    // Render the template
+                    let src_content: Vec<u8> =
+                        self.render(&group.context)?.into();
                     if let Ok(dest_content) = std::fs::read(&staging_path) {
-                        let src_content = std::fs::read(self.as_ref())?;
                         if src_content == dest_content {
                             log::trace!(
                                 "SYNC::STAGE::SKIP [{}]> '{}' has identical content as '{}'",
@@ -498,22 +512,28 @@ where
                                 staging_path.as_ref().display(),
                                 self.as_ref().display(),
                             );
-                        } else if std::fs::copy(self.as_ref(), &staging_path)
-                            .is_err()
+                        } else if std::fs::write(
+                            staging_path.as_ref(),
+                            &src_content,
+                        )
+                        .is_err()
                         {
                             log::warn!(
                                 "SYNC::STAGE::OVERWRITE [{}]> '{}' seems to be readonly, trying to remove it first ..",
                                 group.name,
                                 staging_path.as_ref().display(),
                             );
-                            std::fs::remove_file(&staging_path)?;
+                            std::fs::remove_file(staging_path.as_ref())?;
                             log::trace!(
                                 "SYNC::STAGE [{}]> '{}' => '{}'",
                                 group.name,
                                 self.as_ref().display(),
                                 staging_path.as_ref().display(),
                             );
-                            std::fs::copy(self.as_ref(), &staging_path)?;
+                            std::fs::write(
+                                staging_path.as_ref(),
+                                src_content,
+                            )?;
                         }
                     }
                     // If read of staging file failed but it does exist, then
@@ -525,14 +545,14 @@ where
                             group.name,
                             staging_path.as_ref().display(),
                         );
-                        std::fs::remove_file(&staging_path)?;
+                        std::fs::remove_file(staging_path.as_ref())?;
                         log::trace!(
                             "SYNC::STAGE::OVERWRITE [{}]> '{}' => '{}'",
                             group.name,
                             self.as_ref().display(),
                             staging_path.as_ref().display(),
                         );
-                        std::fs::copy(self.as_ref(), &staging_path)?;
+                        std::fs::write(staging_path.as_ref(), src_content)?;
                     }
                     // If the staging file does not exist --- this is the
                     // simplest case --- we just copy this file to the
@@ -544,7 +564,7 @@ where
                             self.as_ref().display(),
                             staging_path.as_ref().display(),
                         );
-                        std::fs::copy(self.as_ref(), &staging_path)?;
+                        std::fs::write(staging_path.as_ref(), src_content)?;
                     }
 
                     // 2. Symlinking
