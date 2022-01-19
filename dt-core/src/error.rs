@@ -6,10 +6,12 @@ pub enum Error {
     ConfigError(String),
     /// Errors that may occur during I/O operations.
     IoError(String),
-    /// Errors that occur when parsing of structures failes.
+    /// Errors that occur while parsing of structures failes.
     ParseError(String),
     /// Errors that may occur while manipulating paths.
     PathError(String),
+    /// Errors that occur while rendering templates.
+    RenderingError(String),
     /// Errors that may occur during syncing.
     SyncingError(String),
 }
@@ -33,6 +35,9 @@ impl fmt::Display for Error {
             }
             Error::PathError(ref msg) => {
                 write!(f, "Path Error: {}", msg)
+            }
+            Error::RenderingError(ref msg) => {
+                write!(f, "Rendering Error: {}", msg)
             }
             Error::SyncingError(ref msg) => {
                 write!(f, "Syncing Error: {}", msg)
@@ -63,7 +68,12 @@ impl From<glob::PatternError> for Error {
 }
 impl From<minijinja::Error> for Error {
     fn from(err: minijinja::Error) -> Self {
-        Self::ParseError(err.to_string())
+        Self::RenderingError(err.to_string())
+    }
+}
+impl From<std::str::Utf8Error> for Error {
+    fn from(err: std::str::Utf8Error) -> Self {
+        Self::RenderingError(err.to_string())
     }
 }
 
