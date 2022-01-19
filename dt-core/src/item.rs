@@ -3,6 +3,7 @@ use std::{
     rc::Rc,
 };
 
+use content_inspector::inspect;
 use minijinja::Environment;
 use path_clean::PathClean;
 use serde::Serialize;
@@ -359,12 +360,29 @@ where
     }
 
     /// Render this item with given context to the `dest` path.
-    fn render<S: Serialize>(&self, ctx: &Rc<S>) -> Result<String> {
+    ///
+    /// Rendering only happens if this item is considered as a plain text
+    /// file.  If this item is considered as a binary file, it's original
+    /// content is returned.  The content type is inspected via the
+    /// [`content_inspector`] crate.  Although it can correctly determine if
+    /// an item is binary or text mostly of the time, it is just a heuristic
+    /// check and can fail in some cases, e.g. NUL byte in the first 1024
+    /// bytes of a UTF-8-encoded text file, etc..  See [the crate's home page]
+    /// for the full caveats.
+    ///
+    /// [`content_inspector`]: https://crates.io/crates/content_inspector
+    /// [the crate's home page]: https://github.com/sharkdp/content_inspector
+    // TODO: Add `force_rendering` or something to also render binary files.
+    fn render<S: Serialize>(&self, ctx: &Rc<S>) -> Result<Vec<u8>> {
         let name = self.as_ref().to_str().unwrap();
         let mut env = Environment::new();
-        let original_content = std::fs::read_to_string(self.as_ref())?;
-        env.add_template(name, &original_content)?;
-        Ok(env.get_template(name)?.render(&**ctx)?)
+        let original_content = std::fs::read(self.as_ref())?;
+        if inspect(&original_content).is_text() {
+            env.add_template(name, std::str::from_utf8(&original_content)?)?;
+            Ok(env.get_template(name)?.render(&**ctx)?.into())
+        } else {
+            Ok(original_content)
+        }
     }
 
     /// Populate this item with given group config.  The given group config is
@@ -401,8 +419,7 @@ where
                     std::fs::remove_file(tpath.as_ref())?;
                 }
                 // Render the template
-                let src_content: Vec<u8> =
-                    self.render(&group.context)?.into();
+                let src_content: Vec<u8> = self.render(&group.context)?;
                 if let Ok(dest_content) = std::fs::read(tpath.as_ref()) {
                     if src_content == dest_content {
                         log::trace!(
@@ -502,8 +519,7 @@ where
                     // existing target file.
 
                     // Render the template
-                    let src_content: Vec<u8> =
-                        self.render(&group.context)?.into();
+                    let src_content: Vec<u8> = self.render(&group.context)?;
                     if let Ok(dest_content) = std::fs::read(&staging_path) {
                         if src_content == dest_content {
                             log::trace!(

@@ -12,6 +12,7 @@ keywords = ["syncing", "config"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+content_inspector = "0.2.4"
 dirs = "4.0.0"
 gethostname = "0.2.2"
 glob = "0.3.0"
