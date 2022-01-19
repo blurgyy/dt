@@ -6,7 +6,7 @@ use std::{
 };
 
 use regex::Regex;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_regex;
 use serde_tuple::Deserialize_tuple;
 
@@ -26,6 +26,9 @@ pub const DEFAULT_ALLOW_OVERWRITE: bool = false;
 pub struct DTConfig {
     /// (Optional) Sets fallback behaviours.
     pub global: Option<GlobalConfig>,
+
+    /// (Optional) Defines values for templating.
+    pub context: Option<ContextConfig>,
 
     /// Local items groups.
     pub local: Vec<LocalGroup>,
@@ -57,6 +60,7 @@ impl DTConfig {
     pub fn filter_names(self, group_names: Vec<String>) -> Self {
         Self {
             global: self.global,
+            context: self.context,
             local: self
                 .local
                 .iter()
@@ -70,6 +74,8 @@ impl DTConfig {
     fn validate(self) -> Result<Self> {
         let global_ref =
             Rc::new(self.global.to_owned().unwrap_or_default().sanitize());
+        let context_ref =
+            Rc::new(self.context.to_owned().unwrap_or_default());
 
         let mut ret: Self = self;
 
@@ -176,6 +182,7 @@ impl DTConfig {
             // If nothing seems bad, intialize the group's refrencing global
             // config
             group.global = Rc::clone(&global_ref);
+            group.context = Rc::clone(&context_ref);
         }
 
         Ok(ret)
@@ -354,7 +361,7 @@ pub struct RenamingRule {
 /// Configures how local items (files/directories) are synced.
 #[derive(Default, Clone, Deserialize, Debug)]
 pub struct LocalGroup {
-    /// The global config object loaded from DT's config file, this field
+    /// The global config object loaded from DT's config file.  This field
     /// _does not_ appear in the config file, but is only used by DT
     /// internally.  Skipping deserializing is achieved via serde's
     /// [`skip_deserializing`] attribute, which fills a default value when
@@ -363,6 +370,13 @@ pub struct LocalGroup {
     /// [`skip_deserializing`]: https://serde.rs/field-attrs.html#skip_deserializing
     #[serde(skip_deserializing)]
     pub global: Rc<GlobalConfig>,
+
+    /// The context config object loaded from config file.  Like [`LocalGroup::global`], this
+    /// field _does not_ appear in the config, but is only used by DT internally.
+    ///
+    /// [`LocalGroup::global`]: LocalGroup::global
+    #[serde(skip_deserializing)]
+    pub context: Rc<ContextConfig>,
 
     /// Name of this group, used as namespace in staging root directory.
     pub name: String,
@@ -725,6 +739,15 @@ pub enum SyncMethod {
 impl Default for SyncMethod {
     fn default() -> Self {
         SyncMethod::Symlink
+    }
+}
+
+/// Templating values are defined in this section.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ContextConfig(toml::Value);
+impl Default for ContextConfig {
+    fn default() -> Self {
+        Self(toml::map::Map::new().into())
     }
 }
 

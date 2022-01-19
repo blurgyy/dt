@@ -259,6 +259,7 @@ dependencies = [
  "gethostname",
  "glob",
  "log",
+ "minijinja",
  "path-clean",
  "pretty_assertions",
  "regex",
@@ -657,6 +658,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "minijinja"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "174ae618c3c702bd726f762ee2f21cf1f906bdb1d309f7d999d8ec393854af51"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "miniz_oxide"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1043,9 +1053,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.74"
+version = "1.0.75"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee2bb9cd061c5865d345bb02ca49fcef1391741b672b54a0bf7b679badec3142"
+checksum = "c059c05b48c5c0067d4b4b2b4f0732dd65feb52daf7e0ea09cd87e7dadc1af79"
 dependencies = [
  "itoa 1.0.1",
  "ryu",

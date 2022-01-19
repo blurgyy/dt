@@ -61,6 +61,11 @@ impl From<glob::PatternError> for Error {
         Self::PathError(err.to_string())
     }
 }
+impl From<minijinja::Error> for Error {
+    fn from(err: minijinja::Error) -> Self {
+        Self::ParseError(err.to_string())
+    }
+}
 
 // Author: Blurgy <gy@blurgy.xyz>
 // Date:   Oct 29 2021, 23:07 [CST]
