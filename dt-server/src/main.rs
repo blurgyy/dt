@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-use dt_core::{config::DTConfig, utils::default_config_path};
 use structopt::StructOpt;
 
+use dt_core::{config::DTConfig, utils::default_config_path};
 #[derive(StructOpt, Debug)]
 #[structopt(
     global_settings(&[structopt::clap::AppSettings::ColoredHelp])
@@ -47,6 +47,8 @@ struct Opt {
 async fn main() {
     let opt = Opt::from_args();
     setup(opt.verbose - opt.quiet);
+
+    log::trace!("Parsed command line: {:#?}", &opt);
 
     let config_path = match opt.config_path {
         Some(p) => {
