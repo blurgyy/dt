@@ -1,7 +1,8 @@
 # Basics
 
-Configurations are composed with **groups**.  A `local` group is added to the
-configuration file by adding a `[[local]]` section.
+Configurations are composed with **groups**.  A **group** represents a
+collection of files that share some properties.  A `local` group is added to
+the configuration file by adding a `[[local]]` section.
 
 Assuming your configuration files for `Neovim` reside in `~/dt/nvim`, and all
 match the globbing pattern `*init.vim`, a minimal working example can then be
