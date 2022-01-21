@@ -66,8 +66,13 @@ impl From<glob::PatternError> for Error {
         Self::PathError(err.to_string())
     }
 }
-impl From<minijinja::Error> for Error {
-    fn from(err: minijinja::Error) -> Self {
+impl From<handlebars::RenderError> for Error {
+    fn from(err: handlebars::RenderError) -> Self {
+        Self::RenderingError(err.to_string())
+    }
+}
+impl From<handlebars::TemplateError> for Error {
+    fn from(err: handlebars::TemplateError) -> Self {
         Self::RenderingError(err.to_string())
     }
 }

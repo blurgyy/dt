@@ -4,7 +4,7 @@ use std::{
 };
 
 use content_inspector::inspect;
-use minijinja::Environment;
+use handlebars::Handlebars;
 use path_clean::PathClean;
 use serde::Serialize;
 
@@ -375,11 +375,15 @@ where
     // TODO: Add `force_rendering` or something to also render binary files.
     fn render<S: Serialize>(&self, ctx: &Rc<S>) -> Result<Vec<u8>> {
         let name = self.as_ref().to_str().unwrap();
-        let mut env = Environment::new();
+        let mut env = Handlebars::new();
         let original_content = std::fs::read(self.as_ref())?;
         if inspect(&original_content).is_text() {
-            env.add_template(name, std::str::from_utf8(&original_content)?)?;
-            Ok(env.get_template(name)?.render(&**ctx)?.into())
+            env.register_template_string(
+                name,
+                std::str::from_utf8(&original_content)?,
+            )?;
+            Ok(env.render(name, &**ctx)?.into())
+            // Ok(env.get_template(name)?.render(&**ctx)?.into())
         } else {
             Ok(original_content)
         }
