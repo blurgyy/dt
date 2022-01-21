@@ -10,7 +10,10 @@ use serde::{Deserialize, Serialize};
 use serde_regex;
 use serde_tuple::Deserialize_tuple;
 
-use crate::error::{Error as AppError, Result};
+use crate::{
+    error::{Error as AppError, Result},
+    utils::default_staging_path,
+};
 
 /// Fallback value for config key [`hostname_sep`]
 ///
@@ -20,6 +23,10 @@ pub const DEFAULT_HOSTNAME_SEPARATOR: &str = "@@";
 ///
 /// [`allow_overwrite`]: GlobalConfig::allow_overwrite
 pub const DEFAULT_ALLOW_OVERWRITE: bool = false;
+/// Fallback value for config key [`templated`]
+///
+/// [`templated`]: GlobalConfig::templated
+pub const DEFAULT_TEMPLATED: bool = false;
 
 /// The configuration object constructed from configuration file.
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -70,7 +77,12 @@ impl DTConfig {
         }
     }
 
-    /// Validates config object **without** touching the filesystem.
+    /// Validates config object **without** touching the filesystem.  After
+    /// this, the [sanitize]d original `global` and `context` sections are
+    /// referenced by each group via an Rc and can be safely ignored in
+    /// further processing.
+    ///
+    /// [sanitize]: GlobalConfig::sanitize
     fn validate(self) -> Result<Self> {
         let global_ref =
             Rc::new(self.global.to_owned().unwrap_or_default().sanitize());
@@ -529,6 +541,12 @@ pub struct LocalGroup {
     ///
     /// [`global.rename`]: GlobalConfig::rename
     pub rename: Option<Vec<RenamingRule>>,
+
+    /// (Optional) Whether to enable templating, overrides
+    /// [`global.templated`] key.
+    ///
+    /// [`global.templated`]: GlobalConfig::templated
+    pub templated: Option<bool>,
 }
 
 impl LocalGroup {
@@ -536,7 +554,7 @@ impl LocalGroup {
     /// falls back to the `allow_overwrite` from provided global config.
     ///
     /// [`allow_overwrite`]: LocalGroup::allow_overwrite
-    pub fn get_allow_overwrite(&self) -> bool {
+    pub fn is_overwrite_allowed(&self) -> bool {
         match self.allow_overwrite {
             Some(allow_overwrite) => allow_overwrite,
             _ => self
@@ -593,6 +611,17 @@ impl LocalGroup {
             }
         }
         ret
+    }
+
+    /// Gets the [`templated`] key from a `LocalGroup` object, falls
+    /// back to the [`templated`] from provided global config.
+    ///
+    /// [`templated`]: LocalGroup::templated
+    pub fn is_templated(&self) -> bool {
+        match self.templated {
+            Some(templated) => templated,
+            None => self.global.templated.unwrap_or(DEFAULT_TEMPLATED),
+        }
     }
 }
 
@@ -655,22 +684,24 @@ pub struct GlobalConfig {
     ///
     /// [`LocalGroup::rename`]: LocalGroup::rename
     pub rename: Option<Vec<RenamingRule>>,
+
+    /// Whether to enable templating.
+    ///
+    /// If set to `true`, handlebar-based templating syntax is parsed,
+    /// otherwise files are populated with contents unmodified.  Groups can
+    /// have their own `templated` settings and override this global value.
+    pub templated: Option<bool>,
 }
 
 impl Default for GlobalConfig {
     fn default() -> Self {
-        let default_staging: PathBuf;
-        if let Some(cache_dir) = dirs::data_dir() {
-            default_staging = cache_dir.join("dt").join("staging");
-        } else {
-            panic!("Cannot infer default staging directory, set either XDG_DATA_HOME or HOME to solve this.");
-        }
         GlobalConfig {
-            staging: Some(default_staging),
+            staging: Some(default_staging_path()),
             method: Some(SyncMethod::default()),
             allow_overwrite: Some(DEFAULT_ALLOW_OVERWRITE),
             hostname_sep: Some(DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
             rename: None,
+            templated: Some(DEFAULT_TEMPLATED),
         }
     }
 }
@@ -682,43 +713,18 @@ impl GlobalConfig {
     /// [`GlobalConfig`]: GlobalConfig
     /// [default]: GlobalConfig::default
     pub fn sanitize(self) -> Self {
-        let Self {
-            staging: staging_def,
-            method: method_def,
-            allow_overwrite: allow_overwrite_def,
-            hostname_sep: hostname_sep_def,
-            rename: _rename_def,
-        } = Self::default();
-        let Self {
-            staging: staging_self,
-            method: method_self,
-            allow_overwrite: allow_overwrite_self,
-            hostname_sep: hostname_sep_self,
-            rename: rename_self,
-        } = self;
-
         GlobalConfig {
-            staging: if staging_self.is_some() {
-                staging_self
-            } else {
-                staging_def
-            },
-            method: if method_self.is_some() {
-                method_self
-            } else {
-                method_def
-            },
-            allow_overwrite: if allow_overwrite_self.is_some() {
-                allow_overwrite_self
-            } else {
-                allow_overwrite_def
-            },
-            hostname_sep: if hostname_sep_self.is_some() {
-                hostname_sep_self
-            } else {
-                hostname_sep_def
-            },
-            rename: rename_self,
+            staging: Some(self.staging.unwrap_or_else(default_staging_path)),
+            method: Some(self.method.unwrap_or_default()),
+            allow_overwrite: Some(
+                self.allow_overwrite.unwrap_or(DEFAULT_ALLOW_OVERWRITE),
+            ),
+            hostname_sep: Some(
+                self.hostname_sep
+                    .unwrap_or_else(|| DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
+            ),
+            rename: self.rename,
+            templated: Some(self.templated.unwrap_or(DEFAULT_TEMPLATED)),
         }
     }
 }
@@ -766,7 +772,7 @@ mod overriding_global_config {
             "../testroot/configs/config/overriding_global_config-allow_overwrite_no_global.toml",
         )?)?;
         for group in config.local {
-            assert_eq!(group.get_allow_overwrite(), true,);
+            assert_eq!(group.is_overwrite_allowed(), true,);
         }
         Ok(())
     }
@@ -777,7 +783,7 @@ mod overriding_global_config {
             "../testroot/configs/config/overriding_global_config-allow_overwrite_with_global.toml",
         )?)?;
         for group in config.local {
-            assert_eq!(group.get_allow_overwrite(), false,);
+            assert_eq!(group.is_overwrite_allowed(), false,);
         }
         Ok(())
     }
@@ -811,7 +817,7 @@ mod overriding_global_config {
         )?)?;
         for group in config.local {
             assert_eq!(group.get_method(), SyncMethod::Copy,);
-            assert_eq!(group.get_allow_overwrite(), true,);
+            assert_eq!(group.is_overwrite_allowed(), true,);
         }
         Ok(())
     }
@@ -823,7 +829,7 @@ mod overriding_global_config {
         )?)?;
         for group in config.local {
             assert_eq!(group.get_method(), SyncMethod::Symlink,);
-            assert_eq!(group.get_allow_overwrite(), false,);
+            assert_eq!(group.is_overwrite_allowed(), false,);
         }
         Ok(())
     }

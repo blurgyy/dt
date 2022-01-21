@@ -1,5 +1,13 @@
 use std::path::{Path, PathBuf};
 
+pub fn default_staging_path() -> PathBuf {
+    if let Some(cache_dir) = dirs::data_dir() {
+        cache_dir.join("dt").join("staging")
+    } else {
+        panic!("Cannot infer default staging directory, set either XDG_DATA_HOME or HOME to solve this.");
+    }
+}
+
 /// Gets the default config file path, according to `$XDG_CONFIG_HOME` or
 /// `$HOME`, with last component specified by `filename`.
 ///

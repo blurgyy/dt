@@ -423,7 +423,22 @@ where
                     std::fs::remove_file(tpath.as_ref())?;
                 }
                 // Render the template
-                let src_content: Vec<u8> = self.render(&group.context)?;
+                let src_content: Vec<u8> = if group.is_templated() {
+                    log::trace!(
+                        "RENDER [{}]> '{}' with context: {:#?}",
+                        group.name,
+                        self.as_ref().display(),
+                        group.context,
+                    );
+                    self.render(&group.context)?
+                } else {
+                    log::trace!(
+                        "RENDER::SKIP [{}]> '{}'",
+                        group.name,
+                        self.as_ref().display(),
+                    );
+                    std::fs::read(self.as_ref())?
+                };
                 if let Ok(dest_content) = std::fs::read(tpath.as_ref()) {
                     if src_content == dest_content {
                         log::trace!(
@@ -501,7 +516,7 @@ where
                     );
                 }
 
-                if tpath.as_ref().exists() && !group.get_allow_overwrite() {
+                if tpath.as_ref().exists() && !group.is_overwrite_allowed() {
                     log::warn!(
                         "SYNC::SKIP [{}]> Target path ('{}') exists while `allow_overwrite` is set to false",
                         group.name,
@@ -523,7 +538,22 @@ where
                     // existing target file.
 
                     // Render the template
-                    let src_content: Vec<u8> = self.render(&group.context)?;
+                    let src_content: Vec<u8> = if group.is_templated() {
+                        log::trace!(
+                            "RENDER [{}]> '{}' with context: {:#?}",
+                            group.name,
+                            self.as_ref().display(),
+                            group.context,
+                        );
+                        self.render(&group.context)?
+                    } else {
+                        log::trace!(
+                            "RENDER::SKIP [{}]> '{}'",
+                            group.name,
+                            self.as_ref().display(),
+                        );
+                        std::fs::read(self.as_ref())?
+                    };
                     if let Ok(dest_content) = std::fs::read(&staging_path) {
                         if src_content == dest_content {
                             log::trace!(
@@ -655,7 +685,7 @@ where
             Some(group.get_renaming_rules()),
         )?;
         if tpath.as_ref().exists() {
-            if group.get_allow_overwrite() {
+            if group.is_overwrite_allowed() {
                 if tpath.as_ref().is_dir() {
                     log::error!(
                         "DRYRUN [{}]> A directory ('{}') exists at the target path of a source file ('{}')",
