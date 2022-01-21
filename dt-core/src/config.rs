@@ -36,9 +36,7 @@ impl FromStr for DTConfig {
 
     /// Loads configuration from string.
     fn from_str(s: &str) -> Result<Self> {
-        let mut ret = toml::from_str::<Self>(s)?;
-        ret.expand_tilde();
-        ret.validate()
+        toml::from_str::<Self>(s)?.expand_tilde().validate()
     }
 }
 
@@ -181,9 +179,11 @@ impl DTConfig {
         Ok(ret)
     }
 
-    fn expand_tilde(&mut self) {
+    fn expand_tilde(self) -> Self {
+        let mut ret = self;
+
         // Expand tilde in `global.staging`
-        if let Some(ref mut global) = self.global {
+        if let Some(ref mut global) = ret.global {
             if let Some(ref mut staging) = global.staging {
                 *staging = PathBuf::from_str(&shellexpand::tilde(
                     staging.to_str().unwrap(),
@@ -198,7 +198,7 @@ impl DTConfig {
         }
 
         // Expand tilde in fields of `local`
-        for ref mut group in &mut self.local {
+        for ref mut group in &mut ret.local {
             // `local.basedir`
             group.basedir = PathBuf::from_str(&shellexpand::tilde(
                 group.basedir.to_str().unwrap(),
@@ -221,6 +221,8 @@ impl DTConfig {
                 )
             });
         }
+
+        ret
     }
 }
 
