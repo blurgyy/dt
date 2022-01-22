@@ -206,7 +206,7 @@ where
     /// let targetbase: PathBuf = "/path/to/target".into();
     ///
     /// assert_eq!(
-    ///     itm.make_target("@@", basedir, targetbase, None)?,
+    ///     itm.make_target("@@", basedir, targetbase, vec![])?,
     ///     PathBuf::from_str("/path/to/target/item").unwrap(),
     /// );
     /// # Ok::<(), AppError>(())
@@ -233,7 +233,7 @@ where
     /// ];
     ///
     /// assert_eq!(
-    ///     itm.make_target("@@", basedir, targetbase, Some(rules))?,
+    ///     itm.make_target("@@", basedir, targetbase, rules)?,
     ///     PathBuf::from_str("/path/to/target/.item").unwrap(),
     /// );
     /// # Ok::<(), AppError>(())
@@ -267,7 +267,7 @@ where
     /// ];
     ///
     /// assert_eq!(
-    ///     itm.make_target("@@", basedir, targetbase, Some(rules))?,
+    ///     itm.make_target("@@", basedir, targetbase, rules)?,
     ///     PathBuf::from_str("/path/to/target/_dotted_item.ext").unwrap(),
     /// );
     /// # Ok::<(), AppError>(())
@@ -294,7 +294,7 @@ where
     ///     substitution: ".${prefix}.".into(),
     /// };
     /// assert_eq!(
-    ///     itm.make_target("@@", &basedir, &targetbase, Some(vec![named_capture]))?,
+    ///     itm.make_target("@@", &basedir, &targetbase, vec![named_capture])?,
     ///     PathBuf::from_str("/path/to/target/.dot.item.ext").unwrap(),
     /// );
     ///
@@ -305,7 +305,7 @@ where
     ///     substitution: "_${1}_${0}".into(),
     /// };
     /// assert_eq!(
-    ///     itm.make_target("@@", basedir, targetbase, Some(vec![numbered_capture]))?,
+    ///     itm.make_target("@@", basedir, targetbase, vec![numbered_capture])?,
     ///     PathBuf::from_str("/path/to/target/_dot_item_ext_.ext").unwrap(),
     /// );
     /// # Ok::<(), AppError>(())
@@ -317,7 +317,7 @@ where
         hostname_sep: &str,
         basedir: T,
         targetbase: T,
-        renaming_rules: Option<Vec<RenamingRule>>,
+        renaming_rules: Vec<RenamingRule>,
     ) -> Result<Self>
     where
         T: Into<PathBuf> + AsRef<Path>,
@@ -333,26 +333,24 @@ where
         let mut tail = nhself.as_ref().strip_prefix(basedir)?.to_owned();
 
         // Apply renaming rules to the tail component
-        if let Some(renaming_rules) = renaming_rules {
-            for rr in renaming_rules {
-                log::trace!("Processing renaming rule: {:#?}", rr);
-                log::trace!("Before renaming: '{}'", tail.display());
+        for rr in renaming_rules {
+            log::trace!("Processing renaming rule: {:#?}", rr);
+            log::trace!("Before renaming: '{}'", tail.display());
 
-                let RenamingRule {
-                    pattern,
-                    substitution,
-                } = rr;
-                tail = tail
-                    .iter()
-                    .map(|comp| {
-                        pattern
-                            .replace(comp.to_str().unwrap(), &substitution)
-                            .into_owned()
-                    })
-                    .collect();
+            let RenamingRule {
+                pattern,
+                substitution,
+            } = rr;
+            tail = tail
+                .iter()
+                .map(|comp| {
+                    pattern
+                        .replace(comp.to_str().unwrap(), &substitution)
+                        .into_owned()
+                })
+                .collect();
 
-                log::trace!("After renaming: '{}'", tail.display());
-            }
+            log::trace!("After renaming: '{}'", tail.display());
         }
 
         // The target is the target base appended with `tail`
@@ -397,7 +395,7 @@ where
             &group.get_hostname_sep(),
             &group.basedir,
             &group.target,
-            Some(group.get_renaming_rules()),
+            group.get_renaming_rules(),
         )?;
         std::fs::create_dir_all(tpath.as_ref().parent().unwrap())?;
 
@@ -492,13 +490,8 @@ where
                 let staging_path = self.make_target(
                     &group.get_hostname_sep(),
                     &group.basedir,
-                    &group
-                        .global
-                        .staging
-                        .as_ref()
-                        .unwrap()
-                        .join(PathBuf::from(&group.name)),
-                    None, // Do not apply renaming on staging path
+                    &group.global.staging.0.join(PathBuf::from(&group.name)),
+                    Vec::new(), // Do not apply renaming on staging path
                 )?;
                 std::fs::create_dir_all(
                     staging_path.as_ref().parent().unwrap(),
@@ -682,7 +675,7 @@ where
             &group.get_hostname_sep(),
             &group.basedir,
             &group.target,
-            Some(group.get_renaming_rules()),
+            group.get_renaming_rules(),
         )?;
         if tpath.as_ref().exists() {
             if group.is_overwrite_allowed() {

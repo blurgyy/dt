@@ -10,29 +10,59 @@ use serde::{Deserialize, Serialize};
 use serde_regex;
 use serde_tuple::Deserialize_tuple;
 
-use crate::{
-    error::{Error as AppError, Result},
-    utils::default_staging_path,
-};
+use crate::error::{Error as AppError, Result};
 
-/// Fallback value for config key [`hostname_sep`]
-///
-/// [`hostname_sep`]: GlobalConfig::hostname_sep
-pub const DEFAULT_HOSTNAME_SEPARATOR: &str = "@@";
-/// Fallback value for config key [`allow_overwrite`]
-///
-/// [`allow_overwrite`]: GlobalConfig::allow_overwrite
-pub const DEFAULT_ALLOW_OVERWRITE: bool = false;
-/// Fallback value for config key [`templated`]
-///
-/// [`templated`]: GlobalConfig::templated
-pub const DEFAULT_TEMPLATED: bool = false;
+/// Helper type for config key `staging`
+#[derive(Clone, Debug, Deserialize)]
+pub struct StagingPath(pub PathBuf);
+impl Default for StagingPath {
+    fn default() -> Self {
+        if let Some(cache_dir) = dirs::data_dir() {
+            Self(cache_dir.join("dt").join("staging"))
+        } else {
+            panic!("Cannot infer default staging directory, set either XDG_DATA_HOME or HOME to solve this.");
+        }
+    }
+}
+/// Helper type for config key `allow_overwrite`
+#[derive(Clone, Copy, Debug, Deserialize)]
+pub struct AllowOverwrite(pub bool);
+impl Default for AllowOverwrite {
+    fn default() -> Self {
+        Self(false)
+    }
+}
+/// Helper type for config key `hostname_sep`
+#[derive(Clone, Debug, Deserialize)]
+pub struct HostnameSeparator(pub String);
+impl Default for HostnameSeparator {
+    fn default() -> Self {
+        Self("@@".to_owned())
+    }
+}
+/// Helper type for conig key `templated`
+#[derive(Clone, Debug, Deserialize)]
+pub struct RenamingRules(pub Vec<RenamingRule>);
+impl Default for RenamingRules {
+    fn default() -> Self {
+        Self(Vec::new())
+    }
+}
+/// Helper type for conig key `templated`
+#[derive(Clone, Copy, Debug, Deserialize)]
+pub struct IsTemplated(pub bool);
+impl Default for IsTemplated {
+    fn default() -> Self {
+        Self(false)
+    }
+}
 
 /// The configuration object constructed from configuration file.
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct DTConfig {
     /// (Optional) Sets fallback behaviours.
-    pub global: Option<GlobalConfig>,
+    #[serde(default)]
+    pub global: GlobalConfig,
 
     /// (Optional) Defines values for templating.
     pub context: Option<ContextConfig>,
@@ -76,14 +106,11 @@ impl DTConfig {
     }
 
     /// Validates config object **without** touching the filesystem.  After
-    /// this, the [sanitize]d original `global` and `context` sections are
-    /// referenced by each group via an Rc and can be safely ignored in
-    /// further processing.
-    ///
-    /// [sanitize]: GlobalConfig::sanitize
+    /// this, the original `global` and `context` sections are referenced
+    /// by each group via an Rc and can be safely ignored in further
+    /// processing.
     fn validate(self) -> Result<Self> {
-        let global_ref =
-            Rc::new(self.global.to_owned().unwrap_or_default().sanitize());
+        let global_ref = Rc::new(self.global.to_owned());
         let context_ref =
             Rc::new(self.context.to_owned().unwrap_or_default());
 
@@ -202,19 +229,18 @@ impl DTConfig {
         let mut ret = self;
 
         // Expand tilde in `global.staging`
-        if let Some(ref mut global) = ret.global {
-            if let Some(ref mut staging) = global.staging {
-                *staging = PathBuf::from_str(&shellexpand::tilde(
-                    staging.to_str().unwrap(),
-                ))
-                .unwrap_or_else(|_| {
-                    panic!(
-                        "Failed expanding tilde in `global.staging` ({})",
-                        staging.display(),
-                    )
-                });
-            }
-        }
+        let ref mut staging = ret.global.staging;
+        *staging = StagingPath(
+            PathBuf::from_str(&shellexpand::tilde(
+                staging.0.to_str().unwrap(),
+            ))
+            .unwrap_or_else(|_| {
+                panic!(
+                    "Failed expanding tilde in `global.staging` ({})",
+                    staging.0.display(),
+                )
+            }),
+        );
 
         // Expand tilde in fields of `local`
         for ref mut group in &mut ret.local {
@@ -477,7 +503,7 @@ pub struct LocalGroup {
     /// ".git" will be skipped.
     ///
     /// Cannot contain slash in any of the patterns.
-    pub ignored: Option<Vec<String>>,
+    pub ignored: Option<RenamingRules>,
 
     /// (Optional) Separator for per-host settings, default to `@@`.
     ///
@@ -527,12 +553,12 @@ pub struct LocalGroup {
     ///
     /// Where `/tmp/sshconfig/config` mirrors the content of
     /// `~/.ssh/config@watson`.
-    pub hostname_sep: Option<String>,
+    pub hostname_sep: Option<HostnameSeparator>,
 
     /// (Optional) Whether to allow overwriting existing files.  Dead
     /// symlinks are treated as non-existing, and are always overwrited
     /// (regardless of this option).
-    pub allow_overwrite: Option<bool>,
+    pub allow_overwrite: Option<AllowOverwrite>,
 
     /// (Optional) Syncing method, overrides [`global.method`] key.
     ///
@@ -542,7 +568,8 @@ pub struct LocalGroup {
     /// (Optional) Renaming rules, appends to [`global.rename`].
     ///
     /// [`global.rename`]: GlobalConfig::rename
-    pub rename: Option<Vec<RenamingRule>>,
+    #[serde(default)]
+    pub rename: RenamingRules,
 
     /// (Optional) Whether to enable templating, overrides
     /// [`global.templated`] key.
@@ -558,11 +585,8 @@ impl LocalGroup {
     /// [`allow_overwrite`]: LocalGroup::allow_overwrite
     pub fn is_overwrite_allowed(&self) -> bool {
         match self.allow_overwrite {
-            Some(allow_overwrite) => allow_overwrite,
-            _ => self
-                .global
-                .allow_overwrite
-                .unwrap_or(DEFAULT_ALLOW_OVERWRITE),
+            Some(allow_overwrite) => allow_overwrite.0,
+            _ => self.global.allow_overwrite.0,
         }
     }
 
@@ -573,7 +597,7 @@ impl LocalGroup {
     pub fn get_method(&self) -> SyncMethod {
         match self.method {
             Some(method) => method,
-            _ => self.global.method.unwrap_or_default(),
+            _ => self.global.method,
         }
     }
 
@@ -583,12 +607,8 @@ impl LocalGroup {
     /// [`hostname_sep`]: LocalGroup::hostname_sep
     pub fn get_hostname_sep(&self) -> String {
         match &self.hostname_sep {
-            Some(hostname_sep) => hostname_sep.to_owned(),
-            _ => self
-                .global
-                .hostname_sep
-                .to_owned()
-                .unwrap_or_else(|| DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
+            Some(hostname_sep) => hostname_sep.0.to_owned(),
+            _ => self.global.hostname_sep.0.to_owned(),
         }
     }
 
@@ -602,15 +622,11 @@ impl LocalGroup {
     /// [`DTItem::make_target`]: crate::item::DTItem::make_target
     pub fn get_renaming_rules(&self) -> Vec<RenamingRule> {
         let mut ret: Vec<RenamingRule> = Vec::new();
-        if let Some(ref global_renaming_rules) = self.global.rename {
-            for rs in global_renaming_rules {
-                ret.push(rs.to_owned());
-            }
+        for r in &self.global.rename.0 {
+            ret.push(r.to_owned());
         }
-        if let Some(ref group_renaming_rules) = self.rename {
-            for rs in group_renaming_rules {
-                ret.push(rs.to_owned());
-            }
+        for r in &self.rename.0 {
+            ret.push(r.to_owned());
         }
         ret
     }
@@ -622,13 +638,13 @@ impl LocalGroup {
     pub fn is_templated(&self) -> bool {
         match self.templated {
             Some(templated) => templated,
-            None => self.global.templated.unwrap_or(DEFAULT_TEMPLATED),
+            None => self.global.templated.0,
         }
     }
 }
 
 /// Configures default behaviours.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 pub struct GlobalConfig {
     /// The staging root directory.
     ///
@@ -645,7 +661,8 @@ pub struct GlobalConfig {
     ///
     /// [`method`]: GlobalConfig::method
     /// [`Symlink`]: SyncMethod::Symlink
-    pub staging: Option<PathBuf>,
+    #[serde(default)]
+    pub staging: StagingPath,
 
     /// The syncing method.
     ///
@@ -661,7 +678,8 @@ pub struct GlobalConfig {
     /// [`staging`]: GlobalConfig::staging
     /// [`Copy`]: SyncMethod::Copy
     /// [`Symlink`]: SyncMethod::Symlink
-    pub method: Option<SyncMethod>,
+    #[serde(default)]
+    pub method: SyncMethod,
 
     /// Whether to allow overwriting existing files.
     ///
@@ -670,14 +688,16 @@ pub struct GlobalConfig {
     /// file exists; otherwise reports error and skips the existing item.
     /// Using dry run to spot the existing files before syncing is
     /// recommended.
-    pub allow_overwrite: Option<bool>,
+    #[serde(default)]
+    pub allow_overwrite: AllowOverwrite,
 
     /// The hostname separator.
     ///
     /// Specifies default value when [`LocalGroup::hostname_sep`] is not set.
     ///
     /// [`LocalGroup::hostname_sep`]: LocalGroup::hostname_sep
-    pub hostname_sep: Option<String>,
+    #[serde(default)]
+    pub hostname_sep: HostnameSeparator,
 
     /// Global item renaming rules.
     ///
@@ -685,50 +705,16 @@ pub struct GlobalConfig {
     /// See [`LocalGroup::rename`].
     ///
     /// [`LocalGroup::rename`]: LocalGroup::rename
-    pub rename: Option<Vec<RenamingRule>>,
+    #[serde(default)]
+    pub rename: RenamingRules,
 
     /// Whether to enable templating.
     ///
     /// If set to `true`, handlebar-based templating syntax is parsed,
     /// otherwise files are populated with contents unmodified.  Groups can
     /// have their own `templated` settings and override this global value.
-    pub templated: Option<bool>,
-}
-
-impl Default for GlobalConfig {
-    fn default() -> Self {
-        GlobalConfig {
-            staging: Some(default_staging_path()),
-            method: Some(SyncMethod::default()),
-            allow_overwrite: Some(DEFAULT_ALLOW_OVERWRITE),
-            hostname_sep: Some(DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
-            rename: None,
-            templated: Some(DEFAULT_TEMPLATED),
-        }
-    }
-}
-
-impl GlobalConfig {
-    /// Generate a [`GlobalConfig`], such that every `None` value from `self`
-    /// is replaced with a [default] value.
-    ///
-    /// [`GlobalConfig`]: GlobalConfig
-    /// [default]: GlobalConfig::default
-    pub fn sanitize(self) -> Self {
-        GlobalConfig {
-            staging: Some(self.staging.unwrap_or_else(default_staging_path)),
-            method: Some(self.method.unwrap_or_default()),
-            allow_overwrite: Some(
-                self.allow_overwrite.unwrap_or(DEFAULT_ALLOW_OVERWRITE),
-            ),
-            hostname_sep: Some(
-                self.hostname_sep
-                    .unwrap_or_else(|| DEFAULT_HOSTNAME_SEPARATOR.to_owned()),
-            ),
-            rename: self.rename,
-            templated: Some(self.templated.unwrap_or(DEFAULT_TEMPLATED)),
-        }
-    }
+    #[serde(default)]
+    pub templated: IsTemplated,
 }
 
 /// Syncing methods.
@@ -873,7 +859,7 @@ mod tilde_expansion {
         let config = DTConfig::from_path(PathBuf::from_str(
             "../testroot/configs/config/tilde_expansion-all.toml",
         )?)?;
-        assert_eq!(config.global.unwrap().staging, dirs::home_dir());
+        assert_eq!(Some(config.global.staging.0), dirs::home_dir());
         config.local.iter().all(|group| {
             assert_eq!(Some(group.to_owned().basedir), dirs::home_dir());
             assert_eq!(

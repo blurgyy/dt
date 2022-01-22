@@ -26,7 +26,7 @@ fn expand(config: DTConfig) -> Result<DTConfig> {
         // Remove `global` and `context` in expanded configuration object.
         // Further references of these two values are referenced via Rc from
         // within groups.
-        global: None,
+        global: config.global,
         context: None,
         local: Vec::new(),
     };
@@ -214,7 +214,7 @@ fn resolve(config: DTConfig) -> Result<DTConfig> {
                 &config.local[i].get_hostname_sep(),
                 &config.local[i].basedir,
                 &config.local[i].target,
-                Some(config.local[i].get_renaming_rules()),
+                config.local[i].get_renaming_rules(),
             )?;
             match mapping.get(&t) {
                 Some(prev_group_idx) => {
@@ -253,7 +253,7 @@ fn resolve(config: DTConfig) -> Result<DTConfig> {
                                 &group.get_hostname_sep(),
                                 &group.basedir,
                                 &group.target,
-                                Some(group.get_renaming_rules()),
+                                group.get_renaming_rules(),
                             )
                             .unwrap();
                         let best_id = *mapping.get(&t).unwrap();
@@ -278,8 +278,7 @@ fn check(config: &DTConfig) -> Result<()> {
             // [global] section.
             has_symlink = true;
 
-            let staging_path: PathBuf =
-                group.global.staging.to_owned().unwrap_or_default();
+            let staging_path: PathBuf = group.global.staging.0.to_owned();
 
             // Wrong type of existing staging path
             if staging_path.exists() && !staging_path.is_dir() {
