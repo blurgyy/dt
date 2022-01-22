@@ -14,6 +14,8 @@ pub enum Error {
     RenderingError(String),
     /// Errors that may occur during syncing.
     SyncingError(String),
+    /// Errors that occur while registering templates
+    TemplatingError(String),
 }
 
 /// Result type used across the application.
@@ -41,6 +43,9 @@ impl fmt::Display for Error {
             }
             Error::SyncingError(ref msg) => {
                 write!(f, "Syncing Error: {}", msg)
+            }
+            Error::TemplatingError(ref msg) => {
+                write!(f, "Templating Error: {}", msg)
             }
         }
     }
@@ -71,14 +76,14 @@ impl From<handlebars::RenderError> for Error {
         Self::RenderingError(err.to_string())
     }
 }
-impl From<handlebars::TemplateError> for Error {
-    fn from(err: handlebars::TemplateError) -> Self {
-        Self::RenderingError(err.to_string())
-    }
-}
 impl From<std::str::Utf8Error> for Error {
     fn from(err: std::str::Utf8Error) -> Self {
         Self::RenderingError(err.to_string())
+    }
+}
+impl From<handlebars::TemplateError> for Error {
+    fn from(err: handlebars::TemplateError) -> Self {
+        Self::TemplatingError(err.to_string())
     }
 }
 

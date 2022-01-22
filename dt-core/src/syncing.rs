@@ -4,6 +4,9 @@ use std::{
     rc::Rc,
 };
 
+use content_inspector::inspect;
+use handlebars::Handlebars;
+
 use crate::error::{Error as AppError, Result};
 use crate::{config::*, item::DTItem};
 
@@ -329,6 +332,33 @@ fn check(config: &DTConfig) -> Result<()> {
     Ok(())
 }
 
+/// Reads source files from templated groups and register them as templates.
+fn register_templates(config: &DTConfig) -> Result<Handlebars> {
+    let mut registry = Handlebars::new();
+
+    for group in &config.local {
+        if group.is_templated() {
+            for s in &group.sources {
+                if let Ok(content) = std::fs::read(s) {
+                    if inspect(&content).is_text() {
+                        registry.register_template_string(
+                            s.to_str().unwrap(),
+                            std::str::from_utf8(&content)?,
+                        )?;
+                    } else {
+                        log::trace!(
+                            "'{}' seems to have binary contents, it will not be rendered",
+                            s.display(),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(registry)
+}
+
 /// Syncs items specified with given configuration object.
 pub fn sync(config: DTConfig, dry_run: bool) -> Result<()> {
     if config.local.is_empty() {
@@ -338,8 +368,9 @@ pub fn sync(config: DTConfig, dry_run: bool) -> Result<()> {
     log::trace!("Local groups to process: {:#?}", config.local);
 
     let config = expand(config)?;
+    let registry = Rc::new(register_templates(&config)?);
 
-    for group in config.local {
+    for group in &config.local {
         log::info!("Local group: [{}]", group.name);
         if group.sources.is_empty() {
             log::debug!(
@@ -365,7 +396,8 @@ pub fn sync(config: DTConfig, dry_run: bool) -> Result<()> {
             if dry_run {
                 spath.populate_dry(Rc::clone(&group_ref))?;
             } else {
-                spath.populate(Rc::clone(&group_ref))?;
+                spath
+                    .populate(Rc::clone(&group_ref), Rc::clone(&registry))?;
             }
         }
     }

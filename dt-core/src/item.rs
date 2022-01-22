@@ -3,7 +3,6 @@ use std::{
     rc::Rc,
 };
 
-use content_inspector::inspect;
 use handlebars::Handlebars;
 use path_clean::PathClean;
 use serde::Serialize;
@@ -371,25 +370,30 @@ where
     /// [`content_inspector`]: https://crates.io/crates/content_inspector
     /// [the crate's home page]: https://github.com/sharkdp/content_inspector
     // TODO: Add `force_rendering` or something to also render binary files.
-    fn render<S: Serialize>(&self, ctx: &Rc<S>) -> Result<Vec<u8>> {
+    fn render<S: Serialize>(
+        &self,
+        registry: &Rc<Handlebars>,
+        ctx: &Rc<S>,
+    ) -> Result<Vec<u8>> {
         let name = self.as_ref().to_str().unwrap();
-        let mut env = Handlebars::new();
-        let original_content = std::fs::read(self.as_ref())?;
-        if inspect(&original_content).is_text() {
-            env.register_template_string(
-                name,
-                std::str::from_utf8(&original_content)?,
-            )?;
-            Ok(env.render(name, &**ctx)?.into())
-            // Ok(env.get_template(name)?.render(&**ctx)?.into())
+        if registry.get_template(name).is_some() {
+            Ok(registry.render(name, &**ctx)?.into())
         } else {
-            Ok(original_content)
+            log::debug!(
+                "'{}' was not registered as a template, maybe because it's content is binary?",
+                self.as_ref().display(),
+            );
+            Ok(std::fs::read(self.as_ref())?)
         }
     }
 
     /// Populate this item with given group config.  The given group config is
     /// expected to be the group where this item belongs to.
-    fn populate(&self, group: Rc<LocalGroup>) -> Result<()> {
+    fn populate(
+        &self,
+        group: Rc<LocalGroup>,
+        registry: Rc<Handlebars>,
+    ) -> Result<()> {
         // Create possibly missing parent directories along target's path.
         let tpath = self.make_target(
             &group.get_hostname_sep(),
@@ -428,7 +432,7 @@ where
                         self.as_ref().display(),
                         group.context,
                     );
-                    self.render(&group.context)?
+                    self.render(&registry, &group.context)?
                 } else {
                     log::trace!(
                         "RENDER::SKIP [{}]> '{}'",
@@ -538,7 +542,7 @@ where
                             self.as_ref().display(),
                             group.context,
                         );
-                        self.render(&group.context)?
+                        self.render(&registry, &group.context)?
                     } else {
                         log::trace!(
                             "RENDER::SKIP [{}]> '{}'",
