@@ -441,7 +441,10 @@ where
                     );
                     std::fs::read(self.as_ref())?
                 };
+
                 if let Ok(dest_content) = std::fs::read(tpath.as_ref()) {
+                    // Check target file's contents, if it has identical
+                    // contents as self, there is no need to write to it.
                     if src_content == dest_content {
                         log::trace!(
                             "SYNC::COPY::SKIP [{}]> '{}' has identical content as '{}'",
@@ -452,6 +455,10 @@ where
                     } else if std::fs::write(tpath.as_ref(), &src_content)
                         .is_err()
                     {
+                        // Contents of target file differs from content of
+                        // self, but writing to it failed.  It might be due to
+                        // target file being readonly. Attempt to remove it
+                        // and try again.
                         log::warn!(
                             "SYNC::COPY::OVERWRITE [{}]> '{}' seems to be readonly, trying to remove it first ..",
                             group.name,
@@ -467,6 +474,9 @@ where
                         std::fs::write(tpath.as_ref(), src_content)?;
                     }
                 } else if tpath.as_ref().exists() {
+                    // If read of target file failed but it does exist, then
+                    // the target file is probably unreadable. Attempt to
+                    // remove it first, then write contents to `tpath`.
                     log::warn!(
                         "SYNC::COPY::OVERWRITE [{}]> Could not read content of target file ('{}'), trying to remove it first ..",
                         group.name,
@@ -480,7 +490,10 @@ where
                         tpath.as_ref().display(),
                     );
                     std::fs::write(tpath.as_ref(), src_content)?;
-                } else {
+                }
+                // If the target file does not exist --- this is the simplest
+                // case --- we just write the contents to `tpath`.
+                else {
                     log::trace!(
                         "SYNC::COPY [{}]> '{}' => '{}'",
                         group.name,
@@ -488,6 +501,13 @@ where
                         tpath.as_ref().display(),
                     );
                     std::fs::write(tpath.as_ref(), src_content)?;
+                }
+
+                // Copy permissions to target if permission bits do not match.
+                let src_perm = self.as_ref().metadata()?.permissions();
+                let dest_perm = tpath.as_ref().metadata()?.permissions();
+                if dest_perm != src_perm {
+                    std::fs::set_permissions(tpath.as_ref(), src_perm)?;
                 }
             }
             SyncMethod::Symlink => {
@@ -551,7 +571,10 @@ where
                         );
                         std::fs::read(self.as_ref())?
                     };
+
                     if let Ok(dest_content) = std::fs::read(&staging_path) {
+                        // Check staging file's contents, if it has identical
+                        // contents as self, there is no need to write to it.
                         if src_content == dest_content {
                             log::trace!(
                                 "SYNC::STAGE::SKIP [{}]> '{}' has identical content as '{}'",
@@ -565,6 +588,10 @@ where
                         )
                         .is_err()
                         {
+                            // Contents of staging file differs from content
+                            // of self, but writing to it failed.  It might be
+                            // due to staging file being readonly. Attempt to
+                            // remove it and try again.
                             log::warn!(
                                 "SYNC::STAGE::OVERWRITE [{}]> '{}' seems to be readonly, trying to remove it first ..",
                                 group.name,
@@ -582,11 +609,11 @@ where
                                 src_content,
                             )?;
                         }
-                    }
-                    // If read of staging file failed but it does exist, then
-                    // the staging file is probably unreadable, so try to
-                    // remove it first, then copy content to `staging_path`.
-                    else if staging_path.as_ref().exists() {
+                    } else if staging_path.as_ref().exists() {
+                        // If read of staging file failed but it does exist,
+                        // then the staging file is probably unreadable.
+                        // Attempt to remove it first, then write contents to
+                        // `staging_path`.
                         log::warn!(
                             "SYNC::STAGE::OVERWRITE [{}]> Could not read content of staging file ('{}'), trying to remove it first ..",
                             group.name,
@@ -602,7 +629,7 @@ where
                         std::fs::write(staging_path.as_ref(), src_content)?;
                     }
                     // If the staging file does not exist --- this is the
-                    // simplest case --- we just copy this file to the
+                    // simplest case --- we just write the contents to
                     // `staging_path`.
                     else {
                         log::trace!(
@@ -612,6 +639,14 @@ where
                             staging_path.as_ref().display(),
                         );
                         std::fs::write(staging_path.as_ref(), src_content)?;
+                    }
+
+                    // Copy permissions to staging file if permission bits do
+                    // not match.
+                    let src_perm = self.as_ref().metadata()?.permissions();
+                    let dest_perm = tpath.as_ref().metadata()?.permissions();
+                    if dest_perm != src_perm {
+                        std::fs::set_permissions(tpath.as_ref(), src_perm)?;
                     }
 
                     // 2. Symlinking
