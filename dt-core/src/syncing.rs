@@ -299,7 +299,7 @@ fn check(config: &DTConfig) -> Result<()> {
         for s in &group.sources {
             if std::fs::File::open(s).is_err() {
                 return Err(AppError::ConfigError(format!(
-                    "there exists one or more source item(s) that is not readable in group '{}'",
+                    "there exists a source item that is not readable in group '{}'",
                     group.name,
                 )));
             }
@@ -643,7 +643,7 @@ mod invalid_configs {
             assert_eq!(
                 err,
                 AppError::ConfigError(
-                    "there exists one or more source item(s) that is not readable in group 'source is unreadable'"
+                    "there exists a source item that is not readable in group 'source is unreadable'"
                         .to_owned(),
                 ),
                 "{}",
