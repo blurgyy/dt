@@ -4,6 +4,9 @@ use std::{
     rc::Rc,
 };
 
+use content_inspector::inspect;
+use handlebars::Handlebars;
+
 use crate::error::{Error as AppError, Result};
 use crate::{config::*, item::DTItem};
 
@@ -26,7 +29,7 @@ fn expand(config: DTConfig) -> Result<DTConfig> {
         // Remove `global` and `context` in expanded configuration object.
         // Further references of these two values are referenced via Rc from
         // within groups.
-        global: None,
+        global: config.global,
         context: None,
         local: Vec::new(),
     };
@@ -214,7 +217,7 @@ fn resolve(config: DTConfig) -> Result<DTConfig> {
                 &config.local[i].get_hostname_sep(),
                 &config.local[i].basedir,
                 &config.local[i].target,
-                Some(config.local[i].get_renaming_rules()),
+                config.local[i].get_renaming_rules(),
             )?;
             match mapping.get(&t) {
                 Some(prev_group_idx) => {
@@ -253,7 +256,7 @@ fn resolve(config: DTConfig) -> Result<DTConfig> {
                                 &group.get_hostname_sep(),
                                 &group.basedir,
                                 &group.target,
-                                Some(group.get_renaming_rules()),
+                                group.get_renaming_rules(),
                             )
                             .unwrap();
                         let best_id = *mapping.get(&t).unwrap();
@@ -271,13 +274,30 @@ fn resolve(config: DTConfig) -> Result<DTConfig> {
 /// Checks validity of the given `config`.
 fn check(config: &DTConfig) -> Result<()> {
     let mut has_symlink: bool = false;
-    let mut staging_path: PathBuf = "/".into();
 
     for group in &config.local {
         if !has_symlink && group.get_method() == SyncMethod::Symlink {
+            // Check staging path once, because `staging` is only set in the
+            // [global] section.
             has_symlink = true;
-            staging_path =
-                group.global.staging.to_owned().unwrap_or_default();
+
+            let staging_path: PathBuf = group.global.staging.0.to_owned();
+
+            // Wrong type of existing staging path
+            if staging_path.exists() && !staging_path.is_dir() {
+                return Err(AppError::ConfigError(
+                    "staging root path exists but is not a valid directory"
+                        .to_owned(),
+                ));
+            }
+
+            // Path to staging root contains readonly parent directory
+            if staging_path.parent_readonly() {
+                return Err(AppError::ConfigError(
+                    "staging root path cannot be created due to insufficient permissions"
+                        .to_owned(),
+                ));
+            }
         }
 
         // Wrong type of existing target path
@@ -297,16 +317,9 @@ fn check(config: &DTConfig) -> Result<()> {
         }
 
         for s in &group.sources {
-            // Ignore cargo-clippy warnings here, since using
-            // ```rust
-            // std::fs::File::open(s)?;
-            // ```
-            // here will result in an IoError, while in this context, a
-            // ConfigError should be thrown.
-            #[allow(clippy::question_mark)]
             if std::fs::File::open(s).is_err() {
                 return Err(AppError::ConfigError(format!(
-                    "there exists one or more source item(s) that is not readable in group '{}'",
+                    "there exists a source item that is not readable in group '{}'",
                     group.name,
                 )));
             }
@@ -316,25 +329,34 @@ fn check(config: &DTConfig) -> Result<()> {
         }
     }
 
-    if has_symlink {
-        // Wrong type of existing staging path
-        if staging_path.exists() && !staging_path.is_dir() {
-            return Err(AppError::ConfigError(
-                "staging root path exists but is not a valid directory"
-                    .to_owned(),
-            ));
-        }
+    Ok(())
+}
 
-        // Path to staging root contains readonly parent directory
-        if staging_path.parent_readonly() {
-            return Err(AppError::ConfigError(
-                "staging root path cannot be created due to insufficient permissions"
-                    .to_owned(),
-            ));
+/// Reads source files from templated groups and register them as templates.
+fn register_templates(config: &DTConfig) -> Result<Handlebars> {
+    let mut registry = Handlebars::new();
+
+    for group in &config.local {
+        if group.is_templated() {
+            for s in &group.sources {
+                if let Ok(content) = std::fs::read(s) {
+                    if inspect(&content).is_text() {
+                        registry.register_template_string(
+                            s.to_str().unwrap(),
+                            std::str::from_utf8(&content)?,
+                        )?;
+                    } else {
+                        log::trace!(
+                            "'{}' seems to have binary contents, it will not be rendered",
+                            s.display(),
+                        );
+                    }
+                }
+            }
         }
     }
 
-    Ok(())
+    Ok(registry)
 }
 
 /// Syncs items specified with given configuration object.
@@ -346,8 +368,9 @@ pub fn sync(config: DTConfig, dry_run: bool) -> Result<()> {
     log::trace!("Local groups to process: {:#?}", config.local);
 
     let config = expand(config)?;
+    let registry = Rc::new(register_templates(&config)?);
 
-    for group in config.local {
+    for group in &config.local {
         log::info!("Local group: [{}]", group.name);
         if group.sources.is_empty() {
             log::debug!(
@@ -373,7 +396,8 @@ pub fn sync(config: DTConfig, dry_run: bool) -> Result<()> {
             if dry_run {
                 spath.populate_dry(Rc::clone(&group_ref))?;
             } else {
-                spath.populate(Rc::clone(&group_ref))?;
+                spath
+                    .populate(Rc::clone(&group_ref), Rc::clone(&registry))?;
             }
         }
     }
@@ -650,7 +674,7 @@ mod invalid_configs {
             assert_eq!(
                 err,
                 AppError::ConfigError(
-                    "there exists one or more source item(s) that is not readable in group 'source is unreadable'"
+                    "there exists a source item that is not readable in group 'source is unreadable'"
                         .to_owned(),
                 ),
                 "{}",

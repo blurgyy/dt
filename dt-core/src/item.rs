@@ -3,8 +3,7 @@ use std::{
     rc::Rc,
 };
 
-use content_inspector::inspect;
-use minijinja::Environment;
+use handlebars::Handlebars;
 use path_clean::PathClean;
 use serde::Serialize;
 
@@ -206,7 +205,7 @@ where
     /// let targetbase: PathBuf = "/path/to/target".into();
     ///
     /// assert_eq!(
-    ///     itm.make_target("@@", basedir, targetbase, None)?,
+    ///     itm.make_target("@@", basedir, targetbase, vec![])?,
     ///     PathBuf::from_str("/path/to/target/item").unwrap(),
     /// );
     /// # Ok::<(), AppError>(())
@@ -233,7 +232,7 @@ where
     /// ];
     ///
     /// assert_eq!(
-    ///     itm.make_target("@@", basedir, targetbase, Some(rules))?,
+    ///     itm.make_target("@@", basedir, targetbase, rules)?,
     ///     PathBuf::from_str("/path/to/target/.item").unwrap(),
     /// );
     /// # Ok::<(), AppError>(())
@@ -267,7 +266,7 @@ where
     /// ];
     ///
     /// assert_eq!(
-    ///     itm.make_target("@@", basedir, targetbase, Some(rules))?,
+    ///     itm.make_target("@@", basedir, targetbase, rules)?,
     ///     PathBuf::from_str("/path/to/target/_dotted_item.ext").unwrap(),
     /// );
     /// # Ok::<(), AppError>(())
@@ -294,7 +293,7 @@ where
     ///     substitution: ".${prefix}.".into(),
     /// };
     /// assert_eq!(
-    ///     itm.make_target("@@", &basedir, &targetbase, Some(vec![named_capture]))?,
+    ///     itm.make_target("@@", &basedir, &targetbase, vec![named_capture])?,
     ///     PathBuf::from_str("/path/to/target/.dot.item.ext").unwrap(),
     /// );
     ///
@@ -305,7 +304,7 @@ where
     ///     substitution: "_${1}_${0}".into(),
     /// };
     /// assert_eq!(
-    ///     itm.make_target("@@", basedir, targetbase, Some(vec![numbered_capture]))?,
+    ///     itm.make_target("@@", basedir, targetbase, vec![numbered_capture])?,
     ///     PathBuf::from_str("/path/to/target/_dot_item_ext_.ext").unwrap(),
     /// );
     /// # Ok::<(), AppError>(())
@@ -317,7 +316,7 @@ where
         hostname_sep: &str,
         basedir: T,
         targetbase: T,
-        renaming_rules: Option<Vec<RenamingRule>>,
+        renaming_rules: Vec<RenamingRule>,
     ) -> Result<Self>
     where
         T: Into<PathBuf> + AsRef<Path>,
@@ -333,26 +332,24 @@ where
         let mut tail = nhself.as_ref().strip_prefix(basedir)?.to_owned();
 
         // Apply renaming rules to the tail component
-        if let Some(renaming_rules) = renaming_rules {
-            for rr in renaming_rules {
-                log::trace!("Processing renaming rule: {:#?}", rr);
-                log::trace!("Before renaming: '{}'", tail.display());
+        for rr in renaming_rules {
+            log::trace!("Processing renaming rule: {:#?}", rr);
+            log::trace!("Before renaming: '{}'", tail.display());
 
-                let RenamingRule {
-                    pattern,
-                    substitution,
-                } = rr;
-                tail = tail
-                    .iter()
-                    .map(|comp| {
-                        pattern
-                            .replace(comp.to_str().unwrap(), &substitution)
-                            .into_owned()
-                    })
-                    .collect();
+            let RenamingRule {
+                pattern,
+                substitution,
+            } = rr;
+            tail = tail
+                .iter()
+                .map(|comp| {
+                    pattern
+                        .replace(comp.to_str().unwrap(), &substitution)
+                        .into_owned()
+                })
+                .collect();
 
-                log::trace!("After renaming: '{}'", tail.display());
-            }
+            log::trace!("After renaming: '{}'", tail.display());
         }
 
         // The target is the target base appended with `tail`
@@ -373,27 +370,36 @@ where
     /// [`content_inspector`]: https://crates.io/crates/content_inspector
     /// [the crate's home page]: https://github.com/sharkdp/content_inspector
     // TODO: Add `force_rendering` or something to also render binary files.
-    fn render<S: Serialize>(&self, ctx: &Rc<S>) -> Result<Vec<u8>> {
+    fn render<S: Serialize>(
+        &self,
+        registry: &Rc<Handlebars>,
+        ctx: &Rc<S>,
+    ) -> Result<Vec<u8>> {
         let name = self.as_ref().to_str().unwrap();
-        let mut env = Environment::new();
-        let original_content = std::fs::read(self.as_ref())?;
-        if inspect(&original_content).is_text() {
-            env.add_template(name, std::str::from_utf8(&original_content)?)?;
-            Ok(env.get_template(name)?.render(&**ctx)?.into())
+        if registry.get_template(name).is_some() {
+            Ok(registry.render(name, &**ctx)?.into())
         } else {
-            Ok(original_content)
+            log::debug!(
+                "'{}' was not registered as a template, maybe because it's content is binary?",
+                self.as_ref().display(),
+            );
+            Ok(std::fs::read(self.as_ref())?)
         }
     }
 
     /// Populate this item with given group config.  The given group config is
     /// expected to be the group where this item belongs to.
-    fn populate(&self, group: Rc<LocalGroup>) -> Result<()> {
+    fn populate(
+        &self,
+        group: Rc<LocalGroup>,
+        registry: Rc<Handlebars>,
+    ) -> Result<()> {
         // Create possibly missing parent directories along target's path.
         let tpath = self.make_target(
             &group.get_hostname_sep(),
             &group.basedir,
             &group.target,
-            Some(group.get_renaming_rules()),
+            group.get_renaming_rules(),
         )?;
         std::fs::create_dir_all(tpath.as_ref().parent().unwrap())?;
 
@@ -419,8 +425,26 @@ where
                     std::fs::remove_file(tpath.as_ref())?;
                 }
                 // Render the template
-                let src_content: Vec<u8> = self.render(&group.context)?;
+                let src_content: Vec<u8> = if group.is_templated() {
+                    log::trace!(
+                        "RENDER [{}]> '{}' with context: {:#?}",
+                        group.name,
+                        self.as_ref().display(),
+                        group.context,
+                    );
+                    self.render(&registry, &group.context)?
+                } else {
+                    log::trace!(
+                        "RENDER::SKIP [{}]> '{}'",
+                        group.name,
+                        self.as_ref().display(),
+                    );
+                    std::fs::read(self.as_ref())?
+                };
+
                 if let Ok(dest_content) = std::fs::read(tpath.as_ref()) {
+                    // Check target file's contents, if it has identical
+                    // contents as self, there is no need to write to it.
                     if src_content == dest_content {
                         log::trace!(
                             "SYNC::COPY::SKIP [{}]> '{}' has identical content as '{}'",
@@ -431,6 +455,10 @@ where
                     } else if std::fs::write(tpath.as_ref(), &src_content)
                         .is_err()
                     {
+                        // Contents of target file differs from content of
+                        // self, but writing to it failed.  It might be due to
+                        // target file being readonly. Attempt to remove it
+                        // and try again.
                         log::warn!(
                             "SYNC::COPY::OVERWRITE [{}]> '{}' seems to be readonly, trying to remove it first ..",
                             group.name,
@@ -446,6 +474,9 @@ where
                         std::fs::write(tpath.as_ref(), src_content)?;
                     }
                 } else if tpath.as_ref().exists() {
+                    // If read of target file failed but it does exist, then
+                    // the target file is probably unreadable. Attempt to
+                    // remove it first, then write contents to `tpath`.
                     log::warn!(
                         "SYNC::COPY::OVERWRITE [{}]> Could not read content of target file ('{}'), trying to remove it first ..",
                         group.name,
@@ -459,7 +490,10 @@ where
                         tpath.as_ref().display(),
                     );
                     std::fs::write(tpath.as_ref(), src_content)?;
-                } else {
+                }
+                // If the target file does not exist --- this is the simplest
+                // case --- we just write the contents to `tpath`.
+                else {
                     log::trace!(
                         "SYNC::COPY [{}]> '{}' => '{}'",
                         group.name,
@@ -468,18 +502,20 @@ where
                     );
                     std::fs::write(tpath.as_ref(), src_content)?;
                 }
+
+                // Copy permissions to target if permission bits do not match.
+                let src_perm = self.as_ref().metadata()?.permissions();
+                let dest_perm = tpath.as_ref().metadata()?.permissions();
+                if dest_perm != src_perm {
+                    std::fs::set_permissions(tpath.as_ref(), src_perm)?;
+                }
             }
             SyncMethod::Symlink => {
                 let staging_path = self.make_target(
                     &group.get_hostname_sep(),
                     &group.basedir,
-                    &group
-                        .global
-                        .staging
-                        .as_ref()
-                        .unwrap()
-                        .join(PathBuf::from(&group.name)),
-                    None, // Do not apply renaming on staging path
+                    &group.global.staging.0.join(PathBuf::from(&group.name)),
+                    Vec::new(), // Do not apply renaming on staging path
                 )?;
                 std::fs::create_dir_all(
                     staging_path.as_ref().parent().unwrap(),
@@ -497,7 +533,7 @@ where
                     );
                 }
 
-                if tpath.as_ref().exists() && !group.get_allow_overwrite() {
+                if tpath.as_ref().exists() && !group.is_overwrite_allowed() {
                     log::warn!(
                         "SYNC::SKIP [{}]> Target path ('{}') exists while `allow_overwrite` is set to false",
                         group.name,
@@ -519,8 +555,26 @@ where
                     // existing target file.
 
                     // Render the template
-                    let src_content: Vec<u8> = self.render(&group.context)?;
+                    let src_content: Vec<u8> = if group.is_templated() {
+                        log::trace!(
+                            "RENDER [{}]> '{}' with context: {:#?}",
+                            group.name,
+                            self.as_ref().display(),
+                            group.context,
+                        );
+                        self.render(&registry, &group.context)?
+                    } else {
+                        log::trace!(
+                            "RENDER::SKIP [{}]> '{}'",
+                            group.name,
+                            self.as_ref().display(),
+                        );
+                        std::fs::read(self.as_ref())?
+                    };
+
                     if let Ok(dest_content) = std::fs::read(&staging_path) {
+                        // Check staging file's contents, if it has identical
+                        // contents as self, there is no need to write to it.
                         if src_content == dest_content {
                             log::trace!(
                                 "SYNC::STAGE::SKIP [{}]> '{}' has identical content as '{}'",
@@ -534,6 +588,10 @@ where
                         )
                         .is_err()
                         {
+                            // Contents of staging file differs from content
+                            // of self, but writing to it failed.  It might be
+                            // due to staging file being readonly. Attempt to
+                            // remove it and try again.
                             log::warn!(
                                 "SYNC::STAGE::OVERWRITE [{}]> '{}' seems to be readonly, trying to remove it first ..",
                                 group.name,
@@ -551,11 +609,11 @@ where
                                 src_content,
                             )?;
                         }
-                    }
-                    // If read of staging file failed but it does exist, then
-                    // the staging file is probably unreadable, so try to
-                    // remove it first, then copy content to `staging_path`.
-                    else if staging_path.as_ref().exists() {
+                    } else if staging_path.as_ref().exists() {
+                        // If read of staging file failed but it does exist,
+                        // then the staging file is probably unreadable.
+                        // Attempt to remove it first, then write contents to
+                        // `staging_path`.
                         log::warn!(
                             "SYNC::STAGE::OVERWRITE [{}]> Could not read content of staging file ('{}'), trying to remove it first ..",
                             group.name,
@@ -571,7 +629,7 @@ where
                         std::fs::write(staging_path.as_ref(), src_content)?;
                     }
                     // If the staging file does not exist --- this is the
-                    // simplest case --- we just copy this file to the
+                    // simplest case --- we just write the contents to
                     // `staging_path`.
                     else {
                         log::trace!(
@@ -581,6 +639,14 @@ where
                             staging_path.as_ref().display(),
                         );
                         std::fs::write(staging_path.as_ref(), src_content)?;
+                    }
+
+                    // Copy permissions to staging file if permission bits do
+                    // not match.
+                    let src_perm = self.as_ref().metadata()?.permissions();
+                    let dest_perm = tpath.as_ref().metadata()?.permissions();
+                    if dest_perm != src_perm {
+                        std::fs::set_permissions(tpath.as_ref(), src_perm)?;
                     }
 
                     // 2. Symlinking
@@ -648,10 +714,10 @@ where
             &group.get_hostname_sep(),
             &group.basedir,
             &group.target,
-            Some(group.get_renaming_rules()),
+            group.get_renaming_rules(),
         )?;
         if tpath.as_ref().exists() {
-            if group.get_allow_overwrite() {
+            if group.is_overwrite_allowed() {
                 if tpath.as_ref().is_dir() {
                     log::error!(
                         "DRYRUN [{}]> A directory ('{}') exists at the target path of a source file ('{}')",
