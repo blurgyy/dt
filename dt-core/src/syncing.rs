@@ -271,13 +271,31 @@ fn resolve(config: DTConfig) -> Result<DTConfig> {
 /// Checks validity of the given `config`.
 fn check(config: &DTConfig) -> Result<()> {
     let mut has_symlink: bool = false;
-    let mut staging_path: PathBuf = "/".into();
 
     for group in &config.local {
         if !has_symlink && group.get_method() == SyncMethod::Symlink {
+            // Check staging path once, because `staging` is only set in the
+            // [global] section.
             has_symlink = true;
-            staging_path =
+
+            let staging_path: PathBuf =
                 group.global.staging.to_owned().unwrap_or_default();
+
+            // Wrong type of existing staging path
+            if staging_path.exists() && !staging_path.is_dir() {
+                return Err(AppError::ConfigError(
+                    "staging root path exists but is not a valid directory"
+                        .to_owned(),
+                ));
+            }
+
+            // Path to staging root contains readonly parent directory
+            if staging_path.parent_readonly() {
+                return Err(AppError::ConfigError(
+                    "staging root path cannot be created due to insufficient permissions"
+                        .to_owned(),
+                ));
+            }
         }
 
         // Wrong type of existing target path
@@ -306,24 +324,6 @@ fn check(config: &DTConfig) -> Result<()> {
             if !s.is_file() {
                 unreachable!();
             }
-        }
-    }
-
-    if has_symlink {
-        // Wrong type of existing staging path
-        if staging_path.exists() && !staging_path.is_dir() {
-            return Err(AppError::ConfigError(
-                "staging root path exists but is not a valid directory"
-                    .to_owned(),
-            ));
-        }
-
-        // Path to staging root contains readonly parent directory
-        if staging_path.parent_readonly() {
-            return Err(AppError::ConfigError(
-                "staging root path cannot be created due to insufficient permissions"
-                    .to_owned(),
-            ));
         }
     }
 
