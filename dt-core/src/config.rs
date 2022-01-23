@@ -27,6 +27,7 @@ impl Default for StagingPath {
 /// Helper type for config key `allow_overwrite`
 #[derive(Clone, Copy, Debug, Deserialize)]
 pub struct AllowOverwrite(pub bool);
+#[allow(clippy::derivable_impls)]
 impl Default for AllowOverwrite {
     fn default() -> Self {
         Self(false)
@@ -43,6 +44,7 @@ impl Default for HostnameSeparator {
 /// Helper type for conig key `templated`
 #[derive(Clone, Debug, Deserialize)]
 pub struct RenamingRules(pub Vec<RenamingRule>);
+#[allow(clippy::derivable_impls)]
 impl Default for RenamingRules {
     fn default() -> Self {
         Self(Vec::new())
@@ -51,6 +53,7 @@ impl Default for RenamingRules {
 /// Helper type for conig key `templated`
 #[derive(Clone, Copy, Debug, Deserialize)]
 pub struct IsTemplated(pub bool);
+#[allow(clippy::derivable_impls)]
 impl Default for IsTemplated {
     fn default() -> Self {
         Self(false)
@@ -229,7 +232,7 @@ impl DTConfig {
         let mut ret = self;
 
         // Expand tilde in `global.staging`
-        let ref mut staging = ret.global.staging;
+        let staging = &mut ret.global.staging;
         *staging = StagingPath(
             PathBuf::from_str(&shellexpand::tilde(
                 staging.0.to_str().unwrap(),
