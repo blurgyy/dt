@@ -41,22 +41,13 @@ impl Default for HostnameSeparator {
         Self("@@".to_owned())
     }
 }
-/// Helper type for conig key `templated`
+/// Helper type for conig key `rename`
 #[derive(Clone, Debug, Deserialize)]
 pub struct RenamingRules(pub Vec<RenamingRule>);
 #[allow(clippy::derivable_impls)]
 impl Default for RenamingRules {
     fn default() -> Self {
         Self(Vec::new())
-    }
-}
-/// Helper type for conig key `templated`
-#[derive(Clone, Copy, Debug, Deserialize)]
-pub struct IsTemplated(pub bool);
-#[allow(clippy::derivable_impls)]
-impl Default for IsTemplated {
-    fn default() -> Self {
-        Self(false)
     }
 }
 
@@ -68,7 +59,8 @@ pub struct DTConfig {
     pub global: GlobalConfig,
 
     /// (Optional) Defines values for templating.
-    pub context: Option<ContextConfig>,
+    #[serde(default)]
+    pub context: ContextConfig,
 
     /// Local items groups.
     pub local: Vec<LocalGroup>,
@@ -113,9 +105,14 @@ impl DTConfig {
     /// by each group via an Rc and can be safely ignored in further
     /// processing.
     fn validate(self) -> Result<Self> {
+        if !self.context.0.is_table() {
+            return Err(AppError::ConfigError(
+                "`context` is expected to be a table".to_owned(),
+            ));
+        }
+
         let global_ref = Rc::new(self.global.to_owned());
-        let context_ref =
-            Rc::new(self.context.to_owned().unwrap_or_default());
+        let context_ref = Rc::new(self.context.to_owned());
 
         let mut ret: Self = self;
 
@@ -414,8 +411,9 @@ pub struct LocalGroup {
     #[serde(skip_deserializing)]
     pub global: Rc<GlobalConfig>,
 
-    /// The context config object loaded from config file.  Like [`LocalGroup::global`], this
-    /// field _does not_ appear in the config, but is only used by DT internally.
+    /// The context config object loaded from config file.  Like
+    /// [`LocalGroup::global`], this field _does not_ appear in the
+    /// config, but is only used by DT internally.
     ///
     /// [`LocalGroup::global`]: LocalGroup::global
     #[serde(skip_deserializing)]
@@ -573,12 +571,6 @@ pub struct LocalGroup {
     /// [`global.rename`]: GlobalConfig::rename
     #[serde(default)]
     pub rename: RenamingRules,
-
-    /// (Optional) Whether to enable templating, overrides
-    /// [`global.templated`] key.
-    ///
-    /// [`global.templated`]: GlobalConfig::templated
-    pub templated: Option<bool>,
 }
 
 impl LocalGroup {
@@ -634,14 +626,14 @@ impl LocalGroup {
         ret
     }
 
-    /// Gets the [`templated`] key from a `LocalGroup` object, falls
-    /// back to the [`templated`] from provided global config.
+    /// Check if this group is templated by checking whether the [context]
+    /// section contains this group's name as a key.
     ///
-    /// [`templated`]: LocalGroup::templated
+    /// [context]: DTConfig::context
     pub fn is_templated(&self) -> bool {
-        match self.templated {
-            Some(templated) => templated,
-            None => self.global.templated.0,
+        match self.context.0.as_table() {
+            Some(map) => map.get(&self.name).is_some(),
+            None => false,
         }
     }
 }
@@ -710,14 +702,6 @@ pub struct GlobalConfig {
     /// [`LocalGroup::rename`]: LocalGroup::rename
     #[serde(default)]
     pub rename: RenamingRules,
-
-    /// Whether to enable templating.
-    ///
-    /// If set to `true`, handlebar-based templating syntax is parsed,
-    /// otherwise files are populated with contents unmodified.  Groups can
-    /// have their own `templated` settings and override this global value.
-    #[serde(default)]
-    pub templated: IsTemplated,
 }
 
 /// Syncing methods.

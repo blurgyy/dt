@@ -30,7 +30,7 @@ fn expand(config: DTConfig) -> Result<DTConfig> {
         // Further references of these two values are referenced via Rc from
         // within groups.
         global: config.global,
-        context: None,
+        context: config.context,
         local: Vec::new(),
     };
 
