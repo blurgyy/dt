@@ -41,7 +41,7 @@ impl Default for HostnameSeparator {
         Self("@@".to_owned())
     }
 }
-/// Helper type for conig key `rename`
+/// Helper type for config key `rename`
 #[derive(Clone, Debug, Deserialize)]
 pub struct RenamingRules(pub Vec<RenamingRule>);
 #[allow(clippy::derivable_impls)]
