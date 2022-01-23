@@ -1,4 +1,5 @@
 use std::{
+    os::unix::prelude::PermissionsExt,
     path::{Path, PathBuf},
     rc::Rc,
 };
@@ -507,6 +508,12 @@ where
                 let src_perm = self.as_ref().metadata()?.permissions();
                 let dest_perm = tpath.as_ref().metadata()?.permissions();
                 if dest_perm != src_perm {
+                    log::trace!(
+                        "SYNC::COPY::SETPERM [{}]> source('{:o}') => target('{:o}')",
+                        group.name,
+                        src_perm.mode(),
+                        dest_perm.mode()
+                    );
                     std::fs::set_permissions(tpath.as_ref(), src_perm)?;
                 }
             }
@@ -644,9 +651,19 @@ where
                     // Copy permissions to staging file if permission bits do
                     // not match.
                     let src_perm = self.as_ref().metadata()?.permissions();
-                    let dest_perm = tpath.as_ref().metadata()?.permissions();
+                    let dest_perm =
+                        staging_path.as_ref().metadata()?.permissions();
                     if dest_perm != src_perm {
-                        std::fs::set_permissions(tpath.as_ref(), src_perm)?;
+                        log::trace!(
+                            "SYNC::STAGE::SETPERM [{}]> source('{:o}') => staging('{:o}')",
+                            group.name,
+                            src_perm.mode(),
+                            dest_perm.mode()
+                        );
+                        std::fs::set_permissions(
+                            staging_path.as_ref(),
+                            src_perm,
+                        )?;
                     }
 
                     // 2. Symlinking
