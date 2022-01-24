@@ -374,12 +374,6 @@ impl Default for DTScope {
     }
 }
 
-impl<'a> Default for &'a DTScope {
-    fn default() -> &'a DTScope {
-        &DTScope::General
-    }
-}
-
 /// A single enaming rule, used for configuring differente names between
 /// source items and their target.
 #[derive(Clone, Debug, Deserialize_tuple)]

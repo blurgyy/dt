@@ -210,9 +210,8 @@ fn resolve(config: DTConfig) -> Result<DTConfig> {
 
     // Get each item's highest priority group.
     for i in 0..config.local.len() {
-        let current_priority =
-            config.local[i].scope.as_ref().unwrap_or_default();
-        for ref mut s in &config.local[i].sources {
+        let current_priority = &config.local[i].scope;
+        for s in &config.local[i].sources {
             let t = s.make_target(
                 &config.local[i].get_hostname_sep(),
                 &config.local[i].basedir,
@@ -221,10 +220,7 @@ fn resolve(config: DTConfig) -> Result<DTConfig> {
             )?;
             match mapping.get(&t) {
                 Some(prev_group_idx) => {
-                    let prev_priority = config.local[*prev_group_idx]
-                        .scope
-                        .as_ref()
-                        .unwrap_or_default();
+                    let prev_priority = &config.local[*prev_group_idx].scope;
                     // Only replace group index when current group has
                     // strictly higher priority than previous group, thus
                     // achieving "former defined groups of the same scope have
