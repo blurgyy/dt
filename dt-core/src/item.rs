@@ -14,7 +14,7 @@ use crate::{
     utils,
 };
 
-/// Defines behaviours for an item (a path) used in [DT].
+/// Defines shared behaviours for an item (a path to a file) used in [DT].
 ///
 /// [DT]: https://github.com/blurgyy/dt
 pub trait DTItem<'a>
@@ -118,7 +118,7 @@ where
 
     /// Converts a path to a non-host-specific path.  If the input path is
     /// already non-host-specific, returns itself;  Otherwise returns a
-    /// path where every component of the path is converted to a
+    /// path where _every component_ of the path is converted to a
     /// non-host-specific one.
     ///
     /// # Example
@@ -185,7 +185,7 @@ where
     }
 
     /// Given a `hostname_sep`, a `basedir`, a `targetbase`, and optionally a
-    /// list of [renaming rules], create the path where `self` would be synced
+    /// list of [renaming rule]s, create the path where `self` would be synced
     /// to.  Renaming rules are applied after host-specific suffixes are
     /// stripped.
     ///
@@ -311,7 +311,7 @@ where
     /// # Ok::<(), AppError>(())
     /// ```
     ///
-    /// [renaming rules]: crate::config::RenamingRule
+    /// [renaming rule]: crate::config::RenamingRule
     fn make_target<T>(
         &self,
         hostname_sep: &str,

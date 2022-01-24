@@ -10,11 +10,12 @@ use handlebars::Handlebars;
 use crate::error::{Error as AppError, Result};
 use crate::{config::*, item::DTItem};
 
-/// Expands tilde and globs in [`sources`], returns new config object.
+/// Expands tildes and globs in [`sources`], returns the updated config
+/// object.
 ///
 /// It does the following operations on given config:
 ///
-/// 1. Convert all [`basedir`]s, [`target`]s in `[[local]]` to absolute paths.
+/// 1. Convert all [`basedir`]s, [`target`]s to absolute paths.
 /// 2. Replace [`basedir`]s and paths in [`sources`] with their host-specific
 ///    counterpart, if there exists any.
 /// 3. Recursively expand globs and directories in [`sources`].
@@ -105,7 +106,7 @@ fn expand(config: DTConfig) -> Result<DTConfig> {
     Ok(ret)
 }
 
-/// Recursively expands a given path.
+/// Recursively expands glob from a given path.
 ///
 /// - If `do_glob` is `true`, trys to expand glob;
 /// - If `do_glob` is `false`, `path` must be a directory, then children of
@@ -199,10 +200,8 @@ fn expand_recursive(
     }
 }
 
-/// Resolve priorities within expanded ret, this function is called before
-/// [`check`] because it does not have to query the filesystem.
-///
-/// [`check`]: check
+/// Resolve priorities within expanded [`DTConfig`], this function is called
+/// before [`check`] because it does not have to query the filesystem.
 fn resolve(config: DTConfig) -> Result<DTConfig> {
     // Maps an item to the index of the group which holds the highest priority
     // of it.
@@ -267,7 +266,7 @@ fn resolve(config: DTConfig) -> Result<DTConfig> {
     })
 }
 
-/// Checks validity of the given `config`.
+/// Checks validity of the given [DTConfig].
 fn check(config: &DTConfig) -> Result<()> {
     let mut has_symlink: bool = false;
 
@@ -328,7 +327,8 @@ fn check(config: &DTConfig) -> Result<()> {
     Ok(())
 }
 
-/// Reads source files from templated groups and register them as templates.
+/// Reads source files from templated groups and register them as templates
+/// into a global registry.
 fn register_templates(config: &DTConfig) -> Result<Handlebars> {
     let mut registry = Handlebars::new();
 
@@ -355,7 +355,7 @@ fn register_templates(config: &DTConfig) -> Result<Handlebars> {
     Ok(registry)
 }
 
-/// Syncs items specified with given configuration object.
+/// Syncs items specified with given [DTConfig].
 pub fn sync(config: DTConfig, dry_run: bool) -> Result<()> {
     if config.local.is_empty() {
         log::warn!("Nothing to be synced");
@@ -399,8 +399,6 @@ pub fn sync(config: DTConfig, dry_run: bool) -> Result<()> {
     }
     Ok(())
 }
-
-/// Syncs `spath` to a directory `tparent`, being aware of its base directory.
 
 #[cfg(test)]
 mod invalid_configs {

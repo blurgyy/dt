@@ -1,24 +1,25 @@
 use std::fmt;
 
+/// Error definitions to use across the library.
 #[derive(Debug, PartialEq)]
 pub enum Error {
     /// Errors that occur when a config is deemed as invalid.
     ConfigError(String),
-    /// Errors that may occur during I/O operations.
+    /// Errors that occur during I/O operations.
     IoError(String),
     /// Errors that occur while parsing of structures failes.
     ParseError(String),
-    /// Errors that may occur while manipulating paths.
+    /// Errors that occur while manipulating paths.
     PathError(String),
     /// Errors that occur while rendering templates.
     RenderingError(String),
-    /// Errors that may occur during syncing.
+    /// Errors that occur during syncing.
     SyncingError(String),
     /// Errors that occur while registering templates
     TemplatingError(String),
 }
 
-/// Result type used across the application.
+/// `Result` type to use across the library.
 pub type Result<T> = std::result::Result<T, Error>;
 
 impl std::error::Error for Error {}

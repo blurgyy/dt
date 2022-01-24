@@ -12,7 +12,9 @@ use serde_tuple::Deserialize_tuple;
 
 use crate::error::{Error as AppError, Result};
 
-/// Helper type for config key `staging`
+/// Helper type for config key [`staging`]
+///
+/// [`staging`]: GlobalConfig::staging
 #[derive(Clone, Debug, Deserialize)]
 pub struct StagingPath(pub PathBuf);
 impl Default for StagingPath {
@@ -25,6 +27,8 @@ impl Default for StagingPath {
     }
 }
 /// Helper type for config key `allow_overwrite`
+///
+/// [`allow_overwrite`]: GlobalConfig::allow_overwrite
 #[derive(Clone, Copy, Debug, Deserialize)]
 pub struct AllowOverwrite(pub bool);
 #[allow(clippy::derivable_impls)]
@@ -34,6 +38,8 @@ impl Default for AllowOverwrite {
     }
 }
 /// Helper type for config key `hostname_sep`
+///
+/// [`hostname_sep`]: GlobalConfig::hostname_sep
 #[derive(Clone, Debug, Deserialize)]
 pub struct HostnameSeparator(pub String);
 impl Default for HostnameSeparator {
@@ -42,6 +48,8 @@ impl Default for HostnameSeparator {
     }
 }
 /// Helper type for config key `rename`
+///
+/// [`rename`]: GlobalConfig::rename
 #[derive(Clone, Debug, Deserialize)]
 pub struct RenamingRules(pub Vec<RenamingRule>);
 #[allow(clippy::derivable_impls)]
@@ -50,8 +58,25 @@ impl Default for RenamingRules {
         Self(Vec::new())
     }
 }
+/// Syncing methods.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
+pub enum SyncMethod {
+    /// Instructs syncing module to directly copy each item from source to
+    /// target.
+    Copy,
 
-/// The configuration object constructed from configuration file.
+    /// Instructs syncing module to first copy iach item from source to its
+    /// staging directory, then symlink staged items from their staging
+    /// directory to target.
+    Symlink,
+}
+impl Default for SyncMethod {
+    fn default() -> Self {
+        SyncMethod::Symlink
+    }
+}
+
+/// The configuration object deserialized from configuration file.
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct DTConfig {
     /// (Optional) Sets fallback behaviours.
@@ -62,7 +87,7 @@ pub struct DTConfig {
     #[serde(default)]
     pub context: ContextConfig,
 
-    /// Local items groups.
+    /// Groups for local files.
     pub local: Vec<LocalGroup>,
 }
 
@@ -85,8 +110,8 @@ impl DTConfig {
         Self::from_str(&confstr)
     }
 
-    /// Construct another [`DTConfig`] object with only groups with matched
-    /// names remaining.
+    /// Construct another [`DTConfig`] object with only groups with given
+    /// names remaining, unmatched given names are ignored.
     pub fn filter_names(self, group_names: Vec<String>) -> Self {
         Self {
             global: self.global,
@@ -102,8 +127,10 @@ impl DTConfig {
 
     /// Validates config object **without** touching the filesystem.  After
     /// this, the original `global` and `context` sections are referenced
-    /// by each group via an Rc and can be safely ignored in further
+    /// by each group via an [Rc] and can be safely ignored in further
     /// processing.
+    ///
+    /// [Rc]: std::rc::Rc
     fn validate(self) -> Result<Self> {
         if !self.context.0.is_table() {
             return Err(AppError::ConfigError(
@@ -242,8 +269,8 @@ impl DTConfig {
             }),
         );
 
-        // Expand tilde in fields of `local`
-        for ref mut group in &mut ret.local {
+        // Expand tilde in `basedir` and `target` of `local`
+        for group in &mut ret.local {
             // `local.basedir`
             group.basedir = PathBuf::from_str(&shellexpand::tilde(
                 group.basedir.to_str().unwrap(),
@@ -279,7 +306,7 @@ impl DTConfig {
 /// [`Dropin`] > [`App`] > [`General`]
 ///
 /// Within the same scope, the first defined group in the config file for DT
-/// has the highest priority, later defined groups have lower priority.
+/// has the highest priority, later defined groups have lower priorities.
 ///
 /// Groups without a given scope are treated as of [`General`] scope.
 ///
@@ -374,16 +401,16 @@ impl Default for DTScope {
     }
 }
 
-/// A single enaming rule, used for configuring differente names between
-/// source items and their target.
+/// A single renaming rule, used for generating names for target files which
+/// are different from their sources.
 #[derive(Clone, Debug, Deserialize_tuple)]
 pub struct RenamingRule {
-    /// A regular expression, specifies the pattern which item names are
-    /// matched against.  Regular expression's capture groups (named or not)
+    /// A regular expression, specifies the pattern against which item names
+    /// are matched.  Regular expression's capture groups (indexed or named)
     /// are supported.  See the [documentation] for more instructions on
     /// this.
     ///
-    /// [documentation]: https://dt.cli.rs/
+    /// [documentation]: https://dt.cli.rs/features/03-filename-manipulating.html
     #[serde(deserialize_with = "serde_regex::deserialize")]
     pub pattern: Regex,
 
@@ -392,7 +419,7 @@ pub struct RenamingRule {
     pub substitution: String,
 }
 
-/// Configures how local items (files/directories) are synced.
+/// Configures how local files are grouped.
 #[derive(Default, Clone, Deserialize, Debug)]
 pub struct LocalGroup {
     /// The global config object loaded from DT's config file.  This field
@@ -420,7 +447,8 @@ pub struct LocalGroup {
     /// items.  See [`DTScope`] for details.
     ///
     /// [`DTScope`]: DTScope
-    pub scope: Option<DTScope>,
+    #[serde(default)]
+    pub scope: DTScope,
 
     /// The base directory of all source items.  This simplifies
     /// configuration files with common prefixes in the [`sources`]
@@ -696,25 +724,6 @@ pub struct GlobalConfig {
     /// [`LocalGroup::rename`]: LocalGroup::rename
     #[serde(default)]
     pub rename: RenamingRules,
-}
-
-/// Syncing methods.
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
-pub enum SyncMethod {
-    /// Instructs syncing module to directly copy each item from source to
-    /// target.
-    Copy,
-
-    /// Instructs syncing module to first copy iach item from source to its
-    /// staging directory, then symlink staged items from their staging
-    /// directory to target.
-    Symlink,
-}
-
-impl Default for SyncMethod {
-    fn default() -> Self {
-        SyncMethod::Symlink
-    }
 }
 
 /// Templating values are defined in this section.
