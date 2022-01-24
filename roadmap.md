@@ -13,10 +13,11 @@
     - [x] Do not expand tilde in sources, because sources are relative paths
           after making basedir mandatory
 - [x] Add `basedir` to LocalSyncConfig for easier configuring in sources
-- [ ] Manage permission bits on a per-group basis
-  - [x] Handle permission denied error when target file is created by current
-        user but the `write` permission is not set
-  - [ ] Set permissions after all syncing process
+- [ ] ~~Manage permission bits on a per-group basis~~
+  - [x] ~~Handle permission denied error when target file is created by current
+        user but the `write` permission is not set~~
+  - [ ] ~~Set permissions after all syncing process~~
+- [x] Keep target file modes and their corresponding source files identical
 - [x] Return error when `sources` contains `.*` or similar globs, because this
       glob also matches current directory (`.`) and parent directory (`..`)
 - [ ] Expand environment variables in `local.basedir`, `local.sources`,
@@ -67,7 +68,7 @@
       causes some X compositor (like picom) to flash or fail to
       automatically load config file after overwriting
 - [ ] Add `global.include` array to allow including other config files
-- [ ] Templating
+- [x] Templating
 
 ## CLI
 
