@@ -17,7 +17,7 @@ actually ease config file management.
 In `dt-cli`'s config file, add another section with name `[context]`.  Here is
 where the values are set.  We will define the following values:
 
-```toml{4-6,9}
+```toml{5-7,10}
 # Contents of ~/.config/dt/cli.toml
 [global]
 ...
