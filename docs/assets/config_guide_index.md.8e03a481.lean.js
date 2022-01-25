@@ -1,1 +1,0 @@
-import{_ as t,c as e,o as s,a}from"./app.f2490086.js";const h='{"title":"Basics","description":"","frontmatter":{},"relativePath":"config/guide/index.md","lastUpdated":1642688416746}',o={},n=a("",8),i=[n];function c(r,p,d,l,u,g){return s(),e("div",null,i)}var f=t(o,[["render",c]]);export{h as __pageData,f as default};
