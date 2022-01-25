@@ -16,3 +16,5 @@ managing dotfiles.  To be specific, `dt-cli` supports:
   <sub>[[**Examples**](/config/guide/05-priority)]</sub>
 - [Filename Manipulating](03-filename-manipulating)
   <sub>[[**Examples**](/config/guide/06-filename-manipulating)]</sub>
+- [Templating](04-templating)
+  <sub>[[**Examples**](/config/guide/07-templating)]</sub>

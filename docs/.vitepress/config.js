@@ -93,8 +93,12 @@ module.exports = {
               link: "/config/guide/06-filename-manipulating",
             },
             {
+              text: "Templating",
+              link: "/config/guide/07-templating",
+            },
+            {
               text: "Error Handling",
-              link: "/config/guide/07-error-handling",
+              link: "/config/guide/99-error-handling",
             },
           ],
         },
@@ -107,10 +111,6 @@ module.exports = {
         {
           text: "👀 Overview",
           link: "/",
-        },
-        {
-          text: "🚀 Installation",
-          link: "/installation"
         },
         {
           text: "💠 Features",
@@ -128,7 +128,15 @@ module.exports = {
               text: "Filename Manipulating",
               link: "/features/03-filename-manipulating",
             },
+            {
+              text: "Templating",
+              link: "/features/04-templating",
+            },
           ]
+        },
+        {
+          text: "🚀 Installation",
+          link: "/installation"
         },
         {
           text: "📨 Contributing",

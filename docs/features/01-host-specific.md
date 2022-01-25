@@ -1,6 +1,6 @@
 # Host-specific Syncing <sub>[[**Examples**]]</sub>
 
-## Introduction
+## Background
 
 > With more _servers_ there must also come more _configuration files_.
 
