@@ -4,11 +4,14 @@ use std::{
     rc::Rc,
 };
 
-use content_inspector::inspect;
 use handlebars::Handlebars;
 
-use crate::error::{Error as AppError, Result};
-use crate::{config::*, item::DTItem};
+use crate::{
+    config::*,
+    error::{Error as AppError, Result},
+    item::DTItem,
+    registry::DTRegistry,
+};
 
 /// Expands tildes and globs in [`sources`], returns the updated config
 /// object.
@@ -327,34 +330,6 @@ fn check(config: &DTConfig) -> Result<()> {
     Ok(())
 }
 
-/// Reads source files from templated groups and register them as templates
-/// into a global registry.
-fn register_templates(config: &DTConfig) -> Result<Handlebars> {
-    let mut registry = Handlebars::new();
-
-    for group in &config.local {
-        if group.is_templated() {
-            for s in &group.sources {
-                if let Ok(content) = std::fs::read(s) {
-                    if inspect(&content).is_text() {
-                        registry.register_template_string(
-                            s.to_str().unwrap(),
-                            std::str::from_utf8(&content)?,
-                        )?;
-                    } else {
-                        log::trace!(
-                            "'{}' seems to have binary contents, it will not be rendered",
-                            s.display(),
-                        );
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(registry)
-}
-
 /// Syncs items specified with given [DTConfig].
 pub fn sync(config: DTConfig, dry_run: bool) -> Result<()> {
     if config.local.is_empty() {
@@ -364,7 +339,11 @@ pub fn sync(config: DTConfig, dry_run: bool) -> Result<()> {
     log::trace!("Local groups to process: {:#?}", config.local);
 
     let config = expand(config)?;
-    let registry = Rc::new(register_templates(&config)?);
+    let registry = Rc::new(
+        Handlebars::new()
+            .register_templates(&config)?
+            .register_helpers()?,
+    );
 
     for group in &config.local {
         log::info!("Local group: [{}]", group.name);
@@ -737,6 +716,9 @@ mod expansion {
                         .unwrap()
                         .absolute()?,
                     PathBuf::from_str("../dt-core/src/lib.rs")
+                        .unwrap()
+                        .absolute()?,
+                    PathBuf::from_str("../dt-core/src/registry.rs")
                         .unwrap()
                         .absolute()?,
                     PathBuf::from_str("../dt-core/src/syncing.rs")

@@ -16,6 +16,13 @@ pub mod error;
 #[deny(missing_docs)]
 pub mod item;
 
+/// Helper utilites used internally (the [`DTRegistry`] trait) and exposed for
+/// templating uses (additional built-in helpers).
+///
+/// [`DTRegistry`]: registry::DTRegistry
+#[deny(missing_docs)]
+pub mod registry;
+
 /// Definitions for syncing behaviours.
 #[deny(missing_docs)]
 pub mod syncing;
