@@ -50,8 +50,7 @@ fn expand(config: DTConfig) -> Result<DTConfig> {
         let group_hostname_sep = original.get_hostname_sep();
 
         // Check for host-specific `base`
-        let host_specific_base =
-            next.base.host_specific(&group_hostname_sep);
+        let host_specific_base = next.base.host_specific(&group_hostname_sep);
         if host_specific_base.exists() {
             next.base = host_specific_base;
         }
@@ -64,10 +63,7 @@ fn expand(config: DTConfig) -> Result<DTConfig> {
         if next.base.exists() {
             // Check read permission of `base`
             if let Err(e) = std::fs::read_dir(&next.base) {
-                log::error!(
-                    "Could not read base '{}'",
-                    next.base.display(),
-                );
+                log::error!("Could not read base '{}'", next.base.display(),);
                 return Err(e.into());
             }
         }
@@ -380,105 +376,131 @@ pub fn sync(config: DTConfig, dry_run: bool) -> Result<()> {
 }
 
 #[cfg(test)]
-mod invalid_configs {
+mod tests {
     use std::{
-        os::unix::prelude::PermissionsExt, path::PathBuf, str::FromStr,
+        fs::Permissions, os::unix::prelude::PermissionsExt, path::PathBuf,
     };
 
-    use color_eyre::{eyre::eyre, Report};
-    use pretty_assertions::assert_eq;
+    use color_eyre::Report;
 
-    use crate::config::DTConfig;
-    use crate::error::Error as AppError;
+    const TESTROOT: &str = "/tmp/dt-testing/syncing";
+    fn get_testroot() -> PathBuf {
+        TESTROOT.into()
+    }
+    fn prepare_directory(
+        abspath: PathBuf,
+        mode: u32,
+    ) -> Result<PathBuf, Report> {
+        std::fs::create_dir_all(&abspath)?;
+        std::fs::set_permissions(&abspath, Permissions::from_mode(mode))?;
+        Ok(abspath)
+    }
+    fn prepare_file(abspath: PathBuf, mode: u32) -> Result<PathBuf, Report> {
+        if let Some(parent) = abspath.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(
+            &abspath,
+            "Created by: `dt_core::syncing::tests::prepare_file`\n",
+        )?;
+        std::fs::set_permissions(&abspath, Permissions::from_mode(mode))?;
+        Ok(abspath)
+    }
 
-    use super::expand;
+    mod validation {
+        use std::str::FromStr;
 
-    #[test]
-    fn base_unreadable() -> Result<(), Report> {
-        if let Err(err) = expand(DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/syncing/invalid_configs-base_unreadable-not_a_directory.toml",
-        ).unwrap())?) {
-            assert_eq!(
-                err,
-                AppError::IoError(
-                    "Not a directory (os error 20)".to_owned(),
-                ),
-                "{}",
-                err,
-            );
-        } else {
-            return Err(eyre!(
+        use color_eyre::{eyre::eyre, Report};
+        use pretty_assertions::assert_eq;
+
+        use crate::config::DTConfig;
+        use crate::error::Error as AppError;
+
+        use super::{
+            super::expand, get_testroot, prepare_directory, prepare_file,
+        };
+
+        #[test]
+        fn base_unreadable() -> Result<(), Report> {
+            if let Err(err) = expand(
+                DTConfig::from_str(
+                    r#"
+[[local]]
+name = "base unreadable (not a directory)"
+base = "../Cargo.toml"
+sources = []
+target = ".""#,
+                )
+                .unwrap(),
+            ) {
+                assert_eq!(
+                    err,
+                    AppError::IoError(
+                        "Not a directory (os error 20)".to_owned(),
+                    ),
+                    "{}",
+                    err,
+                );
+            } else {
+                return Err(eyre!(
                 "This config should not be loaded because base is not a directory",
             ));
-        }
+            }
 
-        std::fs::set_permissions(
-            PathBuf::from_str(
-                "../testroot/items/syncing/invalid_configs/base_unreadable/base"
-            ).unwrap(),
-            std::fs::Permissions::from_mode(0o333),
-        )?;
-        if let Err(err) = expand(DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/syncing/invalid_configs-base_unreadable-permission_denied.toml",
-        ).unwrap())?) {
-            assert_eq!(
-                err,
-                AppError::IoError(
-                    "Permission denied (os error 13)"
-                        .to_owned(),
-                ),
-                "{}",
-                err,
-            );
-            std::fs::set_permissions(
-                PathBuf::from_str(
-                    "../testroot/items/syncing/invalid_configs/base_unreadable/base"
-                ).unwrap(),
-                std::fs::Permissions::from_mode(0o755),
+            let base = prepare_directory(
+                get_testroot().join("base_unreadable").join("base"),
+                0o311,
             )?;
-        } else {
-            std::fs::set_permissions(
-                PathBuf::from_str(
-                    "../testroot/items/syncing/invalid_configs/base_unreadable/base"
-                ).unwrap(),
-                std::fs::Permissions::from_mode(0o755),
-            )?;
-            return Err(eyre!(
+            if let Err(err) = expand(
+                DTConfig::from_str(&format!(
+                    r#"
+[[local]]
+name = "base unreadable (permission denied)"
+base = "{}"
+sources = []
+target = ".""#,
+                    base.display(),
+                ))
+                .unwrap(),
+            ) {
+                assert_eq!(
+                    err,
+                    AppError::IoError(
+                        "Permission denied (os error 13)".to_owned(),
+                    ),
+                    "{}",
+                    err,
+                );
+            } else {
+                return Err(eyre!(
                 "This config should not be loaded because insufficient permissions to base",
             ));
-        }
+            }
 
-        Ok(())
-    }
-
-    #[test]
-    fn target_is_file_relative() -> Result<(), Report> {
-        if let Err(err) = expand(DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/syncing/invalid_configs-target_is_file_relative.toml",
-        ).unwrap())?) {
-            assert_eq!(
-                err,
-                AppError::ConfigError(
-                    "target path exists but is not a valid directory in group 'target path is relative'"
-                        .to_owned(),
-                ),
-                "{}",
-                err,
-            );
             Ok(())
-        } else {
-            Err(eyre!(
-                "This config should not be loaded because target is not a directory",
-            ))
         }
-    }
 
-    #[test]
-    fn target_is_file_absolute() -> Result<(), Report> {
-        if let Err(err) = expand(DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/syncing/invalid_configs-target_is_file_absolute.toml",
-        ).unwrap())?) {
-            assert_eq!(
+        #[test]
+        fn target_is_file() -> Result<(), Report> {
+            let target_path = prepare_file(
+                get_testroot()
+                    .join("target_is_file")
+                    .join("target-but-file"),
+                0o755,
+            )?;
+            if let Err(err) = expand(
+                DTConfig::from_str(&format!(
+                    r#"
+[[local]]
+name = "target path is absolute"
+base = "."
+sources = []
+target = "{}""#,
+                    target_path.display(),
+                ))
+                .unwrap(),
+            ) {
+                assert_eq!(
                 err,
                 AppError::ConfigError(
                     "target path exists but is not a valid directory in group 'target path is absolute'"
@@ -487,64 +509,37 @@ mod invalid_configs {
                 "{}",
                 err,
             );
-            Ok(())
-        } else {
-            Err(eyre!(
+                Ok(())
+            } else {
+                Err(eyre!(
                 "This config should not be loaded because target is not a directory",
             ))
-        }
-    }
-
-    #[test]
-    fn target_is_file_has_tilde() -> Result<(), Report> {
-        // setup
-        let filepath = dirs::home_dir()
-            .unwrap()
-            .join("d6a8e0bc1647c38548432ccfa1d79355");
-        assert!(
-            !filepath.exists(),
-            "A previous test seems to have aborted abnormally, remove the file '$HOME/d6a8e0bc1647c38548432ccfa1d79355' to continue testing",
-        );
-        std::fs::write(&filepath, "Created by `dt` when testing")?;
-
-        // Read config (expected to fail)
-        if let Err(err) = expand(DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/syncing/invalid_configs-target_is_file_has_tilde.toml",
-        ).unwrap())?) {
-            assert_eq!(
-                err,
-                AppError::ConfigError(
-                    "target path exists but is not a valid directory in group 'target contains tilde to be expanded'"
-                        .to_owned(),
-                ),
-                "{}",
-                err,
-            );
-            // clean up
-            std::fs::remove_file(filepath)?;
-        } else {
-            // clean up
-            std::fs::remove_file(filepath)?;
-            return Err(eyre!(
-                "This config should not be loaded because target is not a directory",
-            ));
+            }
         }
 
-        Ok(())
-    }
+        #[test]
+        fn target_readonly() -> Result<(), Report> {
+            // setup
+            let target_path = prepare_directory(
+                get_testroot()
+                    .join("target_readonly")
+                    .join("target-but-readonly"),
+                0o555,
+            )?;
 
-    #[test]
-    fn target_readonly() -> Result<(), Report> {
-        std::fs::set_permissions(
-            PathBuf::from_str(
-                "../testroot/items/syncing/invalid_configs/target_readonly/target"
-            ).unwrap(),
-            std::fs::Permissions::from_mode(0o555),
-        )?;
-        if let Err(err) = expand(DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/syncing/invalid_configs-target_readonly.toml",
-        ).unwrap())?) {
-            assert_eq!(
+            if let Err(err) = expand(
+                DTConfig::from_str(&format!(
+                    r#"
+[[local]]
+name = "target is readonly"
+base = "~"
+sources = []
+target = "{}""#,
+                    target_path.display(),
+                ))
+                .unwrap(),
+            ) {
+                assert_eq!(
                 err,
                 AppError::ConfigError(
                     "target path cannot be created due to insufficient permissions in group 'target is readonly'"
@@ -553,32 +548,39 @@ mod invalid_configs {
                 "{}",
                 err,
             );
-            std::fs::set_permissions(
-                PathBuf::from_str(
-                    "../testroot/items/syncing/invalid_configs/target_readonly/target"
-                ).unwrap(),
-                std::fs::Permissions::from_mode(0o755),
-            )?;
-            Ok(())
-        } else {
-            std::fs::set_permissions(
-                PathBuf::from_str(
-                    "../testroot/items/syncing/invalid_configs/target_readonly/target"
-                ).unwrap(),
-                std::fs::Permissions::from_mode(0o755),
-            )?;
-            Err(eyre!(
+                Ok(())
+            } else {
+                Err(eyre!(
                 "This config should not be loaded because target path is readonly",
             ))
+            }
         }
-    }
 
-    #[test]
-    fn staging_is_file() -> Result<(), Report> {
-        if let Err(err) = expand(DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/syncing/invalid_configs-staging_is_file.toml",
-        ).unwrap())?) {
-            assert_eq!(
+        #[test]
+        fn staging_is_file() -> Result<(), Report> {
+            let staging_path = prepare_file(
+                get_testroot()
+                    .join("staging_is_file")
+                    .join("staging-but-file"),
+                0o644,
+            )?;
+
+            if let Err(err) = expand(
+                DTConfig::from_str(&format!(
+                    r#"
+[global]
+staging = "{}"
+
+[[local]]
+name = "staging is file"
+base = "~"
+sources = []
+target = ".""#,
+                    staging_path.display(),
+                ))
+                .unwrap(),
+            ) {
+                assert_eq!(
                 err,
                 AppError::ConfigError(
                     "staging root path exists but is not a valid directory"
@@ -587,26 +589,44 @@ mod invalid_configs {
                 "{}",
                 err,
             );
-            Ok(())
-        } else {
-            Err(eyre!(
+                Ok(())
+            } else {
+                Err(eyre!(
                 "This config should not be loaded because target path is readonly",
             ))
+            }
         }
-    }
 
-    #[test]
-    fn staging_readonly() -> Result<(), Report> {
-        std::fs::set_permissions(
-            PathBuf::from_str(
-                "../testroot/items/syncing/invalid_configs/staging_readonly/staging"
-            ).unwrap(),
-            std::fs::Permissions::from_mode(0o555),
-        )?;
-        if let Err(err) = expand(DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/syncing/invalid_configs-staging_readonly.toml",
-        ).unwrap())?) {
-            assert_eq!(
+        #[test]
+        fn staging_readonly() -> Result<(), Report> {
+            let staging_path = prepare_directory(
+                get_testroot()
+                    .join("staging_readonly")
+                    .join("staging-but-readonly"),
+                0o555,
+            )?;
+            let target_path = prepare_directory(
+                get_testroot().join("staging_readonly").join("target"),
+                0o755,
+            )?;
+
+            if let Err(err) = expand(
+                DTConfig::from_str(&format!(
+                    r#"
+[global]
+staging = "{}"
+
+[[local]]
+name = "staging is readonly"
+base = "~"
+sources = []
+target = "{}""#,
+                    staging_path.display(),
+                    target_path.display(),
+                ))
+                .unwrap(),
+            ) {
+                assert_eq!(
                 err,
                 AppError::ConfigError(
                     "staging root path cannot be created due to insufficient permissions"
@@ -615,36 +635,44 @@ mod invalid_configs {
                 "{}",
                 err,
             );
-            std::fs::set_permissions(
-                PathBuf::from_str(
-                    "../testroot/items/syncing/invalid_configs/staging_readonly/staging"
-                ).unwrap(),
-                std::fs::Permissions::from_mode(0o755),
-            )?;
-            Ok(())
-        } else {
-            std::fs::set_permissions(
-                PathBuf::from_str(
-                    "../testroot/items/syncing/invalid_configs/staging_readonly/staging"
-                ).unwrap(),
-                std::fs::Permissions::from_mode(0o755),
-            )?;
-            Err(eyre!(
+                Ok(())
+            } else {
+                Err(eyre!(
                 "This config should not be loaded because staging path is readonly",
             ))
+            }
         }
-    }
 
-    #[test]
-    fn unreadable_source() -> Result<(), Report> {
-        std::fs::set_permissions(
-            "../testroot/items/syncing/invalid_configs/unreadable_source/no_read_access",
-            std::fs::Permissions::from_mode(0o222)
-        )?;
-        if let Err(err) = expand(DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/syncing/invalid_configs-unreadable_source.toml",
-        ).unwrap())?) {
-            assert_eq!(
+        #[test]
+        fn unreadable_source() -> Result<(), Report> {
+            // setup
+            let source_basename = "src-file-but-unreadable";
+            let base = prepare_directory(
+                get_testroot().join("unreadable_source").join("base"),
+                0o755,
+            )?;
+            let _source_path =
+                prepare_file(base.join(source_basename), 0o200)?;
+            let target_path = prepare_directory(
+                get_testroot().join("unreadable_source").join("target"),
+                0o755,
+            )?;
+
+            if let Err(err) = expand(
+                DTConfig::from_str(&format!(
+                    r#"
+[[local]]
+name = "source is unreadable"
+base = "{}"
+sources = ["{}"]
+target = "{}""#,
+                    base.display(),
+                    source_basename,
+                    target_path.display(),
+                ))
+                .unwrap(),
+            ) {
+                assert_eq!(
                 err,
                 AppError::ConfigError(
                     "there exists a source item that is not readable in group 'source is unreadable'"
@@ -653,155 +681,161 @@ mod invalid_configs {
                 "{}",
                 err,
             );
-            std::fs::set_permissions(
-                "../testroot/items/syncing/invalid_configs/unreadable_source/no_read_access",
-                std::fs::Permissions::from_mode(0o644)
+                Ok(())
+            } else {
+                Err(eyre!("This config should not be loaded because source item is not readable"))
+            }
+        }
+    }
+
+    mod expansion {
+        use std::{path::PathBuf, str::FromStr};
+
+        use color_eyre::Report;
+        use pretty_assertions::assert_eq;
+
+        use crate::{config::*, item::DTItem};
+
+        use super::{
+            super::expand, get_testroot, prepare_directory, prepare_file,
+        };
+
+        #[test]
+        fn glob() -> Result<(), Report> {
+            let target_path = prepare_directory(
+                get_testroot().join("glob").join("target"),
+                0o755,
             )?;
+
+            let config = expand(
+                DTConfig::from_str(&format!(
+                    r#"
+[[local]]
+name = "globbing test"
+base = ".."
+sources = ["dt-c*"]
+target = "{}""#,
+                    target_path.display(),
+                ))
+                .unwrap(),
+            )?;
+            for group in &config.local {
+                assert_eq!(
+                    group.sources,
+                    vec![
+                        PathBuf::from_str("../dt-cli/Cargo.toml")
+                            .unwrap()
+                            .absolute()?,
+                        PathBuf::from_str("../dt-cli/README.md")
+                            .unwrap()
+                            .absolute()?,
+                        PathBuf::from_str("../dt-cli/src/main.rs")
+                            .unwrap()
+                            .absolute()?,
+                        PathBuf::from_str("../dt-core/Cargo.toml")
+                            .unwrap()
+                            .absolute()?,
+                        PathBuf::from_str("../dt-core/README.md")
+                            .unwrap()
+                            .absolute()?,
+                        PathBuf::from_str("../dt-core/src/config.rs")
+                            .unwrap()
+                            .absolute()?,
+                        PathBuf::from_str("../dt-core/src/error.rs")
+                            .unwrap()
+                            .absolute()?,
+                        PathBuf::from_str("../dt-core/src/item.rs")
+                            .unwrap()
+                            .absolute()?,
+                        PathBuf::from_str("../dt-core/src/lib.rs")
+                            .unwrap()
+                            .absolute()?,
+                        PathBuf::from_str("../dt-core/src/registry.rs")
+                            .unwrap()
+                            .absolute()?,
+                        PathBuf::from_str("../dt-core/src/syncing.rs")
+                            .unwrap()
+                            .absolute()?,
+                        PathBuf::from_str("../dt-core/src/utils.rs")
+                            .unwrap()
+                            .absolute()?,
+                    ],
+                );
+            }
             Ok(())
-        } else {
-            std::fs::set_permissions(
-                "../testroot/items/syncing/invalid_configs/unreadable_source/no_read_access",
-                std::fs::Permissions::from_mode(0o644)
+        }
+
+        #[test]
+        fn sorting_and_deduping() -> Result<(), Report> {
+            println!("Creating base ..");
+            let base_path = prepare_directory(
+                get_testroot().join("sorting_and_deduping").join("base"),
+                0o755,
             )?;
-            Err(eyre!("This config should not be loaded because source item is not readable"))
+            println!("Creating target ..");
+            let target_path = prepare_directory(
+                get_testroot().join("sorting_and_deduping").join("target"),
+                0o755,
+            )?;
+            for f in ["A-a", "A-b", "A-c", "B-a", "B-b", "B-c"] {
+                println!("Creating source {} ..", f);
+                prepare_file(base_path.join(f), 0o644)?;
+            }
+            println!("Setup complete!");
+
+            let config = expand(
+                DTConfig::from_str(&format!(
+                    r#"
+[[local]]
+name = "sorting and deduping"
+base = "{}"
+sources = ["B-*", "*-c", "A-b", "A-a"]
+target = "{}""#,
+                    base_path.display(),
+                    target_path.display(),
+                ))
+                .unwrap(),
+            )?;
+            for group in config.local {
+                assert_eq!(
+                    group.sources,
+                    vec![
+                        base_path.join("A-a"),
+                        base_path.join("A-b"),
+                        base_path.join("A-c"),
+                        base_path.join("B-a"),
+                        base_path.join("B-b"),
+                        base_path.join("B-c"),
+                    ],
+                );
+            }
+            Ok(())
         }
     }
-}
 
-#[cfg(test)]
-mod expansion {
-    use std::{path::PathBuf, str::FromStr};
+    mod priority_resolving {
+        use std::str::FromStr;
 
-    use color_eyre::Report;
-    use pretty_assertions::assert_eq;
+        use crate::{config::*, error::*, syncing::expand};
 
-    use crate::{config::*, item::DTItem};
+        #[test]
+        fn proper_priority_orders() -> Result<()> {
+            assert!(DTScope::Dropin > DTScope::App);
+            assert!(DTScope::App > DTScope::General);
+            assert!(DTScope::Dropin > DTScope::General);
 
-    use super::expand;
+            assert!(DTScope::App < DTScope::Dropin);
+            assert!(DTScope::General < DTScope::App);
+            assert!(DTScope::General < DTScope::Dropin);
 
-    #[test]
-    fn glob() -> Result<(), Report> {
-        let config = expand(DTConfig::from_path(
-            PathBuf::from_str(
-                "../testroot/configs/syncing/expansion-glob.toml",
-            )
-            .unwrap(),
-        )?)?;
-        for group in &config.local {
-            assert_eq!(
-                group.sources,
-                vec![
-                    PathBuf::from_str("../dt-cli/Cargo.toml")
-                        .unwrap()
-                        .absolute()?,
-                    PathBuf::from_str("../dt-cli/README.md")
-                        .unwrap()
-                        .absolute()?,
-                    PathBuf::from_str("../dt-cli/src/main.rs")
-                        .unwrap()
-                        .absolute()?,
-                    PathBuf::from_str("../dt-core/Cargo.toml")
-                        .unwrap()
-                        .absolute()?,
-                    PathBuf::from_str("../dt-core/README.md")
-                        .unwrap()
-                        .absolute()?,
-                    PathBuf::from_str("../dt-core/src/config.rs")
-                        .unwrap()
-                        .absolute()?,
-                    PathBuf::from_str("../dt-core/src/error.rs")
-                        .unwrap()
-                        .absolute()?,
-                    PathBuf::from_str("../dt-core/src/item.rs")
-                        .unwrap()
-                        .absolute()?,
-                    PathBuf::from_str("../dt-core/src/lib.rs")
-                        .unwrap()
-                        .absolute()?,
-                    PathBuf::from_str("../dt-core/src/registry.rs")
-                        .unwrap()
-                        .absolute()?,
-                    PathBuf::from_str("../dt-core/src/syncing.rs")
-                        .unwrap()
-                        .absolute()?,
-                    PathBuf::from_str("../dt-core/src/utils.rs")
-                        .unwrap()
-                        .absolute()?,
-                ],
-            );
+            Ok(())
         }
-        Ok(())
-    }
 
-    #[test]
-    fn sorting_and_deduping() -> Result<(), Report> {
-        let config = expand(DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/syncing/expansion-sorting_and_deduping.toml",
-        ).unwrap())?)?;
-        for group in config.local {
-            assert_eq!(
-                group.sources,
-                vec![
-                    PathBuf::from_str(
-                        "../testroot/items/sorting_and_deduping/A-a"
-                    )
-                    .unwrap()
-                    .absolute()?,
-                    PathBuf::from_str(
-                        "../testroot/items/sorting_and_deduping/A-b"
-                    )
-                    .unwrap()
-                    .absolute()?,
-                    PathBuf::from_str(
-                        "../testroot/items/sorting_and_deduping/A-c"
-                    )
-                    .unwrap()
-                    .absolute()?,
-                    PathBuf::from_str(
-                        "../testroot/items/sorting_and_deduping/B-a"
-                    )
-                    .unwrap()
-                    .absolute()?,
-                    PathBuf::from_str(
-                        "../testroot/items/sorting_and_deduping/B-b"
-                    )
-                    .unwrap()
-                    .absolute()?,
-                    PathBuf::from_str(
-                        "../testroot/items/sorting_and_deduping/B-c"
-                    )
-                    .unwrap()
-                    .absolute()?,
-                ],
-            );
-        }
-        Ok(())
-    }
-}
-
-#[cfg(test)]
-mod priority_resolving {
-    use std::str::FromStr;
-
-    use crate::{config::*, error::*, syncing::expand};
-
-    #[test]
-    fn proper_priority_orders() -> Result<()> {
-        assert!(DTScope::Dropin > DTScope::App);
-        assert!(DTScope::App > DTScope::General);
-        assert!(DTScope::Dropin > DTScope::General);
-
-        assert!(DTScope::App < DTScope::Dropin);
-        assert!(DTScope::General < DTScope::App);
-        assert!(DTScope::General < DTScope::Dropin);
-
-        Ok(())
-    }
-
-    #[test]
-    fn former_group_has_higher_priority_within_same_scope() -> Result<()> {
-        let config = expand(DTConfig::from_str(
-            r#"
+        #[test]
+        fn former_group_has_higher_priority_within_same_scope() -> Result<()>
+        {
+            let config = expand(DTConfig::from_str(
+                r#"
                 [[local]]
                 name = "highest"
                 # Scope is omitted to use default scope (i.e. General)
@@ -815,18 +849,18 @@ mod priority_resolving {
                 sources = ["Cargo.toml"]
                 target = "."
         "#,
-        )?)?;
+            )?)?;
 
-        assert!(!config.local[0].sources.is_empty());
-        assert!(config.local[1].sources.is_empty());
+            assert!(!config.local[0].sources.is_empty());
+            assert!(config.local[1].sources.is_empty());
 
-        Ok(())
-    }
+            Ok(())
+        }
 
-    #[test]
-    fn dropin_has_highest_priority() -> Result<()> {
-        let config = expand(DTConfig::from_str(
-            r#"
+        #[test]
+        fn dropin_has_highest_priority() -> Result<()> {
+            let config = expand(DTConfig::from_str(
+                r#"
                 [[local]]
                 name = "lowest"
                 scope = "General"
@@ -846,19 +880,19 @@ mod priority_resolving {
                 sources = ["Cargo.toml"]
                 target = "."
             "#,
-        )?)?;
+            )?)?;
 
-        assert!(config.local[0].sources.is_empty());
-        assert!(config.local[1].sources.is_empty());
-        assert!(!config.local[2].sources.is_empty());
+            assert!(config.local[0].sources.is_empty());
+            assert!(config.local[1].sources.is_empty());
+            assert!(!config.local[2].sources.is_empty());
 
-        Ok(())
-    }
+            Ok(())
+        }
 
-    #[test]
-    fn app_has_medium_priority() -> Result<()> {
-        let config = expand(DTConfig::from_str(
-            r#"
+        #[test]
+        fn app_has_medium_priority() -> Result<()> {
+            let config = expand(DTConfig::from_str(
+                r#"
                 [[local]]
                 name = "lowest"
                 scope = "General"
@@ -872,18 +906,18 @@ mod priority_resolving {
                 sources = ["Cargo.toml"]
                 target = "."
             "#,
-        )?)?;
+            )?)?;
 
-        assert!(config.local[0].sources.is_empty());
-        assert!(!config.local[1].sources.is_empty());
+            assert!(config.local[0].sources.is_empty());
+            assert!(!config.local[1].sources.is_empty());
 
-        Ok(())
-    }
+            Ok(())
+        }
 
-    #[test]
-    fn default_scope_is_general() -> Result<()> {
-        let config = expand(DTConfig::from_str(
-            r#"
+        #[test]
+        fn default_scope_is_general() -> Result<()> {
+            let config = expand(DTConfig::from_str(
+                r#"
                 [[local]]
                 name = "omitted scope but defined first, has higher priority"
                 # Scope is omitted to use default scope (i.e. General)
@@ -897,13 +931,13 @@ mod priority_resolving {
                 sources = ["Cargo.toml"]
                 target = "."
             "#,
-        )?)?;
+            )?)?;
 
-        assert!(!config.local[0].sources.is_empty());
-        assert!(config.local[1].sources.is_empty());
+            assert!(!config.local[0].sources.is_empty());
+            assert!(config.local[1].sources.is_empty());
 
-        let config = expand(DTConfig::from_str(
-            r#"
+            let config = expand(DTConfig::from_str(
+                r#"
                 [[local]]
                 name = "omitted scope, uses general"
                 # Scope is omitted to use default scope (i.e. General)
@@ -917,18 +951,18 @@ mod priority_resolving {
                 sources = ["Cargo.toml"]
                 target = "."
             "#,
-        )?)?;
+            )?)?;
 
-        assert!(config.local[0].sources.is_empty());
-        assert!(!config.local[1].sources.is_empty());
+            assert!(config.local[0].sources.is_empty());
+            assert!(!config.local[1].sources.is_empty());
 
-        Ok(())
-    }
+            Ok(())
+        }
 
-    #[test]
-    fn duplicated_item_same_name_same_scope() -> Result<()> {
-        let config = expand(DTConfig::from_str(
-            r#"
+        #[test]
+        fn duplicated_item_same_name_same_scope() -> Result<()> {
+            let config = expand(DTConfig::from_str(
+                r#"
                 [[local]]
                 name = "dup"
                 scope = "General"
@@ -942,18 +976,18 @@ mod priority_resolving {
                 sources = ["Cargo.toml"]
                 target = "."
             "#,
-        )?)?;
+            )?)?;
 
-        assert!(!config.local[0].sources.is_empty());
-        assert!(config.local[1].sources.is_empty());
+            assert!(!config.local[0].sources.is_empty());
+            assert!(config.local[1].sources.is_empty());
 
-        Ok(())
-    }
+            Ok(())
+        }
 
-    #[test]
-    fn duplicated_item_same_name_different_scope() -> Result<()> {
-        let config = expand(DTConfig::from_str(
-            r#"
+        #[test]
+        fn duplicated_item_same_name_different_scope() -> Result<()> {
+            let config = expand(DTConfig::from_str(
+                r#"
                 [[local]]
                 name = "dup"
                 scope = "General"
@@ -967,12 +1001,13 @@ mod priority_resolving {
                 sources = ["Cargo.toml"]
                 target = "."
             "#,
-        )?)?;
+            )?)?;
 
-        assert!(config.local[0].sources.is_empty());
-        assert!(!config.local[1].sources.is_empty());
+            assert!(config.local[0].sources.is_empty());
+            assert!(!config.local[1].sources.is_empty());
 
-        Ok(())
+            Ok(())
+        }
     }
 }
 

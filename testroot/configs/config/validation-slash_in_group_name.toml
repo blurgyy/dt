@@ -1,5 +1,0 @@
-[[local]]
-name = "this/group/name/contains/slash"
-basedir = "~"
-sources = []
-target = "/tmp"

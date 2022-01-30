@@ -1,5 +1,0 @@
-[[local]]
-name = "basedir is target"
-basedir = "~"
-sources = []
-target = "~"

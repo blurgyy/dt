@@ -1,5 +1,0 @@
-[[local]]
-name = "target path is absolute"
-basedir = "."
-sources = []
-target = "/bin/echo"

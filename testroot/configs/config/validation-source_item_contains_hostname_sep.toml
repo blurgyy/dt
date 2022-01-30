@@ -1,5 +1,0 @@
-[[local]]
-name = "@@ in source item"
-basedir = "~/.config/nvim"
-sources = ["init.vim@@elbert"]
-target = "."

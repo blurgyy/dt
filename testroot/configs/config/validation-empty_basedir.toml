@@ -1,5 +1,0 @@
-[[local]]
-name = "empty basedir"
-basedir = ""
-sources = []
-target = "."

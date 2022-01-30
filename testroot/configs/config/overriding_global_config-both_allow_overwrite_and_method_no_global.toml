@@ -1,7 +1,0 @@
-[[local]]
-name = "placeholder"
-basedir = "~"
-sources = ["*"]
-target = "."
-method = "Copy"
-allow_overwrite = true

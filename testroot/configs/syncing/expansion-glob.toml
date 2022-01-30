@@ -1,5 +1,0 @@
-[[local]]
-name = "globbing test"
-basedir = ".."
-sources = ["dt-c*"]
-target = "../testroot/target"

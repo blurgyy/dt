@@ -1,6 +1,0 @@
-[[local]]
-name = "hostname_sep no global test"
-hostname_sep = "@-@"
-basedir = "~"
-sources = []
-target = "."

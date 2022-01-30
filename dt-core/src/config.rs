@@ -736,19 +736,24 @@ impl Group {
 }
 
 #[cfg(test)]
-mod overriding_global_config {
-    use std::{path::PathBuf, str::FromStr};
+mod overriding_global {
+    use std::str::FromStr;
 
+    use super::{DTConfig, SyncMethod};
     use color_eyre::Report;
     use pretty_assertions::assert_eq;
 
-    use super::{DTConfig, SyncMethod};
-
     #[test]
     fn allow_overwrite_no_global() -> Result<(), Report> {
-        let config = DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/config/overriding_global_config-allow_overwrite_no_global.toml",
-        )?)?;
+        let config = DTConfig::from_str(
+            r#"
+[[local]]
+name = "placeholder"
+base = "~"
+sources = ["*"]
+target = "."
+allow_overwrite = true"#,
+        )?;
         for group in config.local {
             assert_eq!(group.is_overwrite_allowed(), true,);
         }
@@ -757,9 +762,19 @@ mod overriding_global_config {
 
     #[test]
     fn allow_overwrite_with_global() -> Result<(), Report> {
-        let config = DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/config/overriding_global_config-allow_overwrite_with_global.toml",
-        )?)?;
+        let config = DTConfig::from_str(
+            r#"
+[global]
+method = "Copy"  # Default value because not testing this key
+allow_overwrite = true
+
+[[local]]
+name = "placeholder"
+base = "~"
+sources = ["*"]
+target = "."
+allow_overwrite = false"#,
+        )?;
         for group in config.local {
             assert_eq!(group.is_overwrite_allowed(), false,);
         }
@@ -767,32 +782,17 @@ mod overriding_global_config {
     }
 
     #[test]
-    fn method_no_global() -> Result<(), Report> {
-        let config = DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/config/overriding_global_config-method_no_global.toml",
-        )?)?;
-        for group in config.local {
-            assert_eq!(group.get_method(), SyncMethod::Copy,)
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn method_with_global() -> Result<(), Report> {
-        let config = DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/config/overriding_global_config-method_with_global.toml",
-        )?)?;
-        for group in config.local {
-            assert_eq!(group.get_method(), SyncMethod::Symlink,)
-        }
-        Ok(())
-    }
-
-    #[test]
     fn both_allow_overwrite_and_method_no_global() -> Result<(), Report> {
-        let config= DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/config/overriding_global_config-both_allow_overwrite_and_method_no_global.toml",
-        )?)?;
+        let config = DTConfig::from_str(
+            r#"
+[[local]]
+name = "placeholder"
+base = "~"
+sources = ["*"]
+target = "."
+method = "Copy"
+allow_overwrite = true"#,
+        )?;
         for group in config.local {
             assert_eq!(group.get_method(), SyncMethod::Copy,);
             assert_eq!(group.is_overwrite_allowed(), true,);
@@ -802,9 +802,20 @@ mod overriding_global_config {
 
     #[test]
     fn both_allow_overwrite_and_method_with_global() -> Result<(), Report> {
-        let config= DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/config/overriding_global_config-both_allow_overwrite_and_method_with_global.toml",
-        )?)?;
+        let config = DTConfig::from_str(
+            r#"
+[global]
+method = "Copy"
+allow_overwrite = true
+
+[[local]]
+name = "placeholder"
+base = "~"
+sources = ["*"]
+target = "."
+method = "Symlink"
+allow_overwrite = false"#,
+        )?;
         for group in config.local {
             assert_eq!(group.get_method(), SyncMethod::Symlink,);
             assert_eq!(group.is_overwrite_allowed(), false,);
@@ -814,9 +825,15 @@ mod overriding_global_config {
 
     #[test]
     fn hostname_sep_no_global() -> Result<(), Report> {
-        let config = DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/config/overriding_global_config-hostname_sep_no_global.toml"
-        )?)?;
+        let config = DTConfig::from_str(
+            r#"
+[[local]]
+name = "hostname_sep no global test"
+hostname_sep = "@-@"
+base = "~"
+sources = []
+target = ".""#,
+        )?;
         for group in config.local {
             assert_eq!(group.get_hostname_sep(), "@-@",);
         }
@@ -825,11 +842,57 @@ mod overriding_global_config {
 
     #[test]
     fn hostname_sep_with_global() -> Result<(), Report> {
-        let config = DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/config/overriding_global_config-hostname_sep_with_global.toml"
-        )?)?;
+        let config = DTConfig::from_str(
+            r#"
+[global]
+hostname_sep = "@-@"
+
+[[local]]
+name = "hostname_sep fall back to global"
+base = "~"
+sources = []
+target = ".""#,
+        )?;
         for group in config.local {
             assert_eq!(group.get_hostname_sep(), "@-@",);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn method_no_global() -> Result<(), Report> {
+        let config = DTConfig::from_str(
+            r#"
+[[local]]
+name = "placeholder"
+base = "~"
+sources = ["*"]
+target = "."
+method = "Copy""#,
+        )?;
+        for group in config.local {
+            assert_eq!(group.get_method(), SyncMethod::Copy,)
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn method_with_global() -> Result<(), Report> {
+        let config = DTConfig::from_str(
+            r#"
+[global]
+method = "Copy"
+allow_overwrite = false # Default value because not testing this key
+
+[[local]]
+name = "placeholder"
+base = "~"
+sources = ["*"]
+target = "."
+method = "Symlink""#,
+        )?;
+        for group in config.local {
+            assert_eq!(group.get_method(), SyncMethod::Symlink,)
         }
         Ok(())
     }
@@ -837,7 +900,7 @@ mod overriding_global_config {
 
 #[cfg(test)]
 mod tilde_expansion {
-    use std::{path::PathBuf, str::FromStr};
+    use std::str::FromStr;
 
     use color_eyre::Report;
     use pretty_assertions::assert_eq;
@@ -846,12 +909,23 @@ mod tilde_expansion {
 
     #[test]
     fn all() -> Result<(), Report> {
-        let config = DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/config/tilde_expansion-all.toml",
-        )?)?;
+        let config = DTConfig::from_str(
+            r#"
+[global]
+staging = "~"
+method = "Symlink"
+allow_overwrite = false
+
+
+[[local]]
+name = "expand tilde in base and target"
+base = "~"
+sources = []
+target = "~/dt/target""#,
+        )?;
         assert_eq!(Some(config.global.staging.0), dirs::home_dir());
         config.local.iter().all(|group| {
-            assert_eq!(Some(group.to_owned().basedir), dirs::home_dir());
+            assert_eq!(Some(group.to_owned().base), dirs::home_dir());
             assert_eq!(
                 group.to_owned().target,
                 dirs::home_dir()
@@ -867,7 +941,7 @@ mod tilde_expansion {
 
 #[cfg(test)]
 mod validation {
-    use std::{path::PathBuf, str::FromStr};
+    use std::str::FromStr;
 
     use color_eyre::{eyre::eyre, Report};
     use pretty_assertions::assert_eq;
@@ -877,9 +951,14 @@ mod validation {
 
     #[test]
     fn empty_group_name() -> Result<(), Report> {
-        if let Err(err) = DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/config/validation-empty_group_name.toml",
-        )?) {
+        if let Err(err) = DTConfig::from_str(
+            r#"
+[[local]]
+name = ""
+base = "~"
+sources = []
+target = ".""#,
+        ) {
             assert_eq!(
                 err,
                 AppError::ConfigError("empty group name".to_owned()),
@@ -893,29 +972,39 @@ mod validation {
     }
 
     #[test]
-    fn empty_basedir() -> Result<(), Report> {
-        if let Err(err) = DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/config/validation-empty_basedir.toml",
-        )?) {
+    fn empty_base() -> Result<(), Report> {
+        if let Err(err) = DTConfig::from_str(
+            r#"
+[[local]]
+name = "empty base"
+base = ""
+sources = []
+target = ".""#,
+        ) {
             assert_eq!(
                 err,
                 AppError::ConfigError(
-                    "empty basedir in group 'empty basedir'".to_owned(),
+                    "empty base in group 'empty base'".to_owned(),
                 ),
                 "{}",
                 err,
             );
             Ok(())
         } else {
-            Err(eyre!("This config should not be loaded because a group's basedir is empty"))
+            Err(eyre!("This config should not be loaded because a group's base is empty"))
         }
     }
 
     #[test]
     fn empty_target() -> Result<(), Report> {
-        if let Err(err) = DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/config/validation-empty_target.toml",
-        )?) {
+        if let Err(err) = DTConfig::from_str(
+            r#"
+[[local]]
+name = "empty target"
+base = "~"
+sources = []
+target = """#,
+        ) {
             assert_eq!(
                 err,
                 AppError::ConfigError(
@@ -926,15 +1015,20 @@ mod validation {
             );
             Ok(())
         } else {
-            Err(eyre!("This config should not be loaded because a group's basedir is empty"))
+            Err(eyre!("This config should not be loaded because a group's base is empty"))
         }
     }
 
     #[test]
     fn slash_in_group_name() -> Result<(), Report> {
-        if let Err(err) = DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/config/validation-slash_in_group_name.toml",
-        )?) {
+        if let Err(err) = DTConfig::from_str(
+            r#"
+[[local]]
+name = "this/group/name/contains/slash"
+base = "~"
+sources = []
+target = "/tmp""#,
+        ) {
             assert_eq!(
                 err,
                 AppError::ConfigError(
@@ -951,14 +1045,19 @@ mod validation {
     }
 
     #[test]
-    fn basedir_is_target() -> Result<(), Report> {
-        if let Err(err) = DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/syncing/invalid_configs-basedir_is_target.toml",
-        )?) {
+    fn base_is_target() -> Result<(), Report> {
+        if let Err(err) = DTConfig::from_str(
+            r#"
+[[local]]
+name = "base is target"
+base = "~"
+sources = []
+target = "~""#,
+        ) {
             assert_eq!(
                 err,
                 AppError::ConfigError(
-                    "base directory and its target are the same in group 'basedir is target'"
+                    "base directory and its target are the same in group 'base is target'"
                         .to_owned(),
                 ),
                 "{}",
@@ -966,19 +1065,25 @@ mod validation {
             );
             Ok(())
         } else {
-            Err(eyre!("This config should not be loaded because basedir and target are the same"))
+            Err(eyre!("This config should not be loaded because base and target are the same"))
         }
     }
 
     #[test]
-    fn basedir_contains_hostname_sep() -> Result<(), Report> {
-        if let Err(err) = DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/config/validation-basedir_contains_hostname_sep.toml",
-        )?) {
+    fn base_contains_hostname_sep() -> Result<(), Report> {
+        if let Err(err) = DTConfig::from_str(
+            r#"
+[[local]]
+name = "base contains hostname_sep"
+hostname_sep = "@@"
+base = "~/.config/sytemd/user@@elbert"
+sources = []
+target = ".""#,
+        ) {
             assert_eq!(
                 err,
                 AppError::ConfigError(
-                    "base directory contains hostname_sep (@@) in group 'basedir contains hostname_sep'"
+                    "base directory contains hostname_sep (@@) in group 'base contains hostname_sep'"
                         .to_owned(),
                 ),
                 "{}",
@@ -986,15 +1091,20 @@ mod validation {
             );
             Ok(())
         } else {
-            Err(eyre!("This config should not be loaded because a basedir contains hostname_sep"))
+            Err(eyre!("This config should not be loaded because a base contains hostname_sep"))
         }
     }
 
     #[test]
     fn source_item_referencing_parent() -> Result<(), Report> {
-        if let Err(err) = DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/config/validation-source_item_referencing_parent.toml",
-        )?) {
+        if let Err(err) = DTConfig::from_str(
+            r#"
+[[local]]
+name = "source item references parent dir"
+base = "."
+sources = ["../Cargo.toml"]
+target = "target""#,
+        ) {
             assert_eq!(
                 err,
                 AppError::ConfigError(
@@ -1012,9 +1122,14 @@ mod validation {
 
     #[test]
     fn source_item_is_absolute() -> Result<(), Report> {
-        if let Err(err) = DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/config/validation-source_item_is_absolute.toml",
-        )?) {
+        if let Err(err) = DTConfig::from_str(
+            r#"
+[[local]]
+name = "source item is absolute"
+base = "~"
+sources = ["/usr/share/gdb-dashboard/.gdbinit"]
+target = "/tmp""#,
+        ) {
             assert_eq!(
                 err,
                 AppError::ConfigError(
@@ -1032,9 +1147,14 @@ mod validation {
 
     #[test]
     fn except_dot_asterisk_glob() -> Result<(), Report> {
-        if let Err(err) = DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/config/validation-except_dot_asterisk_glob.toml",
-        )?) {
+        if let Err(err) = DTConfig::from_str(
+            r#"
+[[local]]
+name = "placeholder"
+base = "~"
+sources = [".*"]
+target = ".""#,
+        ) {
             assert_eq!(
                 err,
                 AppError::ConfigError("bad globbing pattern".to_owned()),
@@ -1049,9 +1169,14 @@ mod validation {
 
     #[test]
     fn source_item_contains_hostname_sep() -> Result<(), Report> {
-        if let Err(err) = DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/config/validation-source_item_contains_hostname_sep.toml",
-        )?) {
+        if let Err(err) = DTConfig::from_str(
+            r#"
+[[local]]
+name = "@@ in source item"
+base = "~/.config/nvim"
+sources = ["init.vim@@elbert"]
+target = ".""#,
+        ) {
             assert_eq!(
                 err,
                 AppError::ConfigError(

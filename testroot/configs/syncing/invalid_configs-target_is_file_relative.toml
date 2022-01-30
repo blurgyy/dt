@@ -1,5 +1,0 @@
-[[local]]
-name = "target path is relative"
-basedir = ".."
-sources = ["testroot"]
-target = "../testroot/README.md"

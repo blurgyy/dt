@@ -1,6 +1,0 @@
-[[local]]
-name = "basedir contains hostname_sep"
-hostname_sep = "@@"
-basedir = "~/.config/sytemd/user@@elbert"
-sources = []
-target = "."

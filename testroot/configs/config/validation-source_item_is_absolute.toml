@@ -1,5 +1,0 @@
-[[local]]
-name = "source item is absolute"
-basedir = "~"
-sources = ["/usr/share/gdb-dashboard/.gdbinit"]
-target = "/tmp"

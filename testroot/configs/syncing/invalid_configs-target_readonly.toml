@@ -1,5 +1,0 @@
-[[local]]
-name = "target is readonly"
-basedir = "~"
-sources = []
-target = "../testroot/items/syncing/invalid_configs/target_readonly/target"
