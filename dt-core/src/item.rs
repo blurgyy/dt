@@ -9,7 +9,7 @@ use path_clean::PathClean;
 use serde::Serialize;
 
 use crate::{
-    config::{LocalGroup, RenamingRule, SyncMethod},
+    config::{Group, RenamingRule, SyncMethod},
     error::{Error as AppError, Result},
     utils,
 };
@@ -184,7 +184,7 @@ where
             .readonly()
     }
 
-    /// Given a `hostname_sep`, a `basedir`, a `targetbase`, and optionally a
+    /// Given a `hostname_sep`, a `base`, a `targetbase`, and optionally a
     /// list of [renaming rule]s, create the path where `self` would be synced
     /// to.  Renaming rules are applied after host-specific suffixes are
     /// stripped.
@@ -202,11 +202,11 @@ where
     /// # use std::path::PathBuf;
     /// # use std::str::FromStr;
     /// let itm: PathBuf = "/path/to/source@@john/item".into();
-    /// let basedir: PathBuf = "/path/to/source".into();
+    /// let base: PathBuf = "/path/to/source".into();
     /// let targetbase: PathBuf = "/path/to/target".into();
     ///
     /// assert_eq!(
-    ///     itm.make_target("@@", basedir, targetbase, vec![])?,
+    ///     itm.make_target("@@", base, targetbase, vec![])?,
     ///     PathBuf::from_str("/path/to/target/item").unwrap(),
     /// );
     /// # Ok::<(), AppError>(())
@@ -223,7 +223,7 @@ where
     /// # use std::path::PathBuf;
     /// # use std::str::FromStr;
     /// let itm: PathBuf = "/path/to/source@@john/_dot_item".into();
-    /// let basedir: PathBuf = "/path/to/source".into();
+    /// let base: PathBuf = "/path/to/source".into();
     /// let targetbase: PathBuf = "/path/to/target".into();
     /// let rules = vec![
     ///     RenamingRule{
@@ -233,7 +233,7 @@ where
     /// ];
     ///
     /// assert_eq!(
-    ///     itm.make_target("@@", basedir, targetbase, rules)?,
+    ///     itm.make_target("@@", base, targetbase, rules)?,
     ///     PathBuf::from_str("/path/to/target/.item").unwrap(),
     /// );
     /// # Ok::<(), AppError>(())
@@ -253,7 +253,7 @@ where
     /// # use std::path::PathBuf;
     /// # use std::str::FromStr;
     /// let itm: PathBuf = "/path/to/source@@john/_dot_item.ext".into();
-    /// let basedir: PathBuf = "/path/to/source".into();
+    /// let base: PathBuf = "/path/to/source".into();
     /// let targetbase: PathBuf = "/path/to/target".into();
     /// let rules = vec![
     ///     RenamingRule{
@@ -267,7 +267,7 @@ where
     /// ];
     ///
     /// assert_eq!(
-    ///     itm.make_target("@@", basedir, targetbase, rules)?,
+    ///     itm.make_target("@@", base, targetbase, rules)?,
     ///     PathBuf::from_str("/path/to/target/_dotted_item.ext").unwrap(),
     /// );
     /// # Ok::<(), AppError>(())
@@ -284,7 +284,7 @@ where
     /// # use std::path::PathBuf;
     /// # use std::str::FromStr;
     /// let itm: PathBuf = "/path/to/source@@john/_dot_item.ext".into();
-    /// let basedir: PathBuf = "/path/to/source".into();
+    /// let base: PathBuf = "/path/to/source".into();
     /// let targetbase: PathBuf = "/path/to/target".into();
     ///
     /// let named_capture = RenamingRule{
@@ -294,7 +294,7 @@ where
     ///     substitution: ".${prefix}.".into(),
     /// };
     /// assert_eq!(
-    ///     itm.make_target("@@", &basedir, &targetbase, vec![named_capture])?,
+    ///     itm.make_target("@@", &base, &targetbase, vec![named_capture])?,
     ///     PathBuf::from_str("/path/to/target/.dot.item.ext").unwrap(),
     /// );
     ///
@@ -305,7 +305,7 @@ where
     ///     substitution: "_${1}_${0}".into(),
     /// };
     /// assert_eq!(
-    ///     itm.make_target("@@", basedir, targetbase, vec![numbered_capture])?,
+    ///     itm.make_target("@@", base, targetbase, vec![numbered_capture])?,
     ///     PathBuf::from_str("/path/to/target/_dot_item_ext_.ext").unwrap(),
     /// );
     /// # Ok::<(), AppError>(())
@@ -315,7 +315,7 @@ where
     fn make_target<T>(
         &self,
         hostname_sep: &str,
-        basedir: T,
+        base: T,
         targetbase: T,
         renaming_rules: Vec<RenamingRule>,
     ) -> Result<Self>
@@ -325,12 +325,12 @@ where
         // Get non-host-specific counterpart of `self`
         let nhself = self.non_host_specific(hostname_sep);
 
-        // Get non-host-specific counterpart of `basedir`
-        let basedir = basedir.into().non_host_specific(hostname_sep);
+        // Get non-host-specific counterpart of `base`
+        let base = base.into().non_host_specific(hostname_sep);
 
         // The tail of the target path, which is the non-host-specific `self`
-        // without its `basedir` prefix path
-        let mut tail = nhself.as_ref().strip_prefix(basedir)?.to_owned();
+        // without its `base` prefix path
+        let mut tail = nhself.as_ref().strip_prefix(base)?.to_owned();
 
         // Apply renaming rules to the tail component
         for rr in renaming_rules {
@@ -392,13 +392,13 @@ where
     /// expected to be the group where this item belongs to.
     fn populate(
         &self,
-        group: Rc<LocalGroup>,
+        group: Rc<Group>,
         registry: Rc<Handlebars>,
     ) -> Result<()> {
         // Create possibly missing parent directories along target's path.
         let tpath = self.make_target(
             &group.get_hostname_sep(),
-            &group.basedir,
+            &group.base,
             &group.target,
             group.get_renaming_rules(),
         )?;
@@ -520,7 +520,7 @@ where
             SyncMethod::Symlink => {
                 let staging_path = self.make_target(
                     &group.get_hostname_sep(),
-                    &group.basedir,
+                    &group.base,
                     &group.global.staging.0.join(PathBuf::from(&group.name)),
                     Vec::new(), // Do not apply renaming on staging path
                 )?;
@@ -726,10 +726,10 @@ where
     /// Show what is to be done if this item is to be populated with given
     /// group config.  The given group config is expected to be the group
     /// where this item belongs to.
-    fn populate_dry(&self, group: Rc<LocalGroup>) -> Result<()> {
+    fn populate_dry(&self, group: Rc<Group>) -> Result<()> {
         let tpath = self.make_target(
             &group.get_hostname_sep(),
-            &group.basedir,
+            &group.base,
             &group.target,
             group.get_renaming_rules(),
         )?;

@@ -18,16 +18,16 @@ use crate::{
 ///
 /// It does the following operations on given config:
 ///
-/// 1. Convert all [`basedir`]s, [`target`]s to absolute paths.
-/// 2. Replace [`basedir`]s and paths in [`sources`] with their host-specific
+/// 1. Convert all [`base`]s, [`target`]s to absolute paths.
+/// 2. Replace [`base`]s and paths in [`sources`] with their host-specific
 ///    counterpart, if there exists any.
 /// 3. Recursively expand globs and directories in [`sources`].
 ///
-/// [`sources`]: crate::config::LocalGroup::sources
+/// [`sources`]: crate::config::Group::sources
 /// [`global.staging`]: crate::config::GlobalConfig::staging
-/// [`basedir`]: crate::config::LocalGroup::basedir
-/// [`target`]: crate::config::LocalGroup::target
-/// [`[[local]]`]: crate::config::LocalGroup
+/// [`base`]: crate::config::Group::base
+/// [`target`]: crate::config::Group::target
+/// [`[[local]]`]: crate::config::Group
 fn expand(config: DTConfig) -> Result<DTConfig> {
     let mut ret = DTConfig {
         // Remove `global` and `context` in expanded configuration object.
@@ -39,9 +39,9 @@ fn expand(config: DTConfig) -> Result<DTConfig> {
     };
 
     for original in config.local {
-        let mut next = LocalGroup {
+        let mut next = Group {
             global: Rc::clone(&original.global),
-            basedir: original.basedir.absolute()?,
+            base: original.base.absolute()?,
             sources: Vec::new(),
             target: original.target.absolute()?,
             ..original.to_owned()
@@ -49,24 +49,24 @@ fn expand(config: DTConfig) -> Result<DTConfig> {
 
         let group_hostname_sep = original.get_hostname_sep();
 
-        // Check for host-specific `basedir`
-        let host_specific_basedir =
-            next.basedir.host_specific(&group_hostname_sep);
-        if host_specific_basedir.exists() {
-            next.basedir = host_specific_basedir;
+        // Check for host-specific `base`
+        let host_specific_base =
+            next.base.host_specific(&group_hostname_sep);
+        if host_specific_base.exists() {
+            next.base = host_specific_base;
         }
 
-        // Above process does not guarantee the `basedir` to exist, since a
+        // Above process does not guarantee the `base` to exist, since a
         // warning will be emitted later in the expanding process (see
         // function `expand_recursive()`), just don't attempt to read
-        // non-existent `basedir` here by first checking its
+        // non-existent `base` here by first checking its
         // existence.
-        if next.basedir.exists() {
-            // Check read permission of `basedir`
-            if let Err(e) = std::fs::read_dir(&next.basedir) {
+        if next.base.exists() {
+            // Check read permission of `base`
+            if let Err(e) = std::fs::read_dir(&next.base) {
                 log::error!(
-                    "Could not read basedir '{}'",
-                    next.basedir.display(),
+                    "Could not read base '{}'",
+                    next.base.display(),
                 );
                 return Err(e.into());
             }
@@ -78,7 +78,7 @@ fn expand(config: DTConfig) -> Result<DTConfig> {
             .iter()
             .map(|s| {
                 let try_s = next
-                    .basedir
+                    .base
                     .join(s)
                     .absolute()
                     .unwrap_or_else(|e| panic!("{}", e));
@@ -93,7 +93,7 @@ fn expand(config: DTConfig) -> Result<DTConfig> {
 
         // Recursively expand source paths
         for s in &sources {
-            let s = next.basedir.join(s);
+            let s = next.base.join(s);
             let mut s = expand_recursive(&s, &next.get_hostname_sep(), true)?;
             next.sources.append(&mut s);
         }
@@ -216,7 +216,7 @@ fn resolve(config: DTConfig) -> Result<DTConfig> {
         for s in &config.local[i].sources {
             let t = s.make_target(
                 &config.local[i].get_hostname_sep(),
-                &config.local[i].basedir,
+                &config.local[i].base,
                 &config.local[i].target,
                 config.local[i].get_renaming_rules(),
             )?;
@@ -244,7 +244,7 @@ fn resolve(config: DTConfig) -> Result<DTConfig> {
             .local
             .iter()
             .enumerate()
-            .map(|(cur_id, group)| LocalGroup {
+            .map(|(cur_id, group)| Group {
                 sources: group
                     .sources
                     .iter()
@@ -252,7 +252,7 @@ fn resolve(config: DTConfig) -> Result<DTConfig> {
                         let t = s
                             .make_target(
                                 &group.get_hostname_sep(),
-                                &group.basedir,
+                                &group.base,
                                 &group.target,
                                 group.get_renaming_rules(),
                             )
@@ -394,9 +394,9 @@ mod invalid_configs {
     use super::expand;
 
     #[test]
-    fn basedir_unreadable() -> Result<(), Report> {
+    fn base_unreadable() -> Result<(), Report> {
         if let Err(err) = expand(DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/syncing/invalid_configs-basedir_unreadable-not_a_directory.toml",
+            "../testroot/configs/syncing/invalid_configs-base_unreadable-not_a_directory.toml",
         ).unwrap())?) {
             assert_eq!(
                 err,
@@ -408,18 +408,18 @@ mod invalid_configs {
             );
         } else {
             return Err(eyre!(
-                "This config should not be loaded because basedir is not a directory",
+                "This config should not be loaded because base is not a directory",
             ));
         }
 
         std::fs::set_permissions(
             PathBuf::from_str(
-                "../testroot/items/syncing/invalid_configs/basedir_unreadable/basedir"
+                "../testroot/items/syncing/invalid_configs/base_unreadable/base"
             ).unwrap(),
             std::fs::Permissions::from_mode(0o333),
         )?;
         if let Err(err) = expand(DTConfig::from_path(PathBuf::from_str(
-            "../testroot/configs/syncing/invalid_configs-basedir_unreadable-permission_denied.toml",
+            "../testroot/configs/syncing/invalid_configs-base_unreadable-permission_denied.toml",
         ).unwrap())?) {
             assert_eq!(
                 err,
@@ -432,19 +432,19 @@ mod invalid_configs {
             );
             std::fs::set_permissions(
                 PathBuf::from_str(
-                    "../testroot/items/syncing/invalid_configs/basedir_unreadable/basedir"
+                    "../testroot/items/syncing/invalid_configs/base_unreadable/base"
                 ).unwrap(),
                 std::fs::Permissions::from_mode(0o755),
             )?;
         } else {
             std::fs::set_permissions(
                 PathBuf::from_str(
-                    "../testroot/items/syncing/invalid_configs/basedir_unreadable/basedir"
+                    "../testroot/items/syncing/invalid_configs/base_unreadable/base"
                 ).unwrap(),
                 std::fs::Permissions::from_mode(0o755),
             )?;
             return Err(eyre!(
-                "This config should not be loaded because insufficient permissions to basedir",
+                "This config should not be loaded because insufficient permissions to base",
             ));
         }
 
@@ -805,13 +805,13 @@ mod priority_resolving {
                 [[local]]
                 name = "highest"
                 # Scope is omitted to use default scope (i.e. General)
-                basedir = "../dt-cli"
+                base = "../dt-cli"
                 sources = ["Cargo.toml"]
                 target = "."
                 [[local]]
                 name = "low"
                 # Scope is omitted to use default scope (i.e. General)
-                basedir = "../dt-server"
+                base = "../dt-server"
                 sources = ["Cargo.toml"]
                 target = "."
         "#,
@@ -830,19 +830,19 @@ mod priority_resolving {
                 [[local]]
                 name = "lowest"
                 scope = "General"
-                basedir = "../dt-cli"
+                base = "../dt-cli"
                 sources = ["Cargo.toml"]
                 target = "."
                 [[local]]
                 name = "medium"
                 scope = "App"
-                basedir = "../dt-server"
+                base = "../dt-server"
                 sources = ["Cargo.toml"]
                 target = "."
                 [[local]]
                 name = "highest"
                 scope = "Dropin"
-                basedir = ".."
+                base = ".."
                 sources = ["Cargo.toml"]
                 target = "."
             "#,
@@ -862,13 +862,13 @@ mod priority_resolving {
                 [[local]]
                 name = "lowest"
                 scope = "General"
-                basedir = "../dt-cli"
+                base = "../dt-cli"
                 sources = ["Cargo.toml"]
                 target = "."
                 [[local]]
                 name = "medium"
                 scope = "App"
-                basedir = "../dt-server"
+                base = "../dt-server"
                 sources = ["Cargo.toml"]
                 target = "."
             "#,
@@ -887,13 +887,13 @@ mod priority_resolving {
                 [[local]]
                 name = "omitted scope but defined first, has higher priority"
                 # Scope is omitted to use default scope (i.e. General)
-                basedir = "../dt-cli"
+                base = "../dt-cli"
                 sources = ["Cargo.toml"]
                 target = "."
                 [[local]]
                 name = "specified scope but defined last, has lower priority"
                 scope = "General"
-                basedir = "../dt-server"
+                base = "../dt-server"
                 sources = ["Cargo.toml"]
                 target = "."
             "#,
@@ -907,13 +907,13 @@ mod priority_resolving {
                 [[local]]
                 name = "omitted scope, uses general"
                 # Scope is omitted to use default scope (i.e. General)
-                basedir = ".."
+                base = ".."
                 sources = ["Cargo.toml"]
                 target = "."
                 [[local]]
                 name = "specified scope with higher priority"
                 scope = "App"
-                basedir = ".."
+                base = ".."
                 sources = ["Cargo.toml"]
                 target = "."
             "#,
@@ -932,13 +932,13 @@ mod priority_resolving {
                 [[local]]
                 name = "dup"
                 scope = "General"
-                basedir = "../dt-cli"
+                base = "../dt-cli"
                 sources = ["Cargo.toml"]
                 target = "."
                 [[local]]
                 name = "dup"
                 scope = "General"
-                basedir = "../dt-server"
+                base = "../dt-server"
                 sources = ["Cargo.toml"]
                 target = "."
             "#,
@@ -957,13 +957,13 @@ mod priority_resolving {
                 [[local]]
                 name = "dup"
                 scope = "General"
-                basedir = "../dt-cli"
+                base = "../dt-cli"
                 sources = ["Cargo.toml"]
                 target = "."
                 [[local]]
                 name = "dup"
                 scope = "App"
-                basedir = "../dt-server"
+                base = "../dt-server"
                 sources = ["Cargo.toml"]
                 target = "."
             "#,

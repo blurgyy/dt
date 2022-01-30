@@ -88,7 +88,7 @@ pub struct DTConfig {
     pub context: ContextConfig,
 
     /// Groups for local files.
-    pub local: Vec<LocalGroup>,
+    pub local: Vec<Group>,
 }
 
 impl FromStr for DTConfig {
@@ -150,10 +150,10 @@ impl DTConfig {
                     "empty group name".to_owned(),
                 ));
             }
-            // Empty basedir
-            if group.basedir.to_str().unwrap().is_empty() {
+            // Empty base
+            if group.base.to_str().unwrap().is_empty() {
                 return Err(AppError::ConfigError(format!(
-                    "empty basedir in group '{}'",
+                    "empty base in group '{}'",
                     group.name,
                 )));
             }
@@ -173,17 +173,17 @@ impl DTConfig {
                 )));
             }
 
-            // Target and basedir are the same
-            if group.basedir == group.target {
+            // Target and base are the same
+            if group.base == group.target {
                 return Err(AppError::ConfigError(format!(
                     "base directory and its target are the same in group '{}'",
                     group.name,
                 )));
             }
 
-            // basedir contains hostname_sep
+            // base contains hostname_sep
             let hostname_sep = group.get_hostname_sep();
-            if group.basedir.to_str().unwrap().contains(&hostname_sep) {
+            if group.base.to_str().unwrap().contains(&hostname_sep) {
                 return Err(AppError::ConfigError(format!(
                     "base directory contains hostname_sep ({}) in group '{}'",
                     hostname_sep, group.name,
@@ -269,16 +269,16 @@ impl DTConfig {
             }),
         );
 
-        // Expand tilde in `basedir` and `target` of `local`
+        // Expand tilde in `base` and `target` of `local`
         for group in &mut ret.local {
-            // `local.basedir`
-            group.basedir = PathBuf::from_str(&shellexpand::tilde(
-                group.basedir.to_str().unwrap(),
+            // `local.base`
+            group.base = PathBuf::from_str(&shellexpand::tilde(
+                group.base.to_str().unwrap(),
             ))
             .unwrap_or_else(|_| {
                 panic!(
-                    "Failed expanding tilde in `local.basedir` '{}'",
-                    group.basedir.display(),
+                    "Failed expanding tilde in `local.base` '{}'",
+                    group.base.display(),
                 )
             });
 
@@ -324,7 +324,7 @@ impl DTConfig {
 /// ```toml
 /// [[local]]
 /// name = "xdg_config_home"
-/// basedir = "/path/to/your/xdg/config/directory"
+/// base = "/path/to/your/xdg/config/directory"
 /// sources = ["*"]
 /// target = "~/.config"
 /// ```
@@ -337,7 +337,7 @@ impl DTConfig {
 /// ```toml
 /// [[local]]
 /// name = "fontconfig-system"
-/// basedir = "/usr/share/fontconfig/conf.avail"
+/// base = "/usr/share/fontconfig/conf.avail"
 /// sources = ["11-lcdfilter-default.conf"]
 /// target = "~/.config/fontconfig/conf.d"
 /// ```
@@ -419,247 +419,6 @@ pub struct RenamingRule {
     pub substitution: String,
 }
 
-/// Configures how local files are grouped.
-#[derive(Default, Clone, Deserialize, Debug)]
-pub struct LocalGroup {
-    /// The global config object loaded from DT's config file.  This field
-    /// _does not_ appear in the config file, but is only used by DT
-    /// internally.  Skipping deserializing is achieved via serde's
-    /// [`skip_deserializing`] attribute, which fills a default value when
-    /// deserializing.
-    ///
-    /// [`skip_deserializing`]: https://serde.rs/field-attrs.html#skip_deserializing
-    #[serde(skip_deserializing)]
-    pub global: Rc<GlobalConfig>,
-
-    /// The context config object loaded from config file.  Like
-    /// [`LocalGroup::global`], this field _does not_ appear in the
-    /// config, but is only used by DT internally.
-    ///
-    /// [`LocalGroup::global`]: LocalGroup::global
-    #[serde(skip_deserializing)]
-    pub context: Rc<ContextConfig>,
-
-    /// Name of this group, used as namespace in staging root directory.
-    pub name: String,
-
-    /// The priority of this group, used to resolve possibly duplicated
-    /// items.  See [`DTScope`] for details.
-    ///
-    /// [`DTScope`]: DTScope
-    #[serde(default)]
-    pub scope: DTScope,
-
-    /// The base directory of all source items.  This simplifies
-    /// configuration files with common prefixes in the [`sources`]
-    /// array.
-    ///
-    /// [`sources`]: LocalGroup::sources
-    ///
-    /// ## Example
-    ///
-    /// For a directory structure like:
-    ///
-    /// ```plain
-    /// dt/
-    /// ├── dt-core/
-    /// │  └── src/
-    /// │     └── config.rs
-    /// ├── dt-cli/
-    /// │  └── src/
-    /// │     └── main.rs
-    /// └── README.md
-    /// ```
-    ///
-    /// Consider the following config file:
-    ///
-    /// ```toml
-    /// [[local]]
-    /// basedir = "dt/dt-cli"
-    /// sources = ["*"]
-    /// target = "."
-    /// ```
-    ///
-    /// It will only sync `src/main.rs` to the configured target directory
-    /// (in this case, the directory where [DT] is being executed).
-    ///
-    /// [DT]: https://github.com/blurgyy/dt
-    pub basedir: PathBuf,
-
-    /// Paths (relative to [`basedir`]) to the items to be synced.
-    ///
-    /// [`basedir`]: LocalGroup::basedir
-    pub sources: Vec<PathBuf>,
-
-    /// The path of the parent dir of the final synced items.
-    ///
-    /// ## Example
-    ///
-    /// ```toml
-    /// source = ["/source/file"]
-    /// target = "/tar/get"
-    /// ```
-    ///
-    /// will sync `/source/file` to `/tar/get/file` (creating non-existing
-    /// directories along the way), while
-    ///
-    /// ```toml
-    /// source = ["/source/dir"]
-    /// target = "/tar/get/dir"
-    /// ```
-    ///
-    /// will sync `source/dir` to `/tar/get/dir/dir` (creating non-existing
-    /// directories along the way).
-    pub target: PathBuf,
-
-    /// (Optional) Ignored names.
-    ///
-    /// ## Example
-    ///
-    /// Consider the following ignored setting:
-    ///
-    /// ```toml
-    /// ignored = [".git"]
-    /// ```
-    ///
-    /// With this setting, all files or directories with their basename as
-    /// ".git" will be skipped.
-    ///
-    /// Cannot contain slash in any of the patterns.
-    pub ignored: Option<RenamingRules>,
-
-    /// (Optional) Separator for per-host settings, default to `@@`.
-    ///
-    /// An additional item with `${hostname_sep}$(hostname)` appended to the
-    /// original item name will be checked first, before looking for the
-    /// original item.  If the appended item is found, use this item
-    /// instead of the configured one.
-    ///
-    /// Also ignores items that are meant for other hosts by checking if the
-    /// string after [`hostname_sep`] matches current machine's hostname.
-    ///
-    /// [`hostname_sep`]: LocalGroup::hostname_sep
-    ///
-    /// ## Example
-    ///
-    /// When the following directory structure exists:
-    ///
-    /// ```plain
-    /// ~/.ssh/
-    /// ├── authorized_keys
-    /// ├── authorized_keys@@sherlock
-    /// ├── authorized_keys@@watson
-    /// ├── config
-    /// ├── config@sherlock
-    /// └── config@watson
-    /// ```
-    ///
-    /// On a machine with hostname set to `watson`, the below configuration
-    /// (extraneous keys are omitted here)
-    ///
-    /// ```toml [[local]]
-    /// ...
-    /// hostname_sep = "@@"
-    ///
-    /// basedir = "~/.ssh"
-    /// sources = ["config"]
-    /// target = "/tmp/sshconfig"
-    /// ...
-    /// ```
-    ///
-    /// will result in the below target (`/tmp/sshconfig`):
-    ///
-    /// ```plain
-    /// /tmp/sshconfig/
-    /// └── config
-    /// ```
-    ///
-    /// Where `/tmp/sshconfig/config` mirrors the content of
-    /// `~/.ssh/config@watson`.
-    pub hostname_sep: Option<HostnameSeparator>,
-
-    /// (Optional) Whether to allow overwriting existing files.  Dead
-    /// symlinks are treated as non-existing, and are always overwrited
-    /// (regardless of this option).
-    pub allow_overwrite: Option<AllowOverwrite>,
-
-    /// (Optional) Syncing method, overrides [`global.method`] key.
-    ///
-    /// [`global.method`]: GlobalConfig::method
-    pub method: Option<SyncMethod>,
-
-    /// (Optional) Renaming rules, appends to [`global.rename`].
-    ///
-    /// [`global.rename`]: GlobalConfig::rename
-    #[serde(default)]
-    pub rename: RenamingRules,
-}
-
-impl LocalGroup {
-    /// Gets the [`allow_overwrite`] key from a `LocalGroup` object,
-    /// falls back to the `allow_overwrite` from provided global config.
-    ///
-    /// [`allow_overwrite`]: LocalGroup::allow_overwrite
-    pub fn is_overwrite_allowed(&self) -> bool {
-        match self.allow_overwrite {
-            Some(allow_overwrite) => allow_overwrite.0,
-            _ => self.global.allow_overwrite.0,
-        }
-    }
-
-    /// Gets the [`method`] key from a `LocalGroup` object, falls back
-    /// to the `method` from provided global config.
-    ///
-    /// [`method`]: LocalGroup::method
-    pub fn get_method(&self) -> SyncMethod {
-        match self.method {
-            Some(method) => method,
-            _ => self.global.method,
-        }
-    }
-
-    /// Gets the [`hostname_sep`] key from a `LocalGroup` object, falls
-    /// back to the [`hostname_sep`] from provided global config.
-    ///
-    /// [`hostname_sep`]: LocalGroup::hostname_sep
-    pub fn get_hostname_sep(&self) -> String {
-        match &self.hostname_sep {
-            Some(hostname_sep) => hostname_sep.0.to_owned(),
-            _ => self.global.hostname_sep.0.to_owned(),
-        }
-    }
-
-    /// Gets the list of [renaming rules] of this group, which is an array
-    /// of (REGEX, SUBSTITUTION) tuples composed of [`global.rename`] and
-    /// [`local.rename`], used in [`DTItem::make_target`] to rename the item.
-    ///
-    /// [renaming rules]: LocalGroup::rename
-    /// [`global.rename`]: GlobalConfig::rename
-    /// [`local.rename`]: LocalGroup::rename
-    /// [`DTItem::make_target`]: crate::item::DTItem::make_target
-    pub fn get_renaming_rules(&self) -> Vec<RenamingRule> {
-        let mut ret: Vec<RenamingRule> = Vec::new();
-        for r in &self.global.rename.0 {
-            ret.push(r.to_owned());
-        }
-        for r in &self.rename.0 {
-            ret.push(r.to_owned());
-        }
-        ret
-    }
-
-    /// Check if this group is templated by checking whether the [context]
-    /// section contains this group's name as a key.
-    ///
-    /// [context]: DTConfig::context
-    pub fn is_templated(&self) -> bool {
-        match self.context.0.as_table() {
-            Some(map) => map.get(&self.name).is_some(),
-            None => false,
-        }
-    }
-}
-
 /// Configures default behaviours.
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct GlobalConfig {
@@ -710,18 +469,18 @@ pub struct GlobalConfig {
 
     /// The hostname separator.
     ///
-    /// Specifies default value when [`LocalGroup::hostname_sep`] is not set.
+    /// Specifies default value when [`Group::hostname_sep`] is not set.
     ///
-    /// [`LocalGroup::hostname_sep`]: LocalGroup::hostname_sep
+    /// [`Group::hostname_sep`]: Group::hostname_sep
     #[serde(default)]
     pub hostname_sep: HostnameSeparator,
 
     /// Global item renaming rules.
     ///
     /// Rules defined here will be prepended to renaming rules of each group.
-    /// See [`LocalGroup::rename`].
+    /// See [`Group::rename`].
     ///
-    /// [`LocalGroup::rename`]: LocalGroup::rename
+    /// [`Group::rename`]: Group::rename
     #[serde(default)]
     pub rename: RenamingRules,
 }
@@ -732,6 +491,247 @@ pub struct ContextConfig(toml::Value);
 impl Default for ContextConfig {
     fn default() -> Self {
         Self(toml::map::Map::new().into())
+    }
+}
+
+/// Configures how local files are grouped.
+#[derive(Default, Clone, Deserialize, Debug)]
+pub struct Group {
+    /// The global config object loaded from DT's config file.  This field
+    /// _does not_ appear in the config file, but is only used by DT
+    /// internally.  Skipping deserializing is achieved via serde's
+    /// [`skip_deserializing`] attribute, which fills a default value when
+    /// deserializing.
+    ///
+    /// [`skip_deserializing`]: https://serde.rs/field-attrs.html#skip_deserializing
+    #[serde(skip_deserializing)]
+    pub global: Rc<GlobalConfig>,
+
+    /// The context config object loaded from config file.  Like
+    /// [`Group::global`], this field _does not_ appear in the config, but is
+    /// only used by DT internally.
+    ///
+    /// [`Group::global`]: Group::global
+    #[serde(skip_deserializing)]
+    pub context: Rc<ContextConfig>,
+
+    /// Name of this group, used as namespace in staging root directory.
+    pub name: String,
+
+    /// The priority of this group, used to resolve possibly duplicated
+    /// items.  See [`DTScope`] for details.
+    ///
+    /// [`DTScope`]: DTScope
+    #[serde(default)]
+    pub scope: DTScope,
+
+    /// The base directory of all source items.  This simplifies
+    /// configuration files with common prefixes in the [`sources`]
+    /// array.
+    ///
+    /// [`sources`]: Group::sources
+    ///
+    /// ## Example
+    ///
+    /// For a directory structure like:
+    ///
+    /// ```plain
+    /// dt/
+    /// ├── dt-core/
+    /// │  └── src/
+    /// │     └── config.rs
+    /// ├── dt-cli/
+    /// │  └── src/
+    /// │     └── main.rs
+    /// └── README.md
+    /// ```
+    ///
+    /// Consider the following config file:
+    ///
+    /// ```toml
+    /// [[local]]
+    /// base = "dt/dt-cli"
+    /// sources = ["*"]
+    /// target = "."
+    /// ```
+    ///
+    /// It will only sync `src/main.rs` to the configured target directory
+    /// (in this case, the directory where [DT] is being executed).
+    ///
+    /// [DT]: https://github.com/blurgyy/dt
+    pub base: PathBuf,
+
+    /// Paths (relative to [`base`]) to the items to be synced.
+    ///
+    /// [`base`]: Group::base
+    pub sources: Vec<PathBuf>,
+
+    /// The path of the parent dir of the final synced items.
+    ///
+    /// ## Example
+    ///
+    /// ```toml
+    /// source = ["/source/file"]
+    /// target = "/tar/get"
+    /// ```
+    ///
+    /// will sync `/source/file` to `/tar/get/file` (creating non-existing
+    /// directories along the way), while
+    ///
+    /// ```toml
+    /// source = ["/source/dir"]
+    /// target = "/tar/get/dir"
+    /// ```
+    ///
+    /// will sync `source/dir` to `/tar/get/dir/dir` (creating non-existing
+    /// directories along the way).
+    pub target: PathBuf,
+
+    /// (Optional) Ignored names.
+    ///
+    /// ## Example
+    ///
+    /// Consider the following ignored setting:
+    ///
+    /// ```toml
+    /// ignored = [".git"]
+    /// ```
+    ///
+    /// With this setting, all files or directories with their basename as
+    /// ".git" will be skipped.
+    ///
+    /// Cannot contain slash in any of the patterns.
+    pub ignored: Option<RenamingRules>,
+
+    /// (Optional) Separator for per-host settings, default to `@@`.
+    ///
+    /// An additional item with `${hostname_sep}$(hostname)` appended to the
+    /// original item name will be checked first, before looking for the
+    /// original item.  If the appended item is found, use this item
+    /// instead of the configured one.
+    ///
+    /// Also ignores items that are meant for other hosts by checking if the
+    /// string after [`hostname_sep`] matches current machine's hostname.
+    ///
+    /// [`hostname_sep`]: Group::hostname_sep
+    ///
+    /// ## Example
+    ///
+    /// When the following directory structure exists:
+    ///
+    /// ```plain
+    /// ~/.ssh/
+    /// ├── authorized_keys
+    /// ├── authorized_keys@@sherlock
+    /// ├── authorized_keys@@watson
+    /// ├── config
+    /// ├── config@sherlock
+    /// └── config@watson
+    /// ```
+    ///
+    /// On a machine with hostname set to `watson`, the below configuration
+    /// (extraneous keys are omitted here)
+    ///
+    /// ```toml [[local]]
+    /// ...
+    /// hostname_sep = "@@"
+    ///
+    /// base = "~/.ssh"
+    /// sources = ["config"]
+    /// target = "/tmp/sshconfig"
+    /// ...
+    /// ```
+    ///
+    /// will result in the below target (`/tmp/sshconfig`):
+    ///
+    /// ```plain
+    /// /tmp/sshconfig/
+    /// └── config
+    /// ```
+    ///
+    /// Where `/tmp/sshconfig/config` mirrors the content of
+    /// `~/.ssh/config@watson`.
+    pub hostname_sep: Option<HostnameSeparator>,
+
+    /// (Optional) Whether to allow overwriting existing files.  Dead
+    /// symlinks are treated as non-existing, and are always overwritten
+    /// (regardless of this option).
+    pub allow_overwrite: Option<AllowOverwrite>,
+
+    /// (Optional) Syncing method, overrides [`global.method`] key.
+    ///
+    /// [`global.method`]: GlobalConfig::method
+    pub method: Option<SyncMethod>,
+
+    /// (Optional) Renaming rules, appends to [`global.rename`].
+    ///
+    /// [`global.rename`]: GlobalConfig::rename
+    #[serde(default)]
+    pub rename: RenamingRules,
+}
+
+impl Group {
+    /// Gets the [`allow_overwrite`] key from a `Group` object,
+    /// falls back to the `allow_overwrite` from provided global config.
+    ///
+    /// [`allow_overwrite`]: Group::allow_overwrite
+    pub fn is_overwrite_allowed(&self) -> bool {
+        match self.allow_overwrite {
+            Some(allow_overwrite) => allow_overwrite.0,
+            _ => self.global.allow_overwrite.0,
+        }
+    }
+
+    /// Gets the [`method`] key from a `Group` object, falls back
+    /// to the `method` from provided global config.
+    ///
+    /// [`method`]: Group::method
+    pub fn get_method(&self) -> SyncMethod {
+        match self.method {
+            Some(method) => method,
+            _ => self.global.method,
+        }
+    }
+
+    /// Gets the [`hostname_sep`] key from a `Group` object, falls
+    /// back to the [`hostname_sep`] from provided global config.
+    ///
+    /// [`hostname_sep`]: Group::hostname_sep
+    pub fn get_hostname_sep(&self) -> String {
+        match &self.hostname_sep {
+            Some(hostname_sep) => hostname_sep.0.to_owned(),
+            _ => self.global.hostname_sep.0.to_owned(),
+        }
+    }
+
+    /// Gets the list of [renaming rules] of this group, which is an array
+    /// of (REGEX, SUBSTITUTION) tuples composed of [`global.rename`] and
+    /// [`local.rename`], used in [`DTItem::make_target`] to rename the item.
+    ///
+    /// [renaming rules]: Group::rename
+    /// [`global.rename`]: GlobalConfig::rename
+    /// [`local.rename`]: Group::rename
+    /// [`DTItem::make_target`]: crate::item::DTItem::make_target
+    pub fn get_renaming_rules(&self) -> Vec<RenamingRule> {
+        let mut ret: Vec<RenamingRule> = Vec::new();
+        for r in &self.global.rename.0 {
+            ret.push(r.to_owned());
+        }
+        for r in &self.rename.0 {
+            ret.push(r.to_owned());
+        }
+        ret
+    }
+
+    /// Check if this group is templated by checking whether the [context]
+    /// section contains this group's name as a key.
+    ///
+    /// [context]: DTConfig::context
+    pub fn is_templated(&self) -> bool {
+        match self.context.0.as_table() {
+            Some(map) => map.get(&self.name).is_some(),
+            None => false,
+        }
     }
 }
 
