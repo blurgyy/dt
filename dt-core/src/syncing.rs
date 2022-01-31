@@ -21,7 +21,7 @@ use crate::{
 /// 1. Convert all [`base`]s, [`target`]s to absolute paths.
 /// 2. Replace [`base`]s and paths in [`sources`] with their host-specific
 ///    counterpart, if there exists any.
-/// 3. Recursively expand globs and directories in [`sources`].
+/// 3. Recursively expand globs and directories found in [`sources`].
 ///
 /// [`sources`]: crate::config::Group::sources
 /// [`global.staging`]: crate::config::GlobalConfig::staging
@@ -138,6 +138,17 @@ fn expand_recursive(
                 })
                 // Filter out paths that are meant for other hosts
                 .filter(|x| !x.is_for_other_host(hostname_sep))
+                // **After** filtering out paths that are meant for other
+                // hosts, replace current path to its host-specific
+                // counterpart if it exists.
+                .map(|x| {
+                    let host_specific_x = x.host_specific(hostname_sep);
+                    if host_specific_x.exists() {
+                        host_specific_x
+                    } else {
+                        x
+                    }
+                })
                 // Convert to absolute paths
                 .map(|x| {
                     x.absolute().unwrap_or_else(|_| {
@@ -176,7 +187,19 @@ fn expand_recursive(
                 })
                 .path()
             })
+            // Filter out paths that are meant for other hosts
             .filter(|x| !x.is_for_other_host(hostname_sep))
+            // **After** filtering out paths that are meant for other
+            // hosts, replace current path to its host-specific
+            // counterpart if it exists.
+            .map(|x| {
+                let host_specific_x = x.host_specific(hostname_sep);
+                if host_specific_x.exists() {
+                    host_specific_x
+                } else {
+                    x
+                }
+            })
             .collect();
 
         let mut ret: Vec<PathBuf> = Vec::new();
