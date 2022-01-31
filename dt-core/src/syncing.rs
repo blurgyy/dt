@@ -58,12 +58,11 @@ fn expand(config: DTConfig) -> Result<DTConfig> {
         // Above process does not guarantee the `base` to exist, since a
         // warning will be emitted later in the expanding process (see
         // function `expand_recursive()`), just don't attempt to read
-        // non-existent `base` here by first checking its
-        // existence.
+        // non-existent `base` here by first checking its existence.
         if next.base.exists() {
             // Check read permission of `base`
             if let Err(e) = std::fs::read_dir(&next.base) {
-                log::error!("Could not read base '{}'", next.base.display(),);
+                log::error!("Could not read base '{}'", next.base.display());
                 return Err(e.into());
             }
         }

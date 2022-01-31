@@ -755,7 +755,7 @@ target = "."
 allow_overwrite = true"#,
         )?;
         for group in config.local {
-            assert_eq!(group.is_overwrite_allowed(), true,);
+            assert_eq!(group.is_overwrite_allowed(), true);
         }
         Ok(())
     }
@@ -776,7 +776,7 @@ target = "."
 allow_overwrite = false"#,
         )?;
         for group in config.local {
-            assert_eq!(group.is_overwrite_allowed(), false,);
+            assert_eq!(group.is_overwrite_allowed(), false);
         }
         Ok(())
     }
@@ -794,8 +794,8 @@ method = "Copy"
 allow_overwrite = true"#,
         )?;
         for group in config.local {
-            assert_eq!(group.get_method(), SyncMethod::Copy,);
-            assert_eq!(group.is_overwrite_allowed(), true,);
+            assert_eq!(group.get_method(), SyncMethod::Copy);
+            assert_eq!(group.is_overwrite_allowed(), true);
         }
         Ok(())
     }
@@ -817,8 +817,8 @@ method = "Symlink"
 allow_overwrite = false"#,
         )?;
         for group in config.local {
-            assert_eq!(group.get_method(), SyncMethod::Symlink,);
-            assert_eq!(group.is_overwrite_allowed(), false,);
+            assert_eq!(group.get_method(), SyncMethod::Symlink);
+            assert_eq!(group.is_overwrite_allowed(), false);
         }
         Ok(())
     }
@@ -835,7 +835,7 @@ sources = []
 target = ".""#,
         )?;
         for group in config.local {
-            assert_eq!(group.get_hostname_sep(), "@-@",);
+            assert_eq!(group.get_hostname_sep(), "@-@");
         }
         Ok(())
     }
@@ -854,7 +854,7 @@ sources = []
 target = ".""#,
         )?;
         for group in config.local {
-            assert_eq!(group.get_hostname_sep(), "@-@",);
+            assert_eq!(group.get_hostname_sep(), "@-@");
         }
         Ok(())
     }
@@ -871,7 +871,7 @@ target = "."
 method = "Copy""#,
         )?;
         for group in config.local {
-            assert_eq!(group.get_method(), SyncMethod::Copy,)
+            assert_eq!(group.get_method(), SyncMethod::Copy)
         }
         Ok(())
     }
@@ -892,7 +892,7 @@ target = "."
 method = "Symlink""#,
         )?;
         for group in config.local {
-            assert_eq!(group.get_method(), SyncMethod::Symlink,)
+            assert_eq!(group.get_method(), SyncMethod::Symlink)
         }
         Ok(())
     }
