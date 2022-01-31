@@ -9,7 +9,33 @@ name: tests
 jobs:
   unit-test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        build: [x86_64, armv7, aarch64]
+        include:
+          - build: x86_64
+            toolchain: stable
+            target: x86_64-unknown-linux-gnu
+            cross: false
+            strip_bin: strip
+          - build: armv7
+            toolchain: stable
+            target: armv7-unknown-linux-gnueabihf
+            cross: true
+            cross_helpers: gcc-arm-linux-gnueabihf binutils-arm-linux-gnueabihf
+            strip_bin: arm-linux-gnueabihf-strip
+          - build: aarch64
+            toolchain: stable
+            target: aarch64-unknown-linux-gnu
+            cross: true
+            cross_helpers: gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+            strip_bin: aarch64-linux-gnu-strip
     steps:
+    - name: Install Linker
+      if: ${{ matrix.cross }}
+      run: |
+        sudo apt update
+        sudo apt install ${{ matrix.cross_helpers }}
     - name: Checkout code
       uses: actions/checkout@v2
       with:
@@ -18,12 +44,15 @@ jobs:
     - name: Setup rust toolchain
       uses: actions-rs/toolchain@v1
       with:
-        toolchain: stable
+        toolchain: ${{ matrix.toolchain }}
+        target: ${{ matrix.target }}
+        #override: true
     - name: Run unit tests
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --all --all-features --locked
+        args: --all --all-features --locked --target ${{ matrix.target }}
+        use-cross: ${{ matrix.cross }}
 
 # Author: Blurgy <gy@blurgy.xyz>
 # Date:   Oct 07 2021, 00:39 [CST]

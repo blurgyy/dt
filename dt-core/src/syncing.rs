@@ -542,6 +542,10 @@ target = "{}""#,
         #[test]
         fn target_readonly() -> Result<(), Report> {
             // setup
+            let base = prepare_directory(
+                get_testroot().join("target_readonly").join("base"),
+                0o755,
+            )?;
             let target_path = prepare_directory(
                 get_testroot()
                     .join("target_readonly")
@@ -554,9 +558,10 @@ target = "{}""#,
                     r#"
 [[local]]
 name = "target is readonly"
-base = "~"
+base = "{}"
 sources = []
 target = "{}""#,
+                    base.display(),
                     target_path.display(),
                 ))
                 .unwrap(),
@@ -586,6 +591,14 @@ target = "{}""#,
                     .join("staging-but-file"),
                 0o644,
             )?;
+            let base = prepare_directory(
+                get_testroot().join("staging_is_file").join("base"),
+                0o755,
+            )?;
+            let target = prepare_directory(
+                get_testroot().join("staging_is_file").join("target"),
+                0o755,
+            )?;
 
             if let Err(err) = expand(
                 DTConfig::from_str(&format!(
@@ -595,10 +608,12 @@ staging = "{}"
 
 [[local]]
 name = "staging is file"
-base = "~"
+base = "{}"
 sources = []
-target = ".""#,
+target = "{}""#,
                     staging_path.display(),
+                    base.display(),
+                    target.display(),
                 ))
                 .unwrap(),
             ) {
@@ -627,6 +642,10 @@ target = ".""#,
                     .join("staging-but-readonly"),
                 0o555,
             )?;
+            let base = prepare_directory(
+                get_testroot().join("staging_readonly").join("base"),
+                0o755,
+            )?;
             let target_path = prepare_directory(
                 get_testroot().join("staging_readonly").join("target"),
                 0o755,
@@ -640,10 +659,11 @@ staging = "{}"
 
 [[local]]
 name = "staging is readonly"
-base = "~"
+base = "{}"
 sources = []
 target = "{}""#,
                     staging_path.display(),
+                    base.display(),
                     target_path.display(),
                 ))
                 .unwrap(),
