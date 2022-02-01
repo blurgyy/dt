@@ -1057,30 +1057,6 @@ target = ".""#,
     }
 
     #[test]
-    fn empty_base() -> Result<(), Report> {
-        if let Err(err) = DTConfig::from_str(
-            r#"
-[[local]]
-name = "empty base"
-base = ""
-sources = []
-target = ".""#,
-        ) {
-            assert_eq!(
-                err,
-                AppError::ConfigError(
-                    "empty base in group 'empty base'".to_owned(),
-                ),
-                "{}",
-                err,
-            );
-            Ok(())
-        } else {
-            Err(eyre!("This config should not be loaded because a group's base is empty"))
-        }
-    }
-
-    #[test]
     fn empty_target() -> Result<(), Report> {
         if let Err(err) = DTConfig::from_str(
             r#"
