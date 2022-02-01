@@ -314,6 +314,7 @@ dependencies = [
  "serde_tuple",
  "shellexpand",
  "toml",
+ "url",
 ]
 
 [[package]]
@@ -1646,6 +1647,7 @@ dependencies = [
  "idna",
  "matches",
  "percent-encoding",
+ "serde",
 ]
 
 [[package]]

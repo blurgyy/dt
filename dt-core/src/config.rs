@@ -9,6 +9,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_regex;
 use serde_tuple::Deserialize_tuple;
+use url::Url;
 
 use crate::error::{Error as AppError, Result};
 
@@ -76,19 +77,22 @@ impl Default for SyncMethod {
     }
 }
 
-/// The configuration object deserialized from configuration file.
+/// The configuration object deserialized from configuration file, every
+/// field of it is optional.
 #[derive(Clone, Debug, Default, Deserialize)]
+#[serde(default)]
 pub struct DTConfig {
-    /// (Optional) Sets fallback behaviours.
-    #[serde(default)]
+    /// Sets fallback behaviours.
     pub global: GlobalConfig,
 
-    /// (Optional) Defines values for templating.
-    #[serde(default)]
+    /// Defines values for templating.
     pub context: ContextConfig,
 
-    /// Groups for local files.
+    /// Groups containing local files.
     pub local: Vec<LocalGroup>,
+
+    /// Groups containing remote files.
+    pub remote: Vec<RemoteGroup>,
 }
 
 impl FromStr for DTConfig {
@@ -122,6 +126,12 @@ impl DTConfig {
                 .filter(|l| group_names.iter().any(|n| l.name == *n))
                 .map(|l| l.to_owned())
                 .collect(),
+            remote: self
+                .remote
+                .iter()
+                .filter(|l| group_names.iter().any(|n| l.name == *n))
+                .map(|l| l.to_owned())
+                .collect(),
         }
     }
 
@@ -143,105 +153,16 @@ impl DTConfig {
 
         let mut ret: Self = self;
 
-        for mut group in &mut ret.local {
-            // Empty group name
-            if group.name.is_empty() {
-                return Err(AppError::ConfigError(
-                    "empty group name".to_owned(),
-                ));
-            }
-            // Empty base
-            if group.base.to_str().unwrap().is_empty() {
-                return Err(AppError::ConfigError(format!(
-                    "empty base in group '{}'",
-                    group.name,
-                )));
-            }
-            // Empty target
-            if group.target.to_str().unwrap().is_empty() {
-                return Err(AppError::ConfigError(format!(
-                    "empty target in group '{}'",
-                    group.name,
-                )));
-            }
+        for group in &mut ret.local {
+            group.validate()?;
 
-            // Slash in group name
-            if group.name.contains('/') {
-                return Err(AppError::ConfigError(format!(
-                    "group name '{}' contains the '/' character",
-                    group.name,
-                )));
-            }
-
-            // Target and base are the same
-            if group.base == group.target {
-                return Err(AppError::ConfigError(format!(
-                    "base directory and its target are the same in group '{}'",
-                    group.name,
-                )));
-            }
-
-            // base contains hostname_sep
-            let hostname_sep = group.get_hostname_sep();
-            if group.base.to_str().unwrap().contains(&hostname_sep) {
-                return Err(AppError::ConfigError(format!(
-                    "base directory contains hostname_sep ({}) in group '{}'",
-                    hostname_sep, group.name,
-                )));
-            }
-
-            // Source item referencing parent
-            if group.sources.iter().any(|s| s.starts_with("../")) {
-                return Err(AppError::ConfigError(format!(
-                    "source item references parent directory in group '{}'",
-                    group.name,
-                )));
-            }
-
-            // Source item is absolute
-            if group
-                .sources
-                .iter()
-                .any(|s| s.starts_with("/") || s.starts_with("~"))
-            {
-                return Err(AppError::ConfigError(format!(
-                    "source array contains absolute path in group '{}'",
-                    group.name,
-                )));
-            }
-
-            // Source item contains bad globbing pattern
-            if group.sources.iter().any(|s| {
-                s.to_str()
-                    .unwrap()
-                    .split('/')
-                    .any(|component| component == ".*")
-            }) {
-                log::error!(
-                    "'.*' is prohibited for globbing sources because it also matches the parent directory.",
-                );
-                log::error!(
-                    "If you want to match all items that starts with a dot, use ['.[!.]*', '..?*'] as sources.",
-                );
-                return Err(AppError::ConfigError(
-                    "bad globbing pattern".to_owned(),
-                ));
-            }
-
-            // Source item contains hostname_sep
-            if group.sources.iter().any(|s| {
-                let s = s.to_str().unwrap();
-                s.contains(&hostname_sep)
-            }) {
-                return Err(AppError::ConfigError(format!(
-                    "a source item contains hostname_sep ({}) in group '{}'",
-                    hostname_sep, group.name,
-                )));
-            }
-
-            if group.ignored.is_some() {
-                todo!("`ignored` array works poorly and I decided to implement it in the future");
-            }
+            // If nothing seems bad, intialize the group's refrencing global
+            // config
+            group.global = Rc::clone(&global_ref);
+            group.context = Rc::clone(&context_ref);
+        }
+        for group in &mut ret.remote {
+            group.validate()?;
 
             // If nothing seems bad, intialize the group's refrencing global
             // config
@@ -496,7 +417,7 @@ impl Default for ContextConfig {
 
 /// Configures how items are grouped.
 #[derive(Default, Clone, Deserialize, Debug)]
-pub struct Group<SrcType> {
+pub struct Group<BaseType> {
     /// The global config object loaded from DT's config file.  This field
     /// _does not_ appear in the config file, but is only used by DT
     /// internally.  Skipping deserializing is achieved via serde's
@@ -559,12 +480,12 @@ pub struct Group<SrcType> {
     /// (in this case, the directory where [DT] is being executed).
     ///
     /// [DT]: https://github.com/blurgyy/dt
-    pub base: SrcType,
+    pub base: BaseType,
 
     /// Paths (relative to [`base`]) to the items to be synced.
     ///
     /// [`base`]: Group::base
-    pub sources: Vec<SrcType>,
+    pub sources: Vec<PathBuf>,
 
     /// The path of the parent dir of the final synced items.
     ///
@@ -670,7 +591,7 @@ pub struct Group<SrcType> {
     pub rename: RenamingRules,
 }
 
-impl<SrcType> Group<SrcType> {
+impl<BaseType> Group<BaseType> {
     /// Gets the [`allow_overwrite`] key from a `Group` object,
     /// falls back to the `allow_overwrite` from provided global config.
     ///
@@ -733,10 +654,171 @@ impl<SrcType> Group<SrcType> {
             None => false,
         }
     }
+
+    /// Validates this group, the following cases are denied:
+    ///
+    ///   1. Empty group name
+    ///   2. Empty target
+    ///   3. Slash in group name
+    ///   4. Source item referencing parent (because items are first populated
+    ///      to the [`staging`] directory, and the structure under the
+    ///      [`staging`] directory depends on their original relative path to
+    ///      their [`base`])
+    ///   5. TODO: Current group contains unimplemented [`ignore`] field
+    ///
+    /// NOTE: When [`base`] is empty, sources will be looked up in the cwd of
+    /// the process.
+    ///
+    /// [`ignore`]: Group::ignore
+    /// [`base`]: Group::base
+    fn _validate(&self) -> Result<()> {
+        // 1. Empty group name
+        if self.name.is_empty() {
+            return Err(AppError::ConfigError("empty group name".to_owned()));
+        }
+        // 2. Empty target
+        if self.target.to_str().unwrap().is_empty() {
+            return Err(AppError::ConfigError(format!(
+                "empty target in group '{}'",
+                self.name,
+            )));
+        }
+        // 3. Slash in group name
+        if self.name.contains('/') {
+            return Err(AppError::ConfigError(format!(
+                "group name '{}' contains the '/' character",
+                self.name,
+            )));
+        }
+        // 4. Source item referencing parent
+        if self.sources.iter().any(|s| s.starts_with("../")) {
+            return Err(AppError::ConfigError(format!(
+                "source item references parent directory in group '{}'",
+                self.name,
+            )));
+        }
+        // 5. Current group contains unimplemented ignore field
+        if self.ignored.is_some() {
+            todo!("`ignored` array works poorly and I decided to implement it in the future");
+        }
+
+        Ok(())
+    }
 }
 
 /// Configures how local items are grouped.
 pub type LocalGroup = Group<PathBuf>;
+
+impl LocalGroup {
+    /// Validates this local group, the following cases are denied:
+    ///
+    ///   1. Empty group name
+    ///   2. Empty target
+    ///   3. Slash in group name
+    ///   4. Source item referencing parent (because items are first populated
+    ///      to the [`staging`] directory, and the structure under the
+    ///      [`staging`] directory depends on their original relative path to
+    ///      their [`base`])
+    ///   5. Current group contains unimplemented [`ignore`] field
+    ///
+    ///   6. Target and base are the same
+    ///   7. Base contains [`hostname_sep`]
+    ///   8. Source item is absolute (same reason as above)
+    ///   9. Source item contains bad globbing pattern
+    ///   10. Source item contains [`hostname_sep`]
+    ///
+    /// [group name]: LocalGroup::name
+    /// [`base`]: LocalGroup::base
+    /// [`target`]: LocalGroup::target
+    /// [`staging`]: GlobalConfig::staging
+    /// [`hostname_sep`]: LocalGroup::hostname_sep
+    pub fn validate(&self) -> Result<()> {
+        // 1-5
+        self._validate()?;
+
+        // 6. Target and base are the same
+        if self.base == self.target {
+            return Err(AppError::ConfigError(format!(
+                "base directory and its target are the same in group '{}'",
+                self.name,
+            )));
+        }
+
+        // 7. Base contains hostname_sep
+        let hostname_sep = self.get_hostname_sep();
+        if self.base.to_str().unwrap().contains(&hostname_sep) {
+            return Err(AppError::ConfigError(format!(
+                "base directory contains hostname_sep ({}) in group '{}'",
+                hostname_sep, self.name,
+            )));
+        }
+
+        // 8. Source item is absolute
+        if self
+            .sources
+            .iter()
+            .any(|s| s.starts_with("/") || s.starts_with("~"))
+        {
+            return Err(AppError::ConfigError(format!(
+                "source array contains absolute path in group '{}'",
+                self.name,
+            )));
+        }
+
+        // 9. Source item contains bad globbing pattern
+        if self.sources.iter().any(|s| {
+            s.to_str()
+                .unwrap()
+                .split('/')
+                .any(|component| component == ".*")
+        }) {
+            log::error!(
+                    "'.*' is prohibited for globbing sources because it also matches the parent directory.",
+                );
+            log::error!(
+                    "If you want to match all items that starts with a dot, use ['.[!.]*', '..?*'] as sources.",
+                );
+            return Err(AppError::ConfigError(
+                "bad globbing pattern".to_owned(),
+            ));
+        }
+
+        // 10. Source item contains hostname_sep
+        if self.sources.iter().any(|s| {
+            let s = s.to_str().unwrap();
+            s.contains(&hostname_sep)
+        }) {
+            return Err(AppError::ConfigError(format!(
+                "a source item contains hostname_sep ({}) in group '{}'",
+                hostname_sep, self.name,
+            )));
+        }
+
+        Ok(())
+    }
+}
+
+/// Configures how remote items are grouped.
+pub type RemoteGroup = Group<Url>;
+
+impl RemoteGroup {
+    /// Validates this remote group, the following cases are denied:
+    ///
+    ///   1. Empty group name
+    ///   2. Empty target
+    ///   3. Slash in group name
+    ///   4. Source item referencing parent (because items are first populated
+    ///      to the [`staging`] directory, and the structure under the
+    ///      [`staging`] directory depends on their original relative path to
+    ///      their [`base`])
+    ///   5. Current group contains unimplemented [`ignore`] field
+    fn validate(&self) -> Result<()> {
+        // 1-5
+        self._validate()?;
+
+        Ok(())
+    }
+}
 
 #[cfg(test)]
 mod overriding_global {
