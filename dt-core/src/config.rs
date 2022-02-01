@@ -88,7 +88,7 @@ pub struct DTConfig {
     pub context: ContextConfig,
 
     /// Groups for local files.
-    pub local: Vec<Group>,
+    pub local: Vec<LocalGroup>,
 }
 
 impl FromStr for DTConfig {
@@ -494,9 +494,9 @@ impl Default for ContextConfig {
     }
 }
 
-/// Configures how local files are grouped.
+/// Configures how items are grouped.
 #[derive(Default, Clone, Deserialize, Debug)]
-pub struct Group {
+pub struct Group<SrcType> {
     /// The global config object loaded from DT's config file.  This field
     /// _does not_ appear in the config file, but is only used by DT
     /// internally.  Skipping deserializing is achieved via serde's
@@ -559,12 +559,12 @@ pub struct Group {
     /// (in this case, the directory where [DT] is being executed).
     ///
     /// [DT]: https://github.com/blurgyy/dt
-    pub base: PathBuf,
+    pub base: SrcType,
 
     /// Paths (relative to [`base`]) to the items to be synced.
     ///
     /// [`base`]: Group::base
-    pub sources: Vec<PathBuf>,
+    pub sources: Vec<SrcType>,
 
     /// The path of the parent dir of the final synced items.
     ///
@@ -670,7 +670,7 @@ pub struct Group {
     pub rename: RenamingRules,
 }
 
-impl Group {
+impl<SrcType> Group<SrcType> {
     /// Gets the [`allow_overwrite`] key from a `Group` object,
     /// falls back to the `allow_overwrite` from provided global config.
     ///
@@ -734,6 +734,9 @@ impl Group {
         }
     }
 }
+
+/// Configures how local items are grouped.
+pub type LocalGroup = Group<PathBuf>;
 
 #[cfg(test)]
 mod overriding_global {

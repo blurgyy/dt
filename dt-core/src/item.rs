@@ -9,7 +9,7 @@ use path_clean::PathClean;
 use serde::Serialize;
 
 use crate::{
-    config::{Group, RenamingRule, SyncMethod},
+    config::{LocalGroup, RenamingRule, SyncMethod},
     error::{Error as AppError, Result},
     utils,
 };
@@ -392,7 +392,7 @@ where
     /// expected to be the group where this item belongs to.
     fn populate(
         &self,
-        group: Rc<Group>,
+        group: Rc<LocalGroup>,
         registry: Rc<Handlebars>,
     ) -> Result<()> {
         // Create possibly missing parent directories along target's path.
@@ -726,7 +726,7 @@ where
     /// Show what is to be done if this item is to be populated with given
     /// group config.  The given group config is expected to be the group
     /// where this item belongs to.
-    fn populate_dry(&self, group: Rc<Group>) -> Result<()> {
+    fn populate_dry(&self, group: Rc<LocalGroup>) -> Result<()> {
         let tpath = self.make_target(
             &group.get_hostname_sep(),
             &group.base,

@@ -39,7 +39,7 @@ fn expand(config: DTConfig) -> Result<DTConfig> {
     };
 
     for original in config.local {
-        let mut next = Group {
+        let mut next = LocalGroup {
             global: Rc::clone(&original.global),
             base: original.base.absolute()?,
             sources: Vec::new(),
@@ -262,7 +262,7 @@ fn resolve(config: DTConfig) -> Result<DTConfig> {
             .local
             .iter()
             .enumerate()
-            .map(|(cur_id, group)| Group {
+            .map(|(cur_id, group)| LocalGroup {
                 sources: group
                     .sources
                     .iter()
