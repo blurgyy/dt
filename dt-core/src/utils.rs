@@ -40,5 +40,44 @@ pub fn host_specific_suffix(hostname_sep: &str) -> String {
             .expect("Failed getting hostname")
 }
 
+#[cfg(test)]
+pub(crate) mod testing {
+    use std::{
+        fs::Permissions, os::unix::prelude::PermissionsExt, path::PathBuf,
+    };
+
+    use color_eyre::Report;
+
+    const TESTROOT: &str = "/tmp/dt-testing/syncing";
+
+    pub fn get_testroot() -> PathBuf {
+        TESTROOT.into()
+    }
+
+    pub fn prepare_directory(
+        abspath: PathBuf,
+        mode: u32,
+    ) -> Result<PathBuf, Report> {
+        std::fs::create_dir_all(&abspath)?;
+        std::fs::set_permissions(&abspath, Permissions::from_mode(mode))?;
+        Ok(abspath)
+    }
+
+    pub fn prepare_file(
+        abspath: PathBuf,
+        mode: u32,
+    ) -> Result<PathBuf, Report> {
+        if let Some(parent) = abspath.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(
+            &abspath,
+            "Created by: `dt_core::syncing::tests::prepare_file`\n",
+        )?;
+        std::fs::set_permissions(&abspath, Permissions::from_mode(mode))?;
+        Ok(abspath)
+    }
+}
+
 // Author: Blurgy <gy@blurgy.xyz>
 // Date:   Oct 03 2021, 02:54 [CST]

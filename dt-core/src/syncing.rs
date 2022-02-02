@@ -36,6 +36,7 @@ fn expand(config: DTConfig) -> Result<DTConfig> {
         global: config.global,
         context: config.context,
         local: Vec::new(),
+        remote: Vec::new(),
     };
 
     for original in config.local {
@@ -99,7 +100,7 @@ fn expand(config: DTConfig) -> Result<DTConfig> {
 
     let ret = resolve(ret)?;
 
-    check(&ret)?;
+    check_readable(&ret)?;
 
     Ok(ret)
 }
@@ -222,7 +223,9 @@ fn expand_recursive(
 }
 
 /// Resolve priorities within expanded [`DTConfig`], this function is called
-/// before [`check`] because it does not have to query the filesystem.
+/// after [`expand`] so that it can correctly resolve priorities of all
+/// expanded sources, and before [`check_readable`], since it does not have to
+/// query the filesystem.
 fn resolve(config: DTConfig) -> Result<DTConfig> {
     // Maps an item to the index of the group which holds the highest priority
     // of it.
@@ -288,54 +291,13 @@ fn resolve(config: DTConfig) -> Result<DTConfig> {
 }
 
 /// Checks validity of the given [DTConfig].
-fn check(config: &DTConfig) -> Result<()> {
-    let mut has_symlink: bool = false;
-
+fn check_readable(config: &DTConfig) -> Result<()> {
     for group in &config.local {
-        if !has_symlink && group.get_method() == SyncMethod::Symlink {
-            // Check staging path once, because `staging` is only set in the
-            // [global] section.
-            has_symlink = true;
-
-            let staging_path: PathBuf = group.global.staging.0.to_owned();
-
-            // Wrong type of existing staging path
-            if staging_path.exists() && !staging_path.is_dir() {
-                return Err(AppError::ConfigError(
-                    "staging root path exists but is not a valid directory"
-                        .to_owned(),
-                ));
-            }
-
-            // Path to staging root contains readonly parent directory
-            if staging_path.parent_readonly() {
-                return Err(AppError::ConfigError(
-                    "staging root path cannot be created due to insufficient permissions"
-                        .to_owned(),
-                ));
-            }
-        }
-
-        // Wrong type of existing target path
-        if group.target.exists() && !group.target.is_dir() {
-            return Err(AppError::ConfigError(format!(
-                "target path exists but is not a valid directory in group '{}'",
-                group.name,
-            )));
-        }
-
-        // Path to target contains readonly parent directory
-        if group.target.parent_readonly() {
-            return Err(AppError::ConfigError(format!(
-                "target path cannot be created due to insufficient permissions in group '{}'",
-                group.name,
-            )));
-        }
-
         for s in &group.sources {
             if std::fs::File::open(s).is_err() {
-                return Err(AppError::ConfigError(format!(
-                    "there exists a source item that is not readable in group '{}'",
+                return Err(AppError::IoError(format!(
+                    "'{}' is not readable in group '{}'",
+                    s.display(),
                     group.name,
                 )));
             }
@@ -399,36 +361,6 @@ pub fn sync(config: DTConfig, dry_run: bool) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        fs::Permissions, os::unix::prelude::PermissionsExt, path::PathBuf,
-    };
-
-    use color_eyre::Report;
-
-    const TESTROOT: &str = "/tmp/dt-testing/syncing";
-    fn get_testroot() -> PathBuf {
-        TESTROOT.into()
-    }
-    fn prepare_directory(
-        abspath: PathBuf,
-        mode: u32,
-    ) -> Result<PathBuf, Report> {
-        std::fs::create_dir_all(&abspath)?;
-        std::fs::set_permissions(&abspath, Permissions::from_mode(mode))?;
-        Ok(abspath)
-    }
-    fn prepare_file(abspath: PathBuf, mode: u32) -> Result<PathBuf, Report> {
-        if let Some(parent) = abspath.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        std::fs::write(
-            &abspath,
-            "Created by: `dt_core::syncing::tests::prepare_file`\n",
-        )?;
-        std::fs::set_permissions(&abspath, Permissions::from_mode(mode))?;
-        Ok(abspath)
-    }
-
     mod validation {
         use std::str::FromStr;
 
@@ -438,21 +370,27 @@ mod tests {
         use crate::config::DTConfig;
         use crate::error::Error as AppError;
 
-        use super::{
-            super::expand, get_testroot, prepare_directory, prepare_file,
+        use super::super::expand;
+        use crate::utils::testing::{
+            get_testroot, prepare_directory, prepare_file,
         };
 
         #[test]
         fn base_unreadable() -> Result<(), Report> {
+            let base = prepare_file(
+                get_testroot().join("base_unreadable").join("base-but-file"),
+                0o311,
+            )?;
             if let Err(err) = expand(
-                DTConfig::from_str(
+                DTConfig::from_str(&format!(
                     r#"
 [[local]]
 name = "base unreadable (not a directory)"
-base = "../Cargo.toml"
+base = "{}"
 sources = []
 target = ".""#,
-                )
+                    base.display(),
+                ))
                 .unwrap(),
             ) {
                 assert_eq!(
@@ -470,7 +408,9 @@ target = ".""#,
             }
 
             let base = prepare_directory(
-                get_testroot().join("base_unreadable").join("base"),
+                get_testroot()
+                    .join("base_unreadable")
+                    .join("base-unreadable"),
                 0o311,
             )?;
             if let Err(err) = expand(
@@ -500,189 +440,6 @@ target = ".""#,
             }
 
             Ok(())
-        }
-
-        #[test]
-        fn target_is_file() -> Result<(), Report> {
-            let target_path = prepare_file(
-                get_testroot()
-                    .join("target_is_file")
-                    .join("target-but-file"),
-                0o755,
-            )?;
-            if let Err(err) = expand(
-                DTConfig::from_str(&format!(
-                    r#"
-[[local]]
-name = "target path is absolute"
-base = "."
-sources = []
-target = "{}""#,
-                    target_path.display(),
-                ))
-                .unwrap(),
-            ) {
-                assert_eq!(
-                err,
-                AppError::ConfigError(
-                    "target path exists but is not a valid directory in group 'target path is absolute'"
-                        .to_owned(),
-                ),
-                "{}",
-                err,
-            );
-                Ok(())
-            } else {
-                Err(eyre!(
-                "This config should not be loaded because target is not a directory",
-            ))
-            }
-        }
-
-        #[test]
-        fn target_readonly() -> Result<(), Report> {
-            // setup
-            let base = prepare_directory(
-                get_testroot().join("target_readonly").join("base"),
-                0o755,
-            )?;
-            let target_path = prepare_directory(
-                get_testroot()
-                    .join("target_readonly")
-                    .join("target-but-readonly"),
-                0o555,
-            )?;
-
-            if let Err(err) = expand(
-                DTConfig::from_str(&format!(
-                    r#"
-[[local]]
-name = "target is readonly"
-base = "{}"
-sources = []
-target = "{}""#,
-                    base.display(),
-                    target_path.display(),
-                ))
-                .unwrap(),
-            ) {
-                assert_eq!(
-                err,
-                AppError::ConfigError(
-                    "target path cannot be created due to insufficient permissions in group 'target is readonly'"
-                        .to_owned(),
-                ),
-                "{}",
-                err,
-            );
-                Ok(())
-            } else {
-                Err(eyre!(
-                "This config should not be loaded because target path is readonly",
-            ))
-            }
-        }
-
-        #[test]
-        fn staging_is_file() -> Result<(), Report> {
-            let staging_path = prepare_file(
-                get_testroot()
-                    .join("staging_is_file")
-                    .join("staging-but-file"),
-                0o644,
-            )?;
-            let base = prepare_directory(
-                get_testroot().join("staging_is_file").join("base"),
-                0o755,
-            )?;
-            let target = prepare_directory(
-                get_testroot().join("staging_is_file").join("target"),
-                0o755,
-            )?;
-
-            if let Err(err) = expand(
-                DTConfig::from_str(&format!(
-                    r#"
-[global]
-staging = "{}"
-
-[[local]]
-name = "staging is file"
-base = "{}"
-sources = []
-target = "{}""#,
-                    staging_path.display(),
-                    base.display(),
-                    target.display(),
-                ))
-                .unwrap(),
-            ) {
-                assert_eq!(
-                err,
-                AppError::ConfigError(
-                    "staging root path exists but is not a valid directory"
-                        .to_owned(),
-                ),
-                "{}",
-                err,
-            );
-                Ok(())
-            } else {
-                Err(eyre!(
-                "This config should not be loaded because target path is readonly",
-            ))
-            }
-        }
-
-        #[test]
-        fn staging_readonly() -> Result<(), Report> {
-            let staging_path = prepare_directory(
-                get_testroot()
-                    .join("staging_readonly")
-                    .join("staging-but-readonly"),
-                0o555,
-            )?;
-            let base = prepare_directory(
-                get_testroot().join("staging_readonly").join("base"),
-                0o755,
-            )?;
-            let target_path = prepare_directory(
-                get_testroot().join("staging_readonly").join("target"),
-                0o755,
-            )?;
-
-            if let Err(err) = expand(
-                DTConfig::from_str(&format!(
-                    r#"
-[global]
-staging = "{}"
-
-[[local]]
-name = "staging is readonly"
-base = "{}"
-sources = []
-target = "{}""#,
-                    staging_path.display(),
-                    base.display(),
-                    target_path.display(),
-                ))
-                .unwrap(),
-            ) {
-                assert_eq!(
-                err,
-                AppError::ConfigError(
-                    "staging root path cannot be created due to insufficient permissions"
-                        .to_owned(),
-                ),
-                "{}",
-                err,
-            );
-                Ok(())
-            } else {
-                Err(eyre!(
-                "This config should not be loaded because staging path is readonly",
-            ))
-            }
         }
 
         #[test]
@@ -716,8 +473,8 @@ target = "{}""#,
             ) {
                 assert_eq!(
                 err,
-                AppError::ConfigError(
-                    "there exists a source item that is not readable in group 'source is unreadable'"
+                AppError::IoError(
+                    "'/tmp/dt-testing/syncing/unreadable_source/base/src-file-but-unreadable' is not readable in group 'source is unreadable'"
                         .to_owned(),
                 ),
                 "{}",
@@ -738,8 +495,9 @@ target = "{}""#,
 
         use crate::{config::*, item::DTItem};
 
-        use super::{
-            super::expand, get_testroot, prepare_directory, prepare_file,
+        use super::super::expand;
+        use crate::utils::testing::{
+            get_testroot, prepare_directory, prepare_file,
         };
 
         #[test]
@@ -823,7 +581,6 @@ target = "{}""#,
                 println!("Creating source {} ..", f);
                 prepare_file(base_path.join(f), 0o644)?;
             }
-            println!("Setup complete!");
 
             let config = expand(
                 DTConfig::from_str(&format!(

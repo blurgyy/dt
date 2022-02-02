@@ -11,7 +11,10 @@ use serde_regex;
 use serde_tuple::Deserialize_tuple;
 use url::Url;
 
-use crate::error::{Error as AppError, Result};
+use crate::{
+    error::{Error as AppError, Result},
+    item::DTItem,
+};
 
 /// Helper type for config key [`staging`]
 ///
@@ -135,10 +138,9 @@ impl DTConfig {
         }
     }
 
-    /// Validates config object **without** touching the filesystem.  After
-    /// this, the original `global` and `context` sections are referenced
-    /// by each group via an [Rc] and can be safely ignored in further
-    /// processing.
+    /// Validates config object.  After this, the original `global` and
+    /// `context` sections are referenced by each group via an [Rc] and can be
+    /// safely ignored in further processing.
     ///
     /// [Rc]: std::rc::Rc
     fn validate(self) -> Result<Self> {
@@ -154,20 +156,14 @@ impl DTConfig {
         let mut ret: Self = self;
 
         for group in &mut ret.local {
-            group.validate()?;
-
-            // If nothing seems bad, intialize the group's refrencing global
-            // config
             group.global = Rc::clone(&global_ref);
             group.context = Rc::clone(&context_ref);
+            group.validate()?;
         }
         for group in &mut ret.remote {
-            group.validate()?;
-
-            // If nothing seems bad, intialize the group's refrencing global
-            // config
             group.global = Rc::clone(&global_ref);
             group.context = Rc::clone(&context_ref);
+            group.validate()?;
         }
 
         Ok(ret)
@@ -180,39 +176,39 @@ impl DTConfig {
         let staging = &mut ret.global.staging;
         *staging = StagingPath(
             PathBuf::from_str(&shellexpand::tilde(
-                staging.0.to_str().unwrap(),
+                staging.0.to_str().unwrap_or_else(|| {
+                    panic!(
+                        "Failed expanding tilde in `global.staging` ({})",
+                        staging.0.display(),
+                    )
+                }),
             ))
-            .unwrap_or_else(|_| {
-                panic!(
-                    "Failed expanding tilde in `global.staging` ({})",
-                    staging.0.display(),
-                )
-            }),
+            .unwrap(),
         );
 
         // Expand tilde in `base` and `target` of `local`
         for group in &mut ret.local {
             // `local.base`
             group.base = PathBuf::from_str(&shellexpand::tilde(
-                group.base.to_str().unwrap(),
+                group.base.to_str().unwrap_or_else(|| {
+                    panic!(
+                        "Failed expanding tilde in `local.base` '{}'",
+                        group.base.display(),
+                    )
+                }),
             ))
-            .unwrap_or_else(|_| {
-                panic!(
-                    "Failed expanding tilde in `local.base` '{}'",
-                    group.base.display(),
-                )
-            });
+            .unwrap();
 
             // `local.target`
             group.target = PathBuf::from_str(&shellexpand::tilde(
-                group.target.to_str().unwrap(),
+                group.target.to_str().unwrap_or_else(|| {
+                    panic!(
+                        "Failed expanding tilde in `local.target` '{}'",
+                        group.target.display(),
+                    )
+                }),
             ))
-            .unwrap_or_else(|_| {
-                panic!(
-                    "Failed expanding tilde in `local.target` '{}'",
-                    group.target.display(),
-                )
-            });
+            .unwrap();
         }
 
         ret
@@ -655,51 +651,97 @@ impl<BaseType> Group<BaseType> {
         }
     }
 
-    /// Validates this group, the following cases are denied:
+    /// Validates this group with readonly access to the filesystem.  The
+    /// following cases are denied:
     ///
     ///   1. Empty group name
-    ///   2. Empty target
-    ///   3. Slash in group name
-    ///   4. Source item referencing parent (because items are first populated
+    ///   2. Slash in group name
+    ///   3. Source item referencing parent (because items are first populated
     ///      to the [`staging`] directory, and the structure under the
     ///      [`staging`] directory depends on their original relative path to
     ///      their [`base`])
-    ///   5. TODO: Current group contains unimplemented [`ignore`] field
+    ///   4. TODO: Current group contains unimplemented [`ignore`] field
     ///
     /// NOTE: When [`base`] is empty, sources will be looked up in the cwd of
     /// the process.
     ///
     /// [`ignore`]: Group::ignore
     /// [`base`]: Group::base
-    fn _validate(&self) -> Result<()> {
+    fn _validate_no_fs_query(&self) -> Result<()> {
         // 1. Empty group name
         if self.name.is_empty() {
             return Err(AppError::ConfigError("empty group name".to_owned()));
         }
-        // 2. Empty target
-        if self.target.to_str().unwrap().is_empty() {
-            return Err(AppError::ConfigError(format!(
-                "empty target in group '{}'",
-                self.name,
-            )));
-        }
-        // 3. Slash in group name
+        // 2. Slash in group name
         if self.name.contains('/') {
             return Err(AppError::ConfigError(format!(
                 "group name '{}' contains the '/' character",
                 self.name,
             )));
         }
-        // 4. Source item referencing parent
+        // 3. Source item referencing parent
         if self.sources.iter().any(|s| s.starts_with("../")) {
             return Err(AppError::ConfigError(format!(
                 "source item references parent directory in group '{}'",
                 self.name,
             )));
         }
-        // 5. Current group contains unimplemented ignore field
+        // 4. Current group contains unimplemented ignore field
         if self.ignored.is_some() {
             todo!("`ignored` array works poorly and I decided to implement it in the future");
+        }
+
+        Ok(())
+    }
+
+    /// Validates this group via querying the filesystem.  The following cases
+    /// are denied:
+    ///
+    ///   1. Wrong type of existing [`staging`] path (if using the
+    ///      [`Symlink`] method)
+    ///   2. Path to staging root contains readonly parent directory (if
+    ///      using the [`Symlink`] method)
+    ///   3. Wrong type of existing [`target`] path
+    ///   4. Path to [`target`] contains readonly parent directory
+    ///
+    /// [`staging`]: GlobalConfig::staging
+    /// [`Symlink`]: SyncMethod::Symlink
+    /// [`target`]: LocalGroup::target
+    fn _validate_with_fs_query(&self) -> Result<()> {
+        if self.get_method() == SyncMethod::Symlink {
+            let staging_path: PathBuf = self.global.staging.0.to_owned();
+
+            // 1. Wrong type of existing staging path
+            if staging_path.exists() && !staging_path.is_dir() {
+                return Err(AppError::ConfigError(
+                    "staging root path exists but is not a valid directory"
+                        .to_owned(),
+                ));
+            }
+
+            // 2. Path to staging root contains readonly parent directory
+            if staging_path.parent_readonly() {
+                return Err(AppError::ConfigError(
+                    "staging root path cannot be created due to insufficient permissions"
+                        .to_owned(),
+                ));
+            }
+        }
+
+        // 3. Wrong type of existing target path
+        if self.target.exists() && !self.target.is_dir() {
+            return Err(AppError::ConfigError(format!(
+                "target path exists but is not a valid directory in group '{}'",
+                self.name,
+            )));
+        }
+
+        // 4. Path to target contains readonly parent directory
+        if self.target.parent_readonly() {
+            return Err(AppError::ConfigError(format!(
+                "target path cannot be created due to insufficient permissions in group '{}'",
+                self.name,
+            )));
         }
 
         Ok(())
@@ -712,31 +754,43 @@ pub type LocalGroup = Group<PathBuf>;
 impl LocalGroup {
     /// Validates this local group, the following cases are denied:
     ///
+    /// - Checks without querying the filesystem
+    ///
     ///   1. Empty group name
-    ///   2. Empty target
-    ///   3. Slash in group name
-    ///   4. Source item referencing parent (because items are first populated
+    ///   2. Slash in group name
+    ///   3. Source item referencing parent (because items are first populated
     ///      to the [`staging`] directory, and the structure under the
     ///      [`staging`] directory depends on their original relative path to
     ///      their [`base`])
-    ///   5. Current group contains unimplemented [`ignore`] field
+    ///   4. Current group contains unimplemented [`ignore`] field
     ///
-    ///   6. Target and base are the same
-    ///   7. Base contains [`hostname_sep`]
-    ///   8. Source item is absolute (same reason as above)
-    ///   9. Source item contains bad globbing pattern
-    ///   10. Source item contains [`hostname_sep`]
+    ///   5. Target and base are the same
+    ///   6. Base contains [`hostname_sep`]
+    ///   7. Source item is absolute (same reason as above)
+    ///   8. Source item contains bad globbing pattern
+    ///   9. Source item contains [`hostname_sep`]
+    ///
+    /// - Checks that need to query the filesystem
+    ///
+    ///   1. Wrong type of existing [`staging`] path (if using the
+    ///      [`Symlink`] method)
+    ///   2. Path to staging root contains readonly parent directory (if
+    ///      using the [`Symlink`] method)
+    ///   3. Wrong type of existing [`target`] path
+    ///   4. Path to [`target`] contains readonly parent directory
     ///
     /// [group name]: LocalGroup::name
     /// [`base`]: LocalGroup::base
     /// [`target`]: LocalGroup::target
     /// [`staging`]: GlobalConfig::staging
     /// [`hostname_sep`]: LocalGroup::hostname_sep
+    /// [`Symlink`]: SyncMethod::Symlink
     pub fn validate(&self) -> Result<()> {
-        // 1-5
-        self._validate()?;
+        // - Checks without querying the filesystem --------------------------
+        // 1-4
+        self._validate_no_fs_query()?;
 
-        // 6. Target and base are the same
+        // 5. Target and base are the same
         if self.base == self.target {
             return Err(AppError::ConfigError(format!(
                 "base directory and its target are the same in group '{}'",
@@ -744,7 +798,7 @@ impl LocalGroup {
             )));
         }
 
-        // 7. Base contains hostname_sep
+        // 6. Base contains hostname_sep
         let hostname_sep = self.get_hostname_sep();
         if self.base.to_str().unwrap().contains(&hostname_sep) {
             return Err(AppError::ConfigError(format!(
@@ -753,7 +807,7 @@ impl LocalGroup {
             )));
         }
 
-        // 8. Source item is absolute
+        // 7. Source item is absolute
         if self
             .sources
             .iter()
@@ -765,7 +819,7 @@ impl LocalGroup {
             )));
         }
 
-        // 9. Source item contains bad globbing pattern
+        // 8. Source item contains bad globbing pattern
         if self.sources.iter().any(|s| {
             s.to_str()
                 .unwrap()
@@ -783,7 +837,7 @@ impl LocalGroup {
             ));
         }
 
-        // 10. Source item contains hostname_sep
+        // 9. Source item contains hostname_sep
         if self.sources.iter().any(|s| {
             let s = s.to_str().unwrap();
             s.contains(&hostname_sep)
@@ -793,6 +847,10 @@ impl LocalGroup {
                 hostname_sep, self.name,
             )));
         }
+
+        // - Checks that need to query the filesystem ------------------------
+        // 1-4
+        self._validate_with_fs_query()?;
 
         Ok(())
     }
@@ -814,7 +872,7 @@ impl RemoteGroup {
     ///   5. Current group contains unimplemented [`ignore`] field
     fn validate(&self) -> Result<()> {
         // 1-5
-        self._validate()?;
+        self._validate_no_fs_query()?;
 
         Ok(())
     }
@@ -1008,15 +1066,17 @@ base = "~"
 sources = []
 target = "~/dt/target""#,
         )?;
+        dbg!(&config.global.staging.0);
         assert_eq!(Some(config.global.staging.0), dirs::home_dir());
         config.local.iter().all(|group| {
+            dbg!(&group.base);
+            dbg!(&group.target);
             assert_eq!(Some(group.to_owned().base), dirs::home_dir());
             assert_eq!(
-                group.to_owned().target,
+                Some(group.to_owned().target),
                 dirs::home_dir()
-                    .unwrap_or_else(|| panic!("Cannot determine home dir"))
-                    .join("dt")
-                    .join("target"),
+                    .map(|p| p.join("dt"))
+                    .map(|p| p.join("target")),
             );
             true
         });
@@ -1053,30 +1113,6 @@ target = ".""#,
             Ok(())
         } else {
             Err(eyre!("This config should not be loaded because a group's name is empty"))
-        }
-    }
-
-    #[test]
-    fn empty_target() -> Result<(), Report> {
-        if let Err(err) = DTConfig::from_str(
-            r#"
-[[local]]
-name = "empty target"
-base = "~"
-sources = []
-target = """#,
-        ) {
-            assert_eq!(
-                err,
-                AppError::ConfigError(
-                    "empty target in group 'empty target'".to_owned(),
-                ),
-                "{}",
-                err,
-            );
-            Ok(())
-        } else {
-            Err(eyre!("This config should not be loaded because a group's base is empty"))
         }
     }
 
@@ -1250,6 +1286,228 @@ target = ".""#,
             Ok(())
         } else {
             Err(eyre!("This config should not be loaded because a source item contains hostname_sep"))
+        }
+    }
+}
+
+#[cfg(test)]
+mod validation_physical {
+    use std::str::FromStr;
+
+    use color_eyre::{eyre::eyre, Report};
+
+    use super::DTConfig;
+    use crate::error::Error as AppError;
+    use crate::utils::testing::{
+        get_testroot, prepare_directory, prepare_file,
+    };
+
+    #[test]
+    fn staging_is_file() -> Result<(), Report> {
+        let staging_path = prepare_file(
+            get_testroot()
+                .join("staging_is_file")
+                .join("staging-but-file"),
+            0o644,
+        )?;
+        let base = prepare_directory(
+            get_testroot().join("staging_is_file").join("base"),
+            0o755,
+        )?;
+        let target = prepare_directory(
+            get_testroot().join("staging_is_file").join("target"),
+            0o755,
+        )?;
+
+        if let Err(err) = DTConfig::from_str(&format!(
+            r#"
+[global]
+staging = "{}"
+
+[[local]]
+name = "staging is file"
+base = "{}"
+sources = []
+target = "{}""#,
+            staging_path.display(),
+            base.display(),
+            target.display(),
+        )) {
+            assert_eq!(
+                err,
+                AppError::ConfigError(
+                    "staging root path exists but is not a valid directory"
+                        .to_owned(),
+                ),
+                "{}",
+                err,
+            );
+            Ok(())
+        } else {
+            Err(eyre!(
+                "This config should not be validated because staging is not a directory",
+            ))
+        }
+    }
+
+    #[test]
+    fn staging_readonly() -> Result<(), Report> {
+        let staging_path = prepare_directory(
+            get_testroot()
+                .join("staging_readonly")
+                .join("staging-but-readonly"),
+            0o555,
+        )?;
+        let base = prepare_directory(
+            get_testroot().join("staging_readonly").join("base"),
+            0o755,
+        )?;
+        let target_path = prepare_directory(
+            get_testroot().join("staging_readonly").join("target"),
+            0o755,
+        )?;
+
+        if let Err(err) = DTConfig::from_str(&format!(
+            r#"
+[global]
+staging = "{}"
+
+[[local]]
+name = "staging is readonly"
+base = "{}"
+sources = []
+target = "{}""#,
+            staging_path.display(),
+            base.display(),
+            target_path.display(),
+        )) {
+            assert_eq!(
+                err,
+                AppError::ConfigError(
+                    "staging root path cannot be created due to insufficient permissions"
+                        .to_owned(),
+                ),
+                "{}",
+                err,
+            );
+            Ok(())
+        } else {
+            Err(eyre!(
+                "This config should not be validated because staging path is readonly",
+            ))
+        }
+    }
+    #[test]
+    fn target_is_file() -> Result<(), Report> {
+        let target_path = prepare_file(
+            get_testroot()
+                .join("target_is_file")
+                .join("target-but-file"),
+            0o755,
+        )?;
+        if let Err(err) = DTConfig::from_str(&format!(
+            r#"
+[[local]]
+name = "target path is absolute"
+base = "."
+sources = []
+target = "{}""#,
+            target_path.display(),
+        )) {
+            assert_eq!(
+                err,
+                AppError::ConfigError(
+                    "target path exists but is not a valid directory in group 'target path is absolute'"
+                        .to_owned(),
+                ),
+                "{}",
+                err,
+            );
+            Ok(())
+        } else {
+            Err(eyre!(
+                "This config should not be validated because target is not a directory",
+            ))
+        }
+    }
+
+    #[test]
+    fn target_readonly() -> Result<(), Report> {
+        // setup
+        let base = prepare_directory(
+            get_testroot().join("target_readonly").join("base"),
+            0o755,
+        )?;
+        let target_path = prepare_directory(
+            get_testroot()
+                .join("target_readonly")
+                .join("target-but-readonly"),
+            0o555,
+        )?;
+
+        if let Err(err) = DTConfig::from_str(&format!(
+            r#"
+[[local]]
+name = "target is readonly"
+base = "{}"
+sources = []
+target = "{}""#,
+            base.display(),
+            target_path.display(),
+        )) {
+            assert_eq!(
+                err,
+                AppError::ConfigError(
+                    "target path cannot be created due to insufficient permissions in group 'target is readonly'"
+                        .to_owned(),
+                ),
+                "{}",
+                err,
+            );
+            Ok(())
+        } else {
+            Err(eyre!(
+                "This config should not be validated because target path is readonly",
+            ))
+        }
+    }
+
+    #[test]
+    fn identical_configured_base_and_target_in_local() -> Result<(), Report> {
+        // setup
+        let base = prepare_directory(
+            get_testroot()
+                .join("local_group_has_same_base_and_target")
+                .join("base-and-target"),
+            0o755,
+        )?;
+        let target_path = base.clone();
+
+        if let Err(err) = DTConfig::from_str(&format!(
+            r#"
+[[local]]
+name = "same base and target"
+base = "{}"
+sources = []
+target = "{}"
+"#,
+            base.display(),
+            target_path.display(),
+        )) {
+            assert_eq!(
+                err,
+                AppError::ConfigError(
+                    "base directory and its target are the same in group 'same base and target'"
+                        .to_owned(),
+                ),
+                "{}",
+                err,
+            );
+            Ok(())
+        } else {
+            Err(eyre!(
+                "This config should not be validated because a local group's base and target are identical"
+            ))
         }
     }
 }
