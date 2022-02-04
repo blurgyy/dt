@@ -677,12 +677,12 @@ impl<BaseType> Group<BaseType> {
     ///      to the [`staging`] directory, and the structure under the
     ///      [`staging`] directory depends on their original relative path to
     ///      their [`base`])
-    ///   4. TODO: Current group contains unimplemented [`ignore`] field
+    ///   4. TODO: Current group contains unimplemented [`ignored`] field
     ///
     /// NOTE: When [`base`] is empty, sources will be looked up in the cwd of
     /// the process.
     ///
-    /// [`ignore`]: Group::ignore
+    /// [`ignored`]: Group::ignored
     /// [`base`]: Group::base
     fn _validate_no_fs_query(&self) -> Result<()> {
         // 1. Empty group name
@@ -703,7 +703,7 @@ impl<BaseType> Group<BaseType> {
                 self.name,
             )));
         }
-        // 4. Current group contains unimplemented ignore field
+        // 4. Current group contains unimplemented `ignored` field
         if self.ignored.is_some() {
             todo!("`ignored` array works poorly and I decided to implement it in the future");
         }
@@ -779,7 +779,7 @@ impl LocalGroup {
     ///      to the [`staging`] directory, and the structure under the
     ///      [`staging`] directory depends on their original relative path to
     ///      their [`base`])
-    ///   4. Current group contains unimplemented [`ignore`] field
+    ///   4. Current group contains unimplemented [`ignored`] field
     ///
     ///   5. Target and base are the same
     ///   6. Base contains [`hostname_sep`]
@@ -800,6 +800,7 @@ impl LocalGroup {
     /// [`base`]: LocalGroup::base
     /// [`target`]: LocalGroup::target
     /// [`staging`]: GlobalConfig::staging
+    /// [`ignored`]: Group::ignored
     /// [`hostname_sep`]: LocalGroup::hostname_sep
     /// [`Symlink`]: SyncMethod::Symlink
     pub fn validate(&self) -> Result<()> {
@@ -886,7 +887,7 @@ impl RemoteGroup {
     ///      to the [`staging`] directory, and the structure under the
     ///      [`staging`] directory depends on their original relative path to
     ///      their [`base`])
-    ///   5. Current group contains unimplemented [`ignore`] field
+    ///   5. Current group contains unimplemented [`ignored`] field
     fn validate(&self) -> Result<()> {
         // 1-5
         self._validate_no_fs_query()?;
