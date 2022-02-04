@@ -10,6 +10,18 @@ where
 {
     /// Reads source files from templated groups and register them as
     /// templates into a global registry.
+    ///
+    /// Rendering only happens if this item is considered as a plain text
+    /// file.  If this item is considered as a binary file, it's original
+    /// content is returned.  The content type is inspected via the
+    /// [`content_inspector`] crate.  Although it can correctly determine if
+    /// an item is binary or text mostly of the time, it is just a heuristic
+    /// check and can fail in some cases, e.g. NUL byte in the first 1024
+    /// bytes of a UTF-8-encoded text file, etc..  See [the crate's home page]
+    /// for the full caveats.
+    ///
+    /// [`content_inspector`]: https://crates.io/crates/content_inspector
+    /// [the crate's home page]: https://github.com/sharkdp/content_inspector
     fn register_templates(self, config: &DTConfig) -> Result<Self> {
         let mut registry = self.into();
 
