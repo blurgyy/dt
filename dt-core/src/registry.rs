@@ -61,11 +61,11 @@ pub mod helpers {
     };
 
     /// A templating helper that retrieves the value for current host from a
-    /// map, returns a fallback value when current host is not recorded in the
+    /// map, returns a default value when current host is not recorded in the
     /// map.
     ///
     /// Usage:
-    ///     get_mine <map> <deafult-value>
+    ///     get_mine \<map\> \<deafult-value\>
     pub fn get_mine(
         h: &Helper,
         _: &Handlebars,
