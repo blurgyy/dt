@@ -403,6 +403,12 @@ where
             group.get_renaming_rules(),
         )?;
         std::fs::create_dir_all(tpath.as_ref().parent().unwrap())?;
+        if group.target.canonicalize()? == group.base.canonicalize()? {
+            return Err(AppError::PathError(format!(
+                "base directory and its target point to the same path in group '{}'",
+                group.name,
+            )));
+        }
 
         match group.get_method() {
             SyncMethod::Copy => {
@@ -527,6 +533,22 @@ where
                 std::fs::create_dir_all(
                     staging_path.as_ref().parent().unwrap(),
                 )?;
+                if group.global.staging.0.canonicalize()?
+                    == group.base.canonicalize()?
+                {
+                    return Err(AppError::PathError(format!(
+                        "base directory and its target point to the same path in group '{}'",
+                        group.name,
+                    )));
+                }
+                if group.global.staging.0.canonicalize()?
+                    == group.target.canonicalize()?
+                {
+                    return Err(AppError::PathError(format!(
+                        "target directory and staging directory point to the same path in group '{}'",
+                        group.name,
+                    )));
+                }
 
                 // `self` is _always_ a file.  If its target path `tpath` is a
                 // directory, we should return an error.
