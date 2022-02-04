@@ -24,7 +24,7 @@ A simple working configuration file to sync all files from `~/dt/nvim` to
 ```toml
 [[local]]
 name = "Neovim Configs"
-basedir = "~/dt/nvim"
+base = "~/dt/nvim"
 sources = ["*init.vim"]
 target = "~/.config/nvim"
 ```
