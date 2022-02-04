@@ -775,8 +775,8 @@ impl LocalGroup {
     ///
     /// - Checks without querying the filesystem
     ///
-    ///   1. Empty group name
-    ///   2. Slash in group name
+    ///   1. Empty [group name]
+    ///   2. Slash in [group name]
     ///   3. Source item referencing parent (because items are first populated
     ///      to the [`staging`] directory, and the structure under the
     ///      [`staging`] directory depends on their original relative path to
@@ -893,17 +893,40 @@ pub type RemoteGroup = Group<Url>;
 impl RemoteGroup {
     /// Validates this remote group, the following cases are denied:
     ///
-    ///   1. Empty group name
-    ///   2. Empty target
-    ///   3. Slash in group name
+    /// - Checks without querying the filesystem
+    ///
+    ///   1. Empty [group name]
+    ///   2. Empty [`target`]
+    ///   3. Slash in [group name]
     ///   4. Source item referencing parent (because items are first populated
     ///      to the [`staging`] directory, and the structure under the
     ///      [`staging`] directory depends on their original relative path to
     ///      their [`base`])
     ///   5. Current group contains unimplemented [`ignored`] field
+    ///
+    /// - Checks that need to query the filesystem
+    ///
+    ///   1. Wrong type of existing [`staging`] path (if using the
+    ///      [`Symlink`] method)
+    ///   2. Path to staging root contains readonly parent directory (if
+    ///      using the [`Symlink`] method)
+    ///   3. Wrong type of existing [`target`] path
+    ///   4. Path to [`target`] contains readonly parent directory
+    ///
+    /// [group name]: LocalGroup::name
+    /// [`base`]: LocalGroup::base
+    /// [`target`]: LocalGroup::target
+    /// [`staging`]: GlobalConfig::staging
+    /// [`ignored`]: Group::ignored
+    /// [`Symlink`]: SyncMethod::Symlink
     fn validate(&self) -> Result<()> {
+        // - Checks without querying the filesystem --------------------------
         // 1-5
         self._validate_no_fs_query()?;
+
+        // - Checks that need to query the filesystem ------------------------
+        // 1-4
+        self._validate_with_fs_query()?;
 
         Ok(())
     }
