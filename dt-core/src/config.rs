@@ -1,5 +1,4 @@
 use std::{
-    panic,
     path::{Path, PathBuf},
     rc::Rc,
     str::FromStr,
@@ -19,7 +18,7 @@ use crate::{
 /// Helper type for config key [`staging`]
 ///
 /// [`staging`]: GlobalConfig::staging
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct StagingPath(pub PathBuf);
 impl Default for StagingPath {
     fn default() -> Self {
@@ -174,41 +173,59 @@ impl DTConfig {
 
         // Expand tilde in `global.staging`
         let staging = &mut ret.global.staging;
-        *staging = StagingPath(
-            PathBuf::from_str(&shellexpand::tilde(
-                staging.0.to_str().unwrap_or_else(|| {
-                    panic!(
-                        "Failed expanding tilde in `global.staging` ({})",
-                        staging.0.display(),
-                    )
-                }),
-            ))
-            .unwrap(),
-        );
+        *staging = if *staging == StagingPath("".into()) {
+            log::warn!("Empty staging path is replaced to '.'");
+            StagingPath(".".into())
+        } else {
+            StagingPath(
+                PathBuf::from_str(&shellexpand::tilde(
+                    staging.0.to_str().unwrap_or_else(|| {
+                        panic!(
+                            "Failed expanding tilde in `global.staging` ({})",
+                            staging.0.display(),
+                        )
+                    }),
+                ))
+                .unwrap(),
+            )
+        };
 
         // Expand tilde in `base` and `target` of `local`
         for group in &mut ret.local {
             // `local.base`
-            group.base = PathBuf::from_str(&shellexpand::tilde(
-                group.base.to_str().unwrap_or_else(|| {
-                    panic!(
-                        "Failed expanding tilde in `local.base` '{}'",
-                        group.base.display(),
-                    )
-                }),
-            ))
-            .unwrap();
+            group.base = if group.base == PathBuf::from_str("").unwrap() {
+                log::warn!("[{}]: Empty base is replaced to '.'", group.name);
+                ".".into()
+            } else {
+                PathBuf::from_str(&shellexpand::tilde(
+                    group.base.to_str().unwrap_or_else(|| {
+                        panic!(
+                            "Failed expanding tilde in `local.base` '{}'",
+                            group.base.display(),
+                        )
+                    }),
+                ))
+                .unwrap()
+            };
 
             // `local.target`
-            group.target = PathBuf::from_str(&shellexpand::tilde(
-                group.target.to_str().unwrap_or_else(|| {
-                    panic!(
-                        "Failed expanding tilde in `local.target` '{}'",
-                        group.target.display(),
-                    )
-                }),
-            ))
-            .unwrap();
+            group.target = if group.target == PathBuf::from_str("").unwrap() {
+                log::warn!(
+                    "[{}]: Empty target is replaced to '.'",
+                    group.name,
+                );
+                ".".into()
+            } else {
+                PathBuf::from_str(&shellexpand::tilde(
+                    group.target.to_str().unwrap_or_else(|| {
+                        panic!(
+                            "Failed expanding tilde in `local.target` '{}'",
+                            group.target.display(),
+                        )
+                    }),
+                ))
+                .unwrap()
+            };
         }
 
         ret
