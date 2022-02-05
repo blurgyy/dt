@@ -737,7 +737,8 @@ impl<BaseType> Group<BaseType> {
             }
 
             // 2. Path to staging root contains readonly parent directory
-            if staging_path.parent_readonly() {
+            // NOTE: Must convert to an absolute path before checking readonly
+            if staging_path.absolute()?.parent_readonly() {
                 return Err(AppError::ConfigError(
                     "staging root path cannot be created due to insufficient permissions"
                         .to_owned(),
@@ -754,7 +755,8 @@ impl<BaseType> Group<BaseType> {
         }
 
         // 4. Path to target contains readonly parent directory
-        if self.target.parent_readonly() {
+        // NOTE: Must convert to an absolute path before checking readonly
+        if self.target.absolute()?.parent_readonly() {
             return Err(AppError::ConfigError(format!(
                 "target path cannot be created due to insufficient permissions in group '{}'",
                 self.name,
@@ -1319,6 +1321,25 @@ mod validation_physical {
     use crate::utils::testing::{
         get_testroot, prepare_directory, prepare_file,
     };
+
+    #[test]
+    fn non_existent_relative_staging_and_target() -> Result<(), Report> {
+        if let Err(err) = DTConfig::from_str(
+            r#"
+[global]
+staging = "staging-882b842397c5b44929b9c5f4e83130c9-dir"
+
+[[local]]
+name = "readable relative non-existent target"
+base = "base-7f2f7ff8407a330751f13dc5ec86db1b-dir"
+sources = ["b1db25c31c23950132a44f6faec2005c"]
+target = "target-ce59cb1aea35e22e43195d4a444ff2e7-dir""#,
+        ) {
+            Err(eyre!("Non-existent, relative but readable staging/target path should be loaded without error (got error :'{}')", err))
+        } else {
+            Ok(())
+        }
+    }
 
     #[test]
     fn staging_is_file() -> Result<(), Report> {
