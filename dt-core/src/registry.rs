@@ -65,7 +65,13 @@ pub mod helpers {
     /// map.
     ///
     /// Usage:
-    ///     get_mine \<map\> \<deafult-value\>
+    ///
+    /// 1. `{{ get_mine }}`
+    ///
+    ///     Render current machin's hostname.
+    /// 2. `{{ get_mine <map> <default-value> }}`
+    ///
+    ///     Render `<map>.$CURRENT_HOSTNAME`, falls back to `<default-value>`.
     pub fn get_mine(
         h: &Helper,
         _: &Handlebars,
@@ -76,15 +82,10 @@ pub mod helpers {
         let map = match h.param(0) {
             Some(map) => map.value(),
             None => {
-                return Err(RenderError::new(&format!(
-                    r#"
-Helper `{0}`:
-    expected 2 arguments, 0 found
-
-    Usage:
-        {0} <map> <default-value>"#,
-                    h.name(),
-                )))
+                out.write(
+                    gethostname().to_str().expect("Failed getting hostname"),
+                )?;
+                return Ok(());
             }
         };
         let default_content = match h.param(1) {
@@ -93,10 +94,14 @@ Helper `{0}`:
                 return Err(RenderError::new(&format!(
                     r#"
 Helper `{0}`:
-    expected 2 arguments, 1 found
+    expected 0 or 2 arguments, 1 found
 
     Usage:
-        {0} <map> <default-value>"#,
+        1. {{{{ {0} }}}}
+            (Render current machine's hostname)
+
+        2. {{{{ {0} <map> <default-value> }}}}
+            (Gets value of <map>.$CURRENT_HOSTNAME, falls back to <default-value>)"#,
                     h.name(),
                 )))
             }
