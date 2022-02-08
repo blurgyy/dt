@@ -798,6 +798,8 @@ impl LocalGroup {
     ///   3. Wrong type of existing [`target`] path
     ///   4. Path to [`target`] contains readonly parent directory
     ///
+    ///   5. Base is unreadable
+    ///
     /// [group name]: LocalGroup::name
     /// [`base`]: LocalGroup::base
     /// [`target`]: LocalGroup::target
@@ -871,6 +873,15 @@ impl LocalGroup {
         // - Checks that need to query the filesystem ------------------------
         // 1-4
         self._validate_with_fs_query()?;
+
+        // 5. Base is unreadable
+        if self.base.exists() {
+            // Check read permission of `base`
+            if let Err(e) = std::fs::read_dir(&self.base) {
+                log::error!("Could not read base '{}'", self.base.display());
+                return Err(e.into());
+            }
+        }
 
         Ok(())
     }
@@ -1548,6 +1559,65 @@ target = "{}"
                 "This config should not be validated because a local group's base and target are identical"
             ))
         }
+    }
+
+    #[test]
+    fn base_unreadable() -> Result<(), Report> {
+        let base = prepare_file(
+            get_testroot().join("base_unreadable").join("base-but-file"),
+            0o311,
+        )?;
+        if let Err(err) = DTConfig::from_str(&format!(
+            r#"
+[[local]]
+name = "base unreadable (not a directory)"
+base = "{}"
+sources = []
+target = ".""#,
+            base.display(),
+        )) {
+            assert_eq!(
+                err,
+                AppError::IoError("Not a directory (os error 20)".to_owned(),),
+                "{}",
+                err,
+            );
+        } else {
+            return Err(eyre!(
+                "This config should not be loaded because base is not a directory",
+            ));
+        }
+
+        let base = prepare_directory(
+            get_testroot()
+                .join("base_unreadable")
+                .join("base-unreadable"),
+            0o311,
+        )?;
+        if let Err(err) = DTConfig::from_str(&format!(
+            r#"
+[[local]]
+name = "base unreadable (permission denied)"
+base = "{}"
+sources = []
+target = ".""#,
+            base.display(),
+        )) {
+            assert_eq!(
+                err,
+                AppError::IoError(
+                    "Permission denied (os error 13)".to_owned(),
+                ),
+                "{}",
+                err,
+            );
+        } else {
+            return Err(eyre!(
+                "This config should not be loaded because insufficient permissions to base",
+            ));
+        }
+
+        Ok(())
     }
 }
 

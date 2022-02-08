@@ -56,18 +56,6 @@ fn expand(config: DTConfig) -> Result<DTConfig> {
             next.base = host_specific_base;
         }
 
-        // Above process does not guarantee the `base` to exist, since a
-        // warning will be emitted later in the expanding process (see
-        // function `expand_recursive()`), just don't attempt to read
-        // non-existent `base` here by first checking its existence.
-        if next.base.exists() {
-            // Check read permission of `base`
-            if let Err(e) = std::fs::read_dir(&next.base) {
-                log::error!("Could not read base '{}'", next.base.display());
-                return Err(e.into());
-            }
-        }
-
         // Check for host-specific `sources`
         let sources: Vec<PathBuf> = original
             .sources
@@ -374,73 +362,6 @@ mod tests {
         use crate::utils::testing::{
             get_testroot, prepare_directory, prepare_file,
         };
-
-        #[test]
-        fn base_unreadable() -> Result<(), Report> {
-            let base = prepare_file(
-                get_testroot().join("base_unreadable").join("base-but-file"),
-                0o311,
-            )?;
-            if let Err(err) = expand(
-                DTConfig::from_str(&format!(
-                    r#"
-[[local]]
-name = "base unreadable (not a directory)"
-base = "{}"
-sources = []
-target = ".""#,
-                    base.display(),
-                ))
-                .unwrap(),
-            ) {
-                assert_eq!(
-                    err,
-                    AppError::IoError(
-                        "Not a directory (os error 20)".to_owned(),
-                    ),
-                    "{}",
-                    err,
-                );
-            } else {
-                return Err(eyre!(
-                "This config should not be loaded because base is not a directory",
-            ));
-            }
-
-            let base = prepare_directory(
-                get_testroot()
-                    .join("base_unreadable")
-                    .join("base-unreadable"),
-                0o311,
-            )?;
-            if let Err(err) = expand(
-                DTConfig::from_str(&format!(
-                    r#"
-[[local]]
-name = "base unreadable (permission denied)"
-base = "{}"
-sources = []
-target = ".""#,
-                    base.display(),
-                ))
-                .unwrap(),
-            ) {
-                assert_eq!(
-                    err,
-                    AppError::IoError(
-                        "Permission denied (os error 13)".to_owned(),
-                    ),
-                    "{}",
-                    err,
-                );
-            } else {
-                return Err(eyre!(
-                "This config should not be loaded because insufficient permissions to base",
-            ));
-            }
-
-            Ok(())
-        }
 
         #[test]
         fn unreadable_source() -> Result<(), Report> {
