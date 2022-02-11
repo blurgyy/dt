@@ -9,7 +9,7 @@ use handlebars::Handlebars;
 use crate::{
     config::*,
     error::{Error as AppError, Result},
-    item::DTItem,
+    item::Operate,
     registry::DTRegistry,
 };
 
@@ -414,7 +414,7 @@ target = "{}""#,
         use color_eyre::Report;
         use pretty_assertions::assert_eq;
 
-        use crate::{config::*, item::DTItem};
+        use crate::{config::*, item::Operate};
 
         use super::super::expand;
         use crate::utils::testing::{

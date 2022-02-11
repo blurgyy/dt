@@ -12,7 +12,7 @@ use url::Url;
 
 use crate::{
     error::{Error as AppError, Result},
-    item::DTItem,
+    item::Operate,
 };
 
 /// Helper type for config key [`staging`]
@@ -640,12 +640,12 @@ impl<BaseType> Group<BaseType> {
 
     /// Gets the list of [renaming rules] of this group, which is an array
     /// of (REGEX, SUBSTITUTION) tuples composed of [`global.rename`] and
-    /// [`local.rename`], used in [`DTItem::make_target`] to rename the item.
+    /// [`local.rename`], used in [`Operate::make_target`] to rename the item.
     ///
     /// [renaming rules]: Group::rename
     /// [`global.rename`]: GlobalConfig::rename
     /// [`local.rename`]: Group::rename
-    /// [`DTItem::make_target`]: crate::item::DTItem::make_target
+    /// [`Operate::make_target`]: crate::item::Operate::make_target
     pub fn get_renaming_rules(&self) -> Vec<RenamingRule> {
         let mut ret: Vec<RenamingRule> = Vec::new();
         for r in &self.global.rename.0 {

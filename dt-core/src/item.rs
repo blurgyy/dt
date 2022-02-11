@@ -18,9 +18,9 @@ use crate::{
 ///
 /// [DT]: https://github.com/blurgyy/dt
 #[allow(unused_variables)]
-pub trait DTItem<'a>
+pub trait Operate
 where
-    Self: AsRef<Path> + From<&'a Path> + From<PathBuf>,
+    Self: Sized,
 {
     /// Checks if the item is for another machine.
     fn is_for_other_host(&self, hostname_sep: &str) -> bool {
@@ -32,7 +32,7 @@ where
     }
     /// Gets the host-specific counterpart of `self`, if applicable.  If
     /// `self` is already host-specific, returns `self` directly.
-    fn host_specific(&'a self, hostname_sep: &'a str) -> Self {
+    fn host_specific(&self, hostname_sep: &str) -> Self {
         unimplemented!()
     }
     /// Gets the non-host-specific counterpart of `self`, if applicable.  If
@@ -85,10 +85,7 @@ where
     }
 }
 
-/// Defines shared behaviours for an item (a path to a file) used in [DT].
-///
-/// [DT]: https://github.com/blurgyy/dt
-impl<'a> DTItem<'a> for PathBuf {
+impl Operate for PathBuf {
     /// Checks if the item is for another machine (by checking its name).
     ///
     /// A host-specific item is considered for another machine, when its
@@ -153,7 +150,7 @@ impl<'a> DTItem<'a> for PathBuf {
 
     /// Gets the host-specific counterpart of `self`.  If `self` is already
     /// host-specific, returns `self` directly.
-    fn host_specific(&'a self, hostname_sep: &'a str) -> Self {
+    fn host_specific(&self, hostname_sep: &str) -> Self {
         if self.ends_with(utils::host_specific_suffix(hostname_sep)) {
             self.into()
         } else {
@@ -187,7 +184,7 @@ impl<'a> DTItem<'a> for PathBuf {
     /// # Example
     ///
     /// ```rust
-    /// # use dt_core::item::DTItem;
+    /// # use dt_core::item::Operate;
     /// # use std::path::PathBuf;
     /// # use std::str::FromStr;
     /// let itm: PathBuf = "/some/long/path".into();
@@ -259,7 +256,7 @@ impl<'a> DTItem<'a> for PathBuf {
     /// # use dt_core::{
     /// #   config::RenamingRule,
     /// #   error::Error as AppError,
-    /// #   item::DTItem
+    /// #   item::Operate
     /// # };
     /// # use std::path::PathBuf;
     /// # use std::str::FromStr;
@@ -280,7 +277,7 @@ impl<'a> DTItem<'a> for PathBuf {
     /// # use dt_core::{
     /// #   config::RenamingRule,
     /// #   error::Error as AppError,
-    /// #   item::DTItem
+    /// #   item::Operate
     /// # };
     /// # use std::path::PathBuf;
     /// # use std::str::FromStr;
@@ -310,7 +307,7 @@ impl<'a> DTItem<'a> for PathBuf {
     /// # use dt_core::{
     /// #   config::RenamingRule,
     /// #   error::Error as AppError,
-    /// #   item::DTItem
+    /// #   item::Operate
     /// # };
     /// # use std::path::PathBuf;
     /// # use std::str::FromStr;
@@ -341,7 +338,7 @@ impl<'a> DTItem<'a> for PathBuf {
     /// # use dt_core::{
     /// #   config::RenamingRule,
     /// #   error::Error as AppError,
-    /// #   item::DTItem
+    /// #   item::Operate
     /// # };
     /// # use std::path::PathBuf;
     /// # use std::str::FromStr;
