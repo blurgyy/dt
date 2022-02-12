@@ -67,7 +67,6 @@ pub enum SyncMethod {
     /// Instructs syncing module to directly copy each item from source to
     /// target.
     Copy,
-
     /// Instructs syncing module to first copy iach item from source to its
     /// staging directory, then symlink staged items from their staging
     /// directory to target.
@@ -76,6 +75,105 @@ pub enum SyncMethod {
 impl Default for SyncMethod {
     fn default() -> Self {
         SyncMethod::Symlink
+    }
+}
+/// Scope of a group, used to resolve _priority_ of possibly duplicated items,
+/// to ensure every target path is pointed from only one source item.
+///
+/// The order of priority is:
+///
+/// [`Dropin`] > [`App`] > [`General`]
+///
+/// Within the same scope, the first defined group in the config file for DT
+/// has the highest priority, later defined groups have lower priorities.
+///
+/// Groups without a given scope are treated as of [`General`] scope.
+///
+/// [`Dropin`]: DTScope::Dropin
+/// [`App`]: DTScope::App
+/// [`General`]: DTScope::General
+///
+/// # Example
+///
+/// When you want to populate all your config files for apps that follows [the
+/// XDG standard], you might write a config file for DT that looks like this:
+///
+/// [the XDG standard]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
+///
+/// ```toml
+/// [[local]]
+/// name = "xdg_config_home"
+/// base = "/path/to/your/xdg/config/directory"
+/// sources = ["*"]
+/// target = "~/.config"
+/// ```
+///
+/// Let's say after some weeks or months, you have decided to also include
+/// `/usr/share/fontconfig/conf.avail/11-lcdfilter-default.conf` to your
+/// fontconfig directory, which is `~/.config/fontconfig/conf.d`, you do so by
+/// adding another `[[local]]` group into your config file for DT:
+///
+/// ```toml
+/// [[local]]
+/// name = "fontconfig-system"
+/// base = "/usr/share/fontconfig/conf.avail"
+/// sources = ["11-lcdfilter-default.conf"]
+/// target = "~/.config/fontconfig/conf.d"
+/// ```
+///
+/// A problem arises when you also maintain a version of
+/// `11-lcdfilter-default.conf` of your own: If DT syncs the
+/// `fontconfig-system` group last, the resulting config file in your
+/// `$XDG_CONFIG_HOME` is the system version;  While if DT syncs the
+/// `xdg_config_home` group last, that file ended up being your previously
+/// maintained version.
+///
+/// Actually, DT is quite predictable: it only performs operations in the
+/// order defined in the config file for your groups.  By defining the
+/// `fontconfig-system` group last, you can completely avoid the ambiguity
+/// above.
+///
+/// However, since the config file was written by you, a human, and humans are
+/// notorious for making mistakes, it would be great if DT could always know
+/// what to do when duplicated items are discovered in the config file.
+/// Instead of putting the groups with higher priority at the end of your
+/// config file, you could simply define `scope`s in their definitions:
+///
+/// ```toml
+/// [[local]]
+/// name = "fontconfig-system"
+/// scope = "Dropin"
+/// ...
+/// [[local]]
+/// name = "xdg_config_home"
+/// scope = "General"
+/// ...
+/// ```
+///
+/// Now, with the `scope` being set, DT will first remove the source item
+/// `11-lcdfilter-default.conf` (if it exists) from group `xdg_config_home`,
+/// then perform its syncing process.
+///
+/// This is also useful with `dt-cli`'s `-l|--local-name` option, which gives
+/// you more granular control over how items are synced.
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+pub enum DTScope {
+    /// The scope with lowest priority, this is the default scope,
+    /// recommended for directories that contains config files for many
+    /// un-categorized applications.
+    General,
+    /// The scope for a specific app, it's priority is higher than
+    /// [`General`] while lower than [`Dropin`].
+    ///
+    /// [`General`]: DTScope::General
+    /// [`Dropin`]: DTScope::Dropin
+    App,
+    /// The scope for drop-in replacements, it has the highest priority.
+    Dropin,
+}
+impl Default for DTScope {
+    fn default() -> Self {
+        DTScope::General
     }
 }
 
@@ -229,109 +327,6 @@ impl DTConfig {
         }
 
         ret
-    }
-}
-
-/// Scope of a group, used to resolve _priority_ of possibly duplicated items,
-/// to ensure every target path is pointed from only one source item.
-///
-/// The order of priority is:
-///
-/// [`Dropin`] > [`App`] > [`General`]
-///
-/// Within the same scope, the first defined group in the config file for DT
-/// has the highest priority, later defined groups have lower priorities.
-///
-/// Groups without a given scope are treated as of [`General`] scope.
-///
-/// [`Dropin`]: DTScope::Dropin
-/// [`App`]: DTScope::App
-/// [`General`]: DTScope::General
-///
-/// # Example
-///
-/// When you want to populate all your config files for apps that follows [the
-/// XDG standard], you might write a config file for DT that looks like this:
-///
-/// [the XDG standard]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
-///
-/// ```toml
-/// [[local]]
-/// name = "xdg_config_home"
-/// base = "/path/to/your/xdg/config/directory"
-/// sources = ["*"]
-/// target = "~/.config"
-/// ```
-///
-/// Let's say after some weeks or months, you have decided to also include
-/// `/usr/share/fontconfig/conf.avail/11-lcdfilter-default.conf` to your
-/// fontconfig directory, which is `~/.config/fontconfig/conf.d`, you do so by
-/// adding another `[[local]]` group into your config file for DT:
-///
-/// ```toml
-/// [[local]]
-/// name = "fontconfig-system"
-/// base = "/usr/share/fontconfig/conf.avail"
-/// sources = ["11-lcdfilter-default.conf"]
-/// target = "~/.config/fontconfig/conf.d"
-/// ```
-///
-/// A problem arises when you also maintain a version of
-/// `11-lcdfilter-default.conf` of your own: If DT syncs the
-/// `fontconfig-system` group last, the resulting config file in your
-/// `$XDG_CONFIG_HOME` is the system version;  While if DT syncs the
-/// `xdg_config_home` group last, that file ended up being your previously
-/// maintained version.
-///
-/// Actually, DT is quite predictable: it only performs operations in the
-/// order defined in the config file for your groups.  By defining the
-/// `fontconfig-system` group last, you can completely avoid the ambiguity
-/// above.
-///
-/// However, since the config file was written by you, a human, and humans are
-/// notorious for making mistakes, it would be great if DT could always know
-/// what to do when duplicated items are discovered in the config file.
-/// Instead of putting the groups with higher priority at the end of your
-/// config file, you could simply define `scope`s in their definitions:
-///
-/// ```toml
-/// [[local]]
-/// name = "fontconfig-system"
-/// scope = "Dropin"
-/// ...
-/// [[local]]
-/// name = "xdg_config_home"
-/// scope = "General"
-/// ...
-/// ```
-///
-/// Now, with the `scope` being set, DT will first remove the source item
-/// `11-lcdfilter-default.conf` (if it exists) from group `xdg_config_home`,
-/// then perform its syncing process.
-///
-/// This is also useful with `dt-cli`'s `-l|--local-name` option, which gives
-/// you more granular control over how items are synced.
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-pub enum DTScope {
-    /// The scope with lowest priority, this is the default scope,
-    /// recommended for directories that contains config files for many
-    /// un-categorized applications.
-    General,
-
-    /// The scope for a specific app, it's priority is higher than
-    /// [`General`] while lower than [`Dropin`].
-    ///
-    /// [`General`]: DTScope::General
-    /// [`Dropin`]: DTScope::Dropin
-    App,
-
-    /// The scope for drop-in replacements, it has the highest priority.
-    Dropin,
-}
-
-impl Default for DTScope {
-    fn default() -> Self {
-        DTScope::General
     }
 }
 
