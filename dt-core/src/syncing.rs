@@ -27,7 +27,6 @@ use crate::{
 /// [`global.staging`]: crate::config::GlobalConfig::staging
 /// [`base`]: crate::config::Group::base
 /// [`target`]: crate::config::Group::target
-/// [`[[local]]`]: crate::config::Group
 fn expand(config: DTConfig) -> Result<DTConfig> {
     let mut ret = DTConfig {
         // Remove `global` and `context` in expanded configuration object.

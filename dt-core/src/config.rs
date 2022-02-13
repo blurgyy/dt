@@ -564,7 +564,8 @@ where
     /// On a machine with hostname set to `watson`, the below configuration
     /// (extraneous keys are omitted here)
     ///
-    /// ```toml [[local]]
+    /// ```toml
+    /// [[local]]
     /// ...
     /// hostname_sep = "@@"
     ///
@@ -641,11 +642,11 @@ where
 
     /// Gets the list of [renaming rules] of this group, which is an array
     /// of (REGEX, SUBSTITUTION) tuples composed of [`global.rename`] and
-    /// [`local.rename`], used in [`Operate::make_target`] to rename the item.
+    /// [`group.rename`], used in [`Operate::make_target`] to rename the item.
     ///
     /// [renaming rules]: Group::rename
     /// [`global.rename`]: GlobalConfig::rename
-    /// [`local.rename`]: Group::rename
+    /// [`group.rename`]: Group::rename
     /// [`Operate::make_target`]: crate::item::Operate::make_target
     pub fn get_renaming_rules(&self) -> Vec<RenamingRule> {
         let mut ret: Vec<RenamingRule> = Vec::new();
