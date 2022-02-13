@@ -493,7 +493,7 @@ pub struct Group<BaseType> {
     /// Paths (relative to [`base`]) to the items to be synced.
     ///
     /// [`base`]: Group::base
-    pub sources: Vec<PathBuf>,
+    pub sources: Vec<BaseType>,
 
     /// The path of the parent dir of the final synced items.
     ///
