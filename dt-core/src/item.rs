@@ -7,6 +7,7 @@ use std::{
 use handlebars::Handlebars;
 use path_clean::PathClean;
 use serde::Serialize;
+use url::Url;
 
 use crate::{
     config::{Group, LocalGroup, RenamingRule, SyncMethod},
@@ -41,7 +42,11 @@ where
         unimplemented!()
     }
     /// Checks whether any of the component above `self` is readonly.
-    fn parent_readonly(&self) -> bool {
+    fn is_parent_readonly(&self) -> bool {
+        unimplemented!()
+    }
+    /// Checks whether any of the component refernces its parent.
+    fn is_twisted(&self) -> bool {
         unimplemented!()
     }
     /// Given a `hostname_sep`, a `base`, a `targetbase`, and optionally a
@@ -228,7 +233,7 @@ impl Operate for PathBuf {
     }
 
     /// Checks whether any of the component above `self` is readonly.
-    fn parent_readonly(&self) -> bool {
+    fn is_parent_readonly(&self) -> bool {
         let mut p: &Path = self.as_ref();
         let first_existing_parent = loop {
             if p.exists() {
@@ -241,6 +246,11 @@ impl Operate for PathBuf {
             .unwrap()
             .permissions()
             .readonly()
+    }
+
+    /// Checks whether any of the component refernces its parent.
+    fn is_twisted(&self) -> bool {
+        self.iter().any(|comp| comp == "..")
     }
 
     /// Given a `hostname_sep`, a `base`, a `targetbase`, and optionally a
@@ -821,6 +831,8 @@ impl Operate for PathBuf {
         Ok(())
     }
 }
+
+impl Operate for Url {}
 
 // Author: Blurgy <gy@blurgy.xyz>
 // Date:   Oct 29 2021, 22:56 [CST]
