@@ -3,16 +3,28 @@ use handlebars::Handlebars;
 
 use crate::{config::DTConfig, error::Result};
 
+#[allow(unused_variables)]
 /// Helper trait for manipulating registries within DT.
-pub trait DTRegistry<'reg>
+pub trait DTRegistry
 where
-    Self: From<Handlebars<'reg>> + Into<Handlebars<'reg>>,
+    Self: Sized,
 {
     /// Reads source files from templated groups and register them as
-    /// templates into a global registry.
+    /// templates, returns the registered registry.
     fn register_templates(self, config: &DTConfig) -> Result<Self> {
-        let mut registry = self.into();
+        unimplemented!()
+    }
+    /// Registers DT's [built-in helpers].
+    ///
+    /// [built-in helpers]: helpers
+    fn register_helpers(self) -> Result<Self> {
+        unimplemented!()
+    }
+}
 
+impl DTRegistry for Handlebars<'_> {
+    fn register_templates(self, config: &DTConfig) -> Result<Self> {
+        let mut registry = self;
         for group in &config.local {
             if group.is_templated() {
                 for s in &group.sources {
@@ -32,11 +44,9 @@ where
                 }
             }
         }
-
-        Ok(registry.into())
+        Ok(registry)
     }
 
-    /// Registers DT's built-in helpers.
     fn register_helpers(self) -> Result<Self> {
         let mut registry: Handlebars = self.into();
 
@@ -47,8 +57,6 @@ where
         Ok(registry.into())
     }
 }
-
-impl<'reg> DTRegistry<'reg> for Handlebars<'reg> {}
 
 // ===========================================================================
 
