@@ -9,7 +9,7 @@ use handlebars::Handlebars;
 use crate::{
     config::*,
     error::{Error as AppError, Result},
-    item::DTItem,
+    item::Operate,
     registry::DTRegistry,
 };
 
@@ -27,7 +27,6 @@ use crate::{
 /// [`global.staging`]: crate::config::GlobalConfig::staging
 /// [`base`]: crate::config::Group::base
 /// [`target`]: crate::config::Group::target
-/// [`[[local]]`]: crate::config::Group
 fn expand(config: DTConfig) -> Result<DTConfig> {
     let mut ret = DTConfig {
         // Remove `global` and `context` in expanded configuration object.
@@ -414,7 +413,7 @@ target = "{}""#,
         use color_eyre::Report;
         use pretty_assertions::assert_eq;
 
-        use crate::{config::*, item::DTItem};
+        use crate::{config::*, item::Operate};
 
         use super::super::expand;
         use crate::utils::testing::{

@@ -10,9 +10,7 @@ pub mod config;
 #[deny(missing_docs)]
 pub mod error;
 
-/// Definition for the [`DTItem`] trait.
-///
-/// [`DTItem`]: item::DTItem
+/// Operations and abstractions for items.
 #[deny(missing_docs)]
 pub mod item;
 

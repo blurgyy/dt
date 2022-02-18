@@ -12,7 +12,7 @@ use url::Url;
 
 use crate::{
     error::{Error as AppError, Result},
-    item::DTItem,
+    item::Operate,
 };
 
 /// Helper type for config key [`staging`]
@@ -67,7 +67,6 @@ pub enum SyncMethod {
     /// Instructs syncing module to directly copy each item from source to
     /// target.
     Copy,
-
     /// Instructs syncing module to first copy iach item from source to its
     /// staging directory, then symlink staged items from their staging
     /// directory to target.
@@ -76,6 +75,105 @@ pub enum SyncMethod {
 impl Default for SyncMethod {
     fn default() -> Self {
         SyncMethod::Symlink
+    }
+}
+/// Scope of a group, used to resolve _priority_ of possibly duplicated items,
+/// to ensure every target path is pointed from only one source item.
+///
+/// The order of priority is:
+///
+/// [`Dropin`] > [`App`] > [`General`]
+///
+/// Within the same scope, the first defined group in the config file for DT
+/// has the highest priority, later defined groups have lower priorities.
+///
+/// Groups without a given scope are treated as of [`General`] scope.
+///
+/// [`Dropin`]: DTScope::Dropin
+/// [`App`]: DTScope::App
+/// [`General`]: DTScope::General
+///
+/// # Example
+///
+/// When you want to populate all your config files for apps that follows [the
+/// XDG standard], you might write a config file for DT that looks like this:
+///
+/// [the XDG standard]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
+///
+/// ```toml
+/// [[local]]
+/// name = "xdg_config_home"
+/// base = "/path/to/your/xdg/config/directory"
+/// sources = ["*"]
+/// target = "~/.config"
+/// ```
+///
+/// Let's say after some weeks or months, you have decided to also include
+/// `/usr/share/fontconfig/conf.avail/11-lcdfilter-default.conf` to your
+/// fontconfig directory, which is `~/.config/fontconfig/conf.d`, you do so by
+/// adding another `[[local]]` group into your config file for DT:
+///
+/// ```toml
+/// [[local]]
+/// name = "fontconfig-system"
+/// base = "/usr/share/fontconfig/conf.avail"
+/// sources = ["11-lcdfilter-default.conf"]
+/// target = "~/.config/fontconfig/conf.d"
+/// ```
+///
+/// A problem arises when you also maintain a version of
+/// `11-lcdfilter-default.conf` of your own: If DT syncs the
+/// `fontconfig-system` group last, the resulting config file in your
+/// `$XDG_CONFIG_HOME` is the system version;  While if DT syncs the
+/// `xdg_config_home` group last, that file ended up being your previously
+/// maintained version.
+///
+/// Actually, DT is quite predictable: it only performs operations in the
+/// order defined in the config file for your groups.  By defining the
+/// `fontconfig-system` group last, you can completely avoid the ambiguity
+/// above.
+///
+/// However, since the config file was written by you, a human, and humans are
+/// notorious for making mistakes, it would be great if DT could always know
+/// what to do when duplicated items are discovered in the config file.
+/// Instead of putting the groups with higher priority at the end of your
+/// config file, you could simply define `scope`s in their definitions:
+///
+/// ```toml
+/// [[local]]
+/// name = "fontconfig-system"
+/// scope = "Dropin"
+/// ...
+/// [[local]]
+/// name = "xdg_config_home"
+/// scope = "General"
+/// ...
+/// ```
+///
+/// Now, with the `scope` being set, DT will first remove the source item
+/// `11-lcdfilter-default.conf` (if it exists) from group `xdg_config_home`,
+/// then perform its syncing process.
+///
+/// This is also useful with `dt-cli`'s `-l|--local-name` option, which gives
+/// you more granular control over how items are synced.
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+pub enum DTScope {
+    /// The scope with lowest priority, this is the default scope,
+    /// recommended for directories that contains config files for many
+    /// un-categorized applications.
+    General,
+    /// The scope for a specific app, it's priority is higher than
+    /// [`General`] while lower than [`Dropin`].
+    ///
+    /// [`General`]: DTScope::General
+    /// [`Dropin`]: DTScope::Dropin
+    App,
+    /// The scope for drop-in replacements, it has the highest priority.
+    Dropin,
+}
+impl Default for DTScope {
+    fn default() -> Self {
+        DTScope::General
     }
 }
 
@@ -232,109 +330,6 @@ impl DTConfig {
     }
 }
 
-/// Scope of a group, used to resolve _priority_ of possibly duplicated items,
-/// to ensure every target path is pointed from only one source item.
-///
-/// The order of priority is:
-///
-/// [`Dropin`] > [`App`] > [`General`]
-///
-/// Within the same scope, the first defined group in the config file for DT
-/// has the highest priority, later defined groups have lower priorities.
-///
-/// Groups without a given scope are treated as of [`General`] scope.
-///
-/// [`Dropin`]: DTScope::Dropin
-/// [`App`]: DTScope::App
-/// [`General`]: DTScope::General
-///
-/// # Example
-///
-/// When you want to populate all your config files for apps that follows [the
-/// XDG standard], you might write a config file for DT that looks like this:
-///
-/// [the XDG standard]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
-///
-/// ```toml
-/// [[local]]
-/// name = "xdg_config_home"
-/// base = "/path/to/your/xdg/config/directory"
-/// sources = ["*"]
-/// target = "~/.config"
-/// ```
-///
-/// Let's say after some weeks or months, you have decided to also include
-/// `/usr/share/fontconfig/conf.avail/11-lcdfilter-default.conf` to your
-/// fontconfig directory, which is `~/.config/fontconfig/conf.d`, you do so by
-/// adding another `[[local]]` group into your config file for DT:
-///
-/// ```toml
-/// [[local]]
-/// name = "fontconfig-system"
-/// base = "/usr/share/fontconfig/conf.avail"
-/// sources = ["11-lcdfilter-default.conf"]
-/// target = "~/.config/fontconfig/conf.d"
-/// ```
-///
-/// A problem arises when you also maintain a version of
-/// `11-lcdfilter-default.conf` of your own: If DT syncs the
-/// `fontconfig-system` group last, the resulting config file in your
-/// `$XDG_CONFIG_HOME` is the system version;  While if DT syncs the
-/// `xdg_config_home` group last, that file ended up being your previously
-/// maintained version.
-///
-/// Actually, DT is quite predictable: it only performs operations in the
-/// order defined in the config file for your groups.  By defining the
-/// `fontconfig-system` group last, you can completely avoid the ambiguity
-/// above.
-///
-/// However, since the config file was written by you, a human, and humans are
-/// notorious for making mistakes, it would be great if DT could always know
-/// what to do when duplicated items are discovered in the config file.
-/// Instead of putting the groups with higher priority at the end of your
-/// config file, you could simply define `scope`s in their definitions:
-///
-/// ```toml
-/// [[local]]
-/// name = "fontconfig-system"
-/// scope = "Dropin"
-/// ...
-/// [[local]]
-/// name = "xdg_config_home"
-/// scope = "General"
-/// ...
-/// ```
-///
-/// Now, with the `scope` being set, DT will first remove the source item
-/// `11-lcdfilter-default.conf` (if it exists) from group `xdg_config_home`,
-/// then perform its syncing process.
-///
-/// This is also useful with `dt-cli`'s `-l|--local-name` option, which gives
-/// you more granular control over how items are synced.
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-pub enum DTScope {
-    /// The scope with lowest priority, this is the default scope,
-    /// recommended for directories that contains config files for many
-    /// un-categorized applications.
-    General,
-
-    /// The scope for a specific app, it's priority is higher than
-    /// [`General`] while lower than [`Dropin`].
-    ///
-    /// [`General`]: DTScope::General
-    /// [`Dropin`]: DTScope::Dropin
-    App,
-
-    /// The scope for drop-in replacements, it has the highest priority.
-    Dropin,
-}
-
-impl Default for DTScope {
-    fn default() -> Self {
-        DTScope::General
-    }
-}
-
 /// A single renaming rule, used for generating names for target files which
 /// are different from their sources.
 #[derive(Clone, Debug, Deserialize_tuple)]
@@ -430,7 +425,10 @@ impl Default for ContextConfig {
 
 /// Configures how items are grouped.
 #[derive(Default, Clone, Deserialize, Debug)]
-pub struct Group<BaseType> {
+pub struct Group<T>
+where
+    T: Operate,
+{
     /// The global config object loaded from DT's config file.  This field
     /// _does not_ appear in the config file, but is only used by DT
     /// internally.  Skipping deserializing is achieved via serde's
@@ -493,12 +491,12 @@ pub struct Group<BaseType> {
     /// (in this case, the directory where [DT] is being executed).
     ///
     /// [DT]: https://github.com/blurgyy/dt
-    pub base: BaseType,
+    pub base: T,
 
     /// Paths (relative to [`base`]) to the items to be synced.
     ///
     /// [`base`]: Group::base
-    pub sources: Vec<PathBuf>,
+    pub sources: Vec<T>,
 
     /// The path of the parent dir of the final synced items.
     ///
@@ -566,7 +564,8 @@ pub struct Group<BaseType> {
     /// On a machine with hostname set to `watson`, the below configuration
     /// (extraneous keys are omitted here)
     ///
-    /// ```toml [[local]]
+    /// ```toml
+    /// [[local]]
     /// ...
     /// hostname_sep = "@@"
     ///
@@ -604,7 +603,10 @@ pub struct Group<BaseType> {
     pub rename: RenamingRules,
 }
 
-impl<BaseType> Group<BaseType> {
+impl<T> Group<T>
+where
+    T: Operate,
+{
     /// Gets the [`allow_overwrite`] key from a `Group` object,
     /// falls back to the `allow_overwrite` from provided global config.
     ///
@@ -640,12 +642,12 @@ impl<BaseType> Group<BaseType> {
 
     /// Gets the list of [renaming rules] of this group, which is an array
     /// of (REGEX, SUBSTITUTION) tuples composed of [`global.rename`] and
-    /// [`local.rename`], used in [`DTItem::make_target`] to rename the item.
+    /// [`group.rename`], used in [`Operate::make_target`] to rename the item.
     ///
     /// [renaming rules]: Group::rename
     /// [`global.rename`]: GlobalConfig::rename
-    /// [`local.rename`]: Group::rename
-    /// [`DTItem::make_target`]: crate::item::DTItem::make_target
+    /// [`group.rename`]: Group::rename
+    /// [`Operate::make_target`]: crate::item::Operate::make_target
     pub fn get_renaming_rules(&self) -> Vec<RenamingRule> {
         let mut ret: Vec<RenamingRule> = Vec::new();
         for r in &self.global.rename.0 {
@@ -697,7 +699,7 @@ impl<BaseType> Group<BaseType> {
             )));
         }
         // 3. Source item referencing parent
-        if self.sources.iter().any(|s| s.starts_with("../")) {
+        if self.sources.iter().any(|s| s.is_twisted()) {
             return Err(AppError::ConfigError(format!(
                 "source item references parent directory in group '{}'",
                 self.name,
@@ -738,7 +740,7 @@ impl<BaseType> Group<BaseType> {
 
             // 2. Path to staging root contains readonly parent directory
             // NOTE: Must convert to an absolute path before checking readonly
-            if staging_path.absolute()?.parent_readonly() {
+            if staging_path.absolute()?.is_parent_readonly() {
                 return Err(AppError::ConfigError(
                     "staging root path cannot be created due to insufficient permissions"
                         .to_owned(),
@@ -756,7 +758,7 @@ impl<BaseType> Group<BaseType> {
 
         // 4. Path to target contains readonly parent directory
         // NOTE: Must convert to an absolute path before checking readonly
-        if self.target.absolute()?.parent_readonly() {
+        if self.target.absolute()?.is_parent_readonly() {
             return Err(AppError::ConfigError(format!(
                 "target path cannot be created due to insufficient permissions in group '{}'",
                 self.name,
@@ -775,8 +777,8 @@ impl LocalGroup {
     ///
     /// - Checks without querying the filesystem
     ///
-    ///   1. Empty group name
-    ///   2. Slash in group name
+    ///   1. Empty [group name]
+    ///   2. Slash in [group name]
     ///   3. Source item referencing parent (because items are first populated
     ///      to the [`staging`] directory, and the structure under the
     ///      [`staging`] directory depends on their original relative path to
@@ -893,17 +895,40 @@ pub type RemoteGroup = Group<Url>;
 impl RemoteGroup {
     /// Validates this remote group, the following cases are denied:
     ///
-    ///   1. Empty group name
-    ///   2. Empty target
-    ///   3. Slash in group name
+    /// - Checks without querying the filesystem
+    ///
+    ///   1. Empty [group name]
+    ///   2. Empty [`target`]
+    ///   3. Slash in [group name]
     ///   4. Source item referencing parent (because items are first populated
     ///      to the [`staging`] directory, and the structure under the
     ///      [`staging`] directory depends on their original relative path to
     ///      their [`base`])
     ///   5. Current group contains unimplemented [`ignored`] field
+    ///
+    /// - Checks that need to query the filesystem
+    ///
+    ///   1. Wrong type of existing [`staging`] path (if using the
+    ///      [`Symlink`] method)
+    ///   2. Path to staging root contains readonly parent directory (if
+    ///      using the [`Symlink`] method)
+    ///   3. Wrong type of existing [`target`] path
+    ///   4. Path to [`target`] contains readonly parent directory
+    ///
+    /// [group name]: LocalGroup::name
+    /// [`base`]: LocalGroup::base
+    /// [`target`]: LocalGroup::target
+    /// [`staging`]: GlobalConfig::staging
+    /// [`ignored`]: Group::ignored
+    /// [`Symlink`]: SyncMethod::Symlink
     fn validate(&self) -> Result<()> {
+        // - Checks without querying the filesystem --------------------------
         // 1-5
         self._validate_no_fs_query()?;
+
+        // - Checks that need to query the filesystem ------------------------
+        // 1-4
+        self._validate_with_fs_query()?;
 
         Ok(())
     }
