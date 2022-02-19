@@ -304,8 +304,9 @@ impl DTConfig {
         Self::from_str(&confstr)
     }
 
-    /// Construct another [`DTConfig`] object with only groups with given
-    /// names remaining, unmatched given names are ignored.
+    /// Construct another [`DTConfig`] object with groups that match given
+    /// filters.  Groups are matched hierarchically, e.g. a filter `a/b` will
+    /// select `a/b/c` and `a/b/d`, but not `a/bcd`.
     pub fn filter_names(self, group_names: Vec<String>) -> Self {
         Self {
             global: self.global,
@@ -314,7 +315,7 @@ impl DTConfig {
                 .local
                 .iter()
                 .filter(|l| {
-                    group_names.iter().any(|n| l.name.0 == PathBuf::from(n))
+                    group_names.iter().any(|n| l.name.0.starts_with(n))
                 })
                 .map(|l| l.to_owned())
                 .collect(),
@@ -322,7 +323,7 @@ impl DTConfig {
                 .remote
                 .iter()
                 .filter(|l| {
-                    group_names.iter().any(|n| l.name.0 == PathBuf::from(n))
+                    group_names.iter().any(|n| l.name.0.starts_with(n))
                 })
                 .map(|l| l.to_owned())
                 .collect(),
