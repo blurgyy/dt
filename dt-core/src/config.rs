@@ -1,4 +1,5 @@
 use std::{
+    fmt::Display,
     path::{Path, PathBuf},
     rc::Rc,
     str::FromStr,
@@ -15,6 +16,85 @@ use crate::{
     item::Operate,
 };
 
+/// Helper type for a group's [name]
+///
+/// [name]: Group::name
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+pub struct GroupName(pub PathBuf);
+impl Display for GroupName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0.to_str().unwrap())
+    }
+}
+impl GroupName {
+    /// Gets the first component of this name, components are separated by
+    /// slashes.
+    pub fn main(&self) -> String {
+        let first_comp: PathBuf = self.0.components().take(1).collect();
+        first_comp.to_str().unwrap().to_owned()
+    }
+    /// Checks if this name is empty.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use dt_core::{config:: GroupName, error::Error as AppError};
+    /// assert!(GroupName("a".into()).validate().is_ok());
+    /// assert!(GroupName("a/b/c".into()).validate().is_ok());
+    /// assert!(GroupName("/starts/with/slash".into()).validate().is_err());
+    /// assert!(GroupName("relative/../path".into()).validate().is_err());
+    /// # Ok::<(), AppError>(())
+    /// ```
+    pub fn validate(&self) -> Result<()> {
+        if self
+            .0
+            .components()
+            .any(|comp| comp.as_os_str().to_str().unwrap() == "..")
+        {
+            Err(AppError::ConfigError(
+                "Group name should not contain relative component".to_owned(),
+            ))
+        } else if self.0.starts_with("/") {
+            Err(AppError::ConfigError(
+                "Group name should not start with slash".to_owned(),
+            ))
+        } else if self.0 == PathBuf::from_str("").unwrap() {
+            Err(AppError::ConfigError(
+                "Group name should not be empty".to_owned(),
+            ))
+        } else {
+            Ok(())
+        }
+    }
+    /// Returns a PathBuf, which adds a [`subgroup_prefix`] to each of the
+    /// components other than the main component.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use std::{str::FromStr, path::PathBuf};
+    /// # use dt_core::config::GroupName;
+    /// # use pretty_assertions::assert_eq;
+    /// let gn = GroupName("gui/gtk".into());
+    /// assert_eq!(
+    ///     gn.with_subgroup_prefix("#"),
+    ///     PathBuf::from_str("gui/#gtk").unwrap(),
+    /// );
+    /// ```
+    ///
+    /// [`subgroup_prefix`]: SubgroupPrefix
+    pub fn with_subgroup_prefix(&self, subgroup_prefix: &str) -> PathBuf {
+        PathBuf::from(self.main()).join(
+            self.0
+                .iter()
+                .skip(1)
+                .map(|comp| {
+                    subgroup_prefix.to_owned() + comp.to_str().unwrap()
+                })
+                .collect::<PathBuf>(),
+        )
+    }
+}
 /// Helper type for config key [`staging`]
 ///
 /// [`staging`]: GlobalConfig::staging
@@ -27,38 +107,6 @@ impl Default for StagingPath {
         } else {
             panic!("Cannot infer default staging directory, set either XDG_DATA_HOME or HOME to solve this.");
         }
-    }
-}
-/// Helper type for config key `allow_overwrite`
-///
-/// [`allow_overwrite`]: GlobalConfig::allow_overwrite
-#[derive(Clone, Copy, Debug, Deserialize)]
-pub struct AllowOverwrite(pub bool);
-#[allow(clippy::derivable_impls)]
-impl Default for AllowOverwrite {
-    fn default() -> Self {
-        Self(false)
-    }
-}
-/// Helper type for config key `hostname_sep`
-///
-/// [`hostname_sep`]: GlobalConfig::hostname_sep
-#[derive(Clone, Debug, Deserialize)]
-pub struct HostnameSeparator(pub String);
-impl Default for HostnameSeparator {
-    fn default() -> Self {
-        Self("@@".to_owned())
-    }
-}
-/// Helper type for config key `rename`
-///
-/// [`rename`]: GlobalConfig::rename
-#[derive(Clone, Debug, Deserialize)]
-pub struct RenamingRules(pub Vec<RenamingRule>);
-#[allow(clippy::derivable_impls)]
-impl Default for RenamingRules {
-    fn default() -> Self {
-        Self(Vec::new())
     }
 }
 /// Syncing methods.
@@ -75,6 +123,48 @@ pub enum SyncMethod {
 impl Default for SyncMethod {
     fn default() -> Self {
         SyncMethod::Symlink
+    }
+}
+/// Helper type for config key [`subgroup_prefix`]
+///
+/// [`subgroup_prefix`]: GlobalConfig::subgroup_prefix
+#[derive(Clone, Debug, Deserialize)]
+pub struct SubgroupPrefix(pub String);
+impl Default for SubgroupPrefix {
+    fn default() -> Self {
+        Self("#".to_owned())
+    }
+}
+/// Helper type for config key [`allow_overwrite`]
+///
+/// [`allow_overwrite`]: GlobalConfig::allow_overwrite
+#[derive(Clone, Copy, Debug, Deserialize)]
+pub struct AllowOverwrite(pub bool);
+#[allow(clippy::derivable_impls)]
+impl Default for AllowOverwrite {
+    fn default() -> Self {
+        Self(false)
+    }
+}
+/// Helper type for config key [`hostname_sep`]
+///
+/// [`hostname_sep`]: GlobalConfig::hostname_sep
+#[derive(Clone, Debug, Deserialize)]
+pub struct HostnameSeparator(pub String);
+impl Default for HostnameSeparator {
+    fn default() -> Self {
+        Self("@@".to_owned())
+    }
+}
+/// Helper type for config key [`rename`]
+///
+/// [`rename`]: GlobalConfig::rename
+#[derive(Clone, Debug, Deserialize)]
+pub struct RenamingRules(pub Vec<RenamingRule>);
+#[allow(clippy::derivable_impls)]
+impl Default for RenamingRules {
+    fn default() -> Self {
+        Self(Vec::new())
     }
 }
 /// Scope of a group, used to resolve _priority_ of possibly duplicated items,
@@ -223,13 +313,17 @@ impl DTConfig {
             local: self
                 .local
                 .iter()
-                .filter(|l| group_names.iter().any(|n| l.name == *n))
+                .filter(|l| {
+                    group_names.iter().any(|n| l.name.0 == PathBuf::from(n))
+                })
                 .map(|l| l.to_owned())
                 .collect(),
             remote: self
                 .remote
                 .iter()
-                .filter(|l| group_names.iter().any(|n| l.name == *n))
+                .filter(|l| {
+                    group_names.iter().any(|n| l.name.0 == PathBuf::from(n))
+                })
                 .map(|l| l.to_owned())
                 .collect(),
         }
@@ -386,6 +480,13 @@ pub struct GlobalConfig {
     #[serde(default)]
     pub method: SyncMethod,
 
+    /// A string to be prepended to a subgroup's name when creating its
+    /// staging directory with the [`Symlink`] syncing method.
+    ///
+    /// [`Symlink`]: SyncMethod::Symlink
+    #[serde(default)]
+    pub subgroup_prefix: SubgroupPrefix,
+
     /// Whether to allow overwriting existing files.
     ///
     /// This alters syncing behaviours when the target file exists.  If set
@@ -448,7 +549,7 @@ where
     pub context: Rc<ContextConfig>,
 
     /// Name of this group, used as namespace in staging root directory.
-    pub name: String,
+    pub name: GroupName,
 
     /// The priority of this group, used to resolve possibly duplicated
     /// items.  See [`DTScope`] for details.
@@ -596,6 +697,14 @@ where
     /// [`global.method`]: GlobalConfig::method
     pub method: Option<SyncMethod>,
 
+    /// A string to be prepended to a subgroup's name when creating its
+    /// staging directory with the [`Symlink`] syncing method, overrides
+    /// [`global.subgroup_prefix`] key.
+    ///
+    /// [`Symlink`]: SyncMethod::Symlink
+    /// [`global.subgroup_prefix`]: GlobalConfig::subgroup_prefix
+    pub subgroup_prefix: Option<SubgroupPrefix>,
+
     /// (Optional) Renaming rules, appends to [`global.rename`].
     ///
     /// [`global.rename`]: GlobalConfig::rename
@@ -607,8 +716,8 @@ impl<T> Group<T>
 where
     T: Operate,
 {
-    /// Gets the [`allow_overwrite`] key from a `Group` object,
-    /// falls back to the `allow_overwrite` from provided global config.
+    /// Gets the [`allow_overwrite`] key from a `Group` object, falls back to
+    /// the `allow_overwrite` from its parent global config.
     ///
     /// [`allow_overwrite`]: Group::allow_overwrite
     pub fn is_overwrite_allowed(&self) -> bool {
@@ -618,8 +727,19 @@ where
         }
     }
 
-    /// Gets the [`method`] key from a `Group` object, falls back
-    /// to the `method` from provided global config.
+    /// Gets the absolute path to this group's staging directory, with the
+    /// subgroup components padded with configured [`subgroup_prefix`]es.
+    ///
+    /// [`subgroup_prefix`]: Group::subgroup_prefix
+    pub fn get_staging_dir(&self) -> PathBuf {
+        self.global
+            .staging
+            .0
+            .join(self.name.with_subgroup_prefix(&self.get_subgroup_prefix()))
+    }
+
+    /// Gets the [`method`] key from a `Group` object, falls back to the
+    /// `method` from its parent global config.
     ///
     /// [`method`]: Group::method
     pub fn get_method(&self) -> SyncMethod {
@@ -629,8 +749,17 @@ where
         }
     }
 
-    /// Gets the [`hostname_sep`] key from a `Group` object, falls
-    /// back to the [`hostname_sep`] from provided global config.
+    /// Gets the [`subgroup_prefix`] key from a `Group` object, falls back to
+    /// the `subgroup_prefix` from its parent global config.
+    pub fn get_subgroup_prefix(&self) -> String {
+        match &self.subgroup_prefix {
+            Some(prefix) => prefix.0.to_owned(),
+            _ => self.global.subgroup_prefix.0.to_owned(),
+        }
+    }
+
+    /// Gets the [`hostname_sep`] key from a `Group` object, falls back to the
+    /// [`hostname_sep`] from its parent global config.
     ///
     /// [`hostname_sep`]: Group::hostname_sep
     pub fn get_hostname_sep(&self) -> String {
@@ -643,6 +772,8 @@ where
     /// Gets the list of [renaming rules] of this group, which is an array
     /// of (REGEX, SUBSTITUTION) tuples composed of [`global.rename`] and
     /// [`group.rename`], used in [`Operate::make_target`] to rename the item.
+    /// The returned list is a combination of the rules from global config and
+    /// the group's own rules.
     ///
     /// [renaming rules]: Group::rename
     /// [`global.rename`]: GlobalConfig::rename
@@ -665,7 +796,7 @@ where
     /// [context]: DTConfig::context
     pub fn is_templated(&self) -> bool {
         match self.context.0.as_table() {
-            Some(map) => map.get(&self.name).is_some(),
+            Some(map) => map.get(&self.name.main()).is_some(),
             None => false,
         }
     }
@@ -673,13 +804,12 @@ where
     /// Validates this group with readonly access to the filesystem.  The
     /// following cases are denied:
     ///
-    ///   1. Empty group name
-    ///   2. Slash in group name
-    ///   3. Source item referencing parent (because items are first populated
+    ///   1. Invalid group name
+    ///   2. Source item referencing parent (because items are first populated
     ///      to the [`staging`] directory, and the structure under the
     ///      [`staging`] directory depends on their original relative path to
     ///      their [`base`])
-    ///   4. TODO: Current group contains unimplemented [`ignored`] field
+    ///   3. TODO: Current group contains unimplemented [`ignored`] field
     ///
     /// NOTE: When [`base`] is empty, sources will be looked up in the cwd of
     /// the process.
@@ -687,25 +817,16 @@ where
     /// [`ignored`]: Group::ignored
     /// [`base`]: Group::base
     fn _validate_no_fs_query(&self) -> Result<()> {
-        // 1. Empty group name
-        if self.name.is_empty() {
-            return Err(AppError::ConfigError("empty group name".to_owned()));
-        }
-        // 2. Slash in group name
-        if self.name.contains('/') {
-            return Err(AppError::ConfigError(format!(
-                "group name '{}' contains the '/' character",
-                self.name,
-            )));
-        }
-        // 3. Source item referencing parent
+        // 1. Invalid group name
+        self.name.validate()?;
+        // 2. Source item referencing parent
         if self.sources.iter().any(|s| s.is_twisted()) {
             return Err(AppError::ConfigError(format!(
                 "source item references parent directory in group '{}'",
                 self.name,
             )));
         }
-        // 4. Current group contains unimplemented `ignored` field
+        // 3. Current group contains unimplemented `ignored` field
         if self.ignored.is_some() {
             todo!("`ignored` array works poorly and I decided to implement it in the future");
         }
@@ -778,18 +899,17 @@ impl LocalGroup {
     /// - Checks without querying the filesystem
     ///
     ///   1. Empty [group name]
-    ///   2. Slash in [group name]
-    ///   3. Source item referencing parent (because items are first populated
+    ///   2. Source item referencing parent (because items are first populated
     ///      to the [`staging`] directory, and the structure under the
     ///      [`staging`] directory depends on their original relative path to
     ///      their [`base`])
-    ///   4. Current group contains unimplemented [`ignored`] field
+    ///   3. Current group contains unimplemented [`ignored`] field
     ///
-    ///   5. Target and base are the same
-    ///   6. Base contains [`hostname_sep`]
-    ///   7. Source item is absolute (same reason as above)
-    ///   8. Source item contains bad globbing pattern
-    ///   9. Source item contains [`hostname_sep`]
+    ///   4. Target and base are the same
+    ///   5. Base contains [`hostname_sep`]
+    ///   6. Source item is absolute (same reason as above)
+    ///   7. Source item contains bad globbing pattern
+    ///   8. Source item contains [`hostname_sep`]
     ///
     /// - Checks that need to query the filesystem
     ///
@@ -899,12 +1019,11 @@ impl RemoteGroup {
     ///
     ///   1. Empty [group name]
     ///   2. Empty [`target`]
-    ///   3. Slash in [group name]
-    ///   4. Source item referencing parent (because items are first populated
+    ///   3. Source item referencing parent (because items are first populated
     ///      to the [`staging`] directory, and the structure under the
     ///      [`staging`] directory depends on their original relative path to
     ///      their [`base`])
-    ///   5. Current group contains unimplemented [`ignored`] field
+    ///   4. Current group contains unimplemented [`ignored`] field
     ///
     /// - Checks that need to query the filesystem
     ///
@@ -1151,6 +1270,55 @@ mod validation {
     use crate::error::Error as AppError;
 
     #[test]
+    fn relative_component_in_group_name() -> Result<(), Report> {
+        if let Err(err) = DTConfig::from_str(
+            r#"
+[[local]]
+name = "a/../b"
+base = "~"
+sources = []
+target = ".""#,
+        ) {
+            assert_eq!(
+                err,
+                AppError::ConfigError(
+                    "Group name should not contain relative component"
+                        .to_owned(),
+                ),
+                "{}",
+                err,
+            );
+            Ok(())
+        } else {
+            Err(eyre!("This config should not be loaded because a group's name contains relative component"))
+        }
+    }
+
+    #[test]
+    fn prefix_slash_in_group_name() -> Result<(), Report> {
+        if let Err(err) = DTConfig::from_str(
+            r#"
+[[local]]
+name = "/a/b/c/d"
+base = "~"
+sources = []
+target = ".""#,
+        ) {
+            assert_eq!(
+                err,
+                AppError::ConfigError(
+                    "Group name should not start with slash".to_owned(),
+                ),
+                "{}",
+                err,
+            );
+            Ok(())
+        } else {
+            Err(eyre!("This config should not be loaded because a group's name starts with a slash"))
+        }
+    }
+
+    #[test]
     fn empty_group_name() -> Result<(), Report> {
         if let Err(err) = DTConfig::from_str(
             r#"
@@ -1162,38 +1330,15 @@ target = ".""#,
         ) {
             assert_eq!(
                 err,
-                AppError::ConfigError("empty group name".to_owned()),
-                "{}",
-                err,
-            );
-            Ok(())
-        } else {
-            Err(eyre!("This config should not be loaded because a group's name is empty"))
-        }
-    }
-
-    #[test]
-    fn slash_in_group_name() -> Result<(), Report> {
-        if let Err(err) = DTConfig::from_str(
-            r#"
-[[local]]
-name = "this/group/name/contains/slash"
-base = "~"
-sources = []
-target = "/tmp""#,
-        ) {
-            assert_eq!(
-                err,
                 AppError::ConfigError(
-                    "group name 'this/group/name/contains/slash' contains the '/' character"
-                        .to_owned()
+                    "Group name should not be empty".to_owned(),
                 ),
                 "{}",
                 err,
             );
             Ok(())
         } else {
-            Err(eyre!("This config should not be loaded because a group name contains slash"))
+            Err(eyre!("This config should not be loaded because a group's name is empty"))
         }
     }
 

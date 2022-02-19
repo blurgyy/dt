@@ -579,7 +579,7 @@ impl Operate for PathBuf {
                 let staging_path = self.make_target(
                     &group.get_hostname_sep(),
                     &group.base,
-                    &group.global.staging.0.join(PathBuf::from(&group.name)),
+                    &group.get_staging_dir(),
                     Vec::new(), // Do not apply renaming on staging path
                 )?;
                 std::fs::create_dir_all(staging_path.parent().unwrap())?;
