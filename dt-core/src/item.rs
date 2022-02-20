@@ -4,7 +4,6 @@ use std::{
     rc::Rc,
 };
 
-use handlebars::Handlebars;
 use path_clean::PathClean;
 use serde::Serialize;
 use url::Url;
@@ -12,6 +11,7 @@ use url::Url;
 use crate::{
     config::{Group, LocalGroup, RenamingRule, SyncMethod},
     error::{Error as AppError, Result},
+    registry::Register,
     utils,
 };
 
@@ -50,9 +50,9 @@ where
         unimplemented!()
     }
     /// Given a `hostname_sep`, a `base`, a `targetbase`, and optionally a
-    /// list of [renaming rule]s, create the path where `self` would be synced
-    /// to.  Renaming rules are applied after host-specific suffixes are
-    /// stripped.
+    /// list of [renaming rule]s, creates the path where `self` would be
+    /// synced to.  Renaming rules are applied after host-specific suffixes
+    /// are stripped.
     fn make_target<P>(
         &self,
         hostname_sep: &str,
@@ -65,20 +65,20 @@ where
     {
         unimplemented!()
     }
-    /// Render this item with given context to the `dest` path.
-    fn render<S: Serialize>(
+    /// Renders this item with given context to the `dest` path.
+    fn render<S: Serialize, T: Register>(
         &self,
-        registry: &Rc<Handlebars>,
+        registry: &Rc<T>,
         ctx: &Rc<S>,
     ) -> Result<Vec<u8>> {
         unimplemented!()
     }
     /// Populate this item with given group config.  The given group config is
     /// expected to be the group where this item belongs to.
-    fn populate(
+    fn populate<T: Register>(
         &self,
         group: Rc<Group<Self>>,
-        registry: Rc<Handlebars>,
+        registry: Rc<T>,
     ) -> Result<()> {
         unimplemented!()
     }
@@ -423,31 +423,21 @@ impl Operate for PathBuf {
         Ok(targetbase.as_ref().join(tail))
     }
 
-    /// Render this item with given context to the `dest` path.
-    // TODO: Add `force_rendering` or something to also render binary files.
-    fn render<S: Serialize>(
+    fn render<S: Serialize, R: Register>(
         &self,
-        registry: &Rc<Handlebars>,
+        registry: &Rc<R>,
         ctx: &Rc<S>,
     ) -> Result<Vec<u8>> {
         let name = self.to_str().unwrap();
-        if registry.get_template(name).is_some() {
-            Ok(registry.render(name, &**ctx)?.into())
-        } else {
-            log::debug!(
-                "Local item '{}' was not registered as a template, maybe because it's content is binary?",
-                self.display(),
-            );
-            Ok(std::fs::read(self)?)
-        }
+        registry.render(name, ctx)
     }
 
     /// Populate this item with given group config.  The given group config is
     /// expected to be the group where this item belongs to.
-    fn populate(
+    fn populate<T: Register>(
         &self,
         group: Rc<LocalGroup>,
-        registry: Rc<Handlebars>,
+        registry: Rc<T>,
     ) -> Result<()> {
         // Create possibly missing parent directories along target's path.
         let tpath = self.make_target(

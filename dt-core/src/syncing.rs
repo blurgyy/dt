@@ -4,13 +4,11 @@ use std::{
     rc::Rc,
 };
 
-use handlebars::Handlebars;
-
 use crate::{
     config::*,
     error::{Error as AppError, Result},
     item::Operate,
-    registry::DTRegistry,
+    registry::{Register, Registry},
 };
 
 /// Expands tildes and globs in [`sources`], returns the updated config
@@ -306,11 +304,8 @@ pub fn sync(config: DTConfig, dry_run: bool) -> Result<()> {
     log::trace!("Local groups to process: {:#?}", config.local);
 
     let config = expand(config)?;
-    let registry = Rc::new(
-        Handlebars::new()
-            .register_templates(&config)?
-            .register_helpers()?,
-    );
+    let registry =
+        Rc::new(Registry::default().register_helpers()?.load(&config)?);
 
     for group in &config.local {
         log::info!("Local group: [{}]", group.name);

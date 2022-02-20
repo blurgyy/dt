@@ -1,16 +1,37 @@
+use std::{collections::HashMap, rc::Rc};
+
 use content_inspector::inspect;
 use handlebars::Handlebars;
+use serde::Serialize;
 
-use crate::{config::DTConfig, error::Result};
+use crate::{
+    config::DTConfig,
+    error::{Error as AppError, Result},
+};
 
 #[allow(unused_variables)]
-/// Helper trait for manipulating registries within DT.
-pub trait DTRegistry
+/// A registry should hold an environment of templates, and a cached storing
+/// the rendered contents.
+pub trait Register
 where
     Self: Sized,
 {
-    /// Reads source files from templated groups and register them as
-    /// templates into a global registry.
+    /// Registers DT's [built-in helpers].
+    ///
+    /// [built-in helpers]: helpers
+    fn register_helpers(self) -> Result<Self> {
+        unimplemented!()
+    }
+    /// Load templates and render them into cached storage, items that are not
+    /// templated (see [`is_templated`]) will not be registered into templates
+    /// but directly stored into the rendered cache.
+    ///
+    /// [`is_templated`]: dt_core::config::Group::is_templated
+    fn load(self, config: &DTConfig) -> Result<Self> {
+        unimplemented!()
+    }
+    /// Returns the content of an item rendered with given rendering context.
+    /// This does not modify the stored content.
     ///
     /// Rendering only happens if this item is considered as a plain text
     /// file.  If this item is considered as a binary file, it's original
@@ -23,35 +44,83 @@ where
     ///
     /// [`content_inspector`]: https://crates.io/crates/content_inspector
     /// [the crate's home page]: https://github.com/sharkdp/content_inspector
-    fn register_templates(self, config: &DTConfig) -> Result<Self> {
+    fn render<S: Serialize>(
+        &self,
+        name: &str,
+        ctx: &Rc<S>,
+    ) -> Result<Vec<u8>> {
         unimplemented!()
     }
-    /// Registers DT's [built-in helpers].
-    ///
-    /// [built-in helpers]: helpers
-    fn register_helpers(self) -> Result<Self> {
+    /// Updates the stored content of an item with the new content rendered
+    /// with given rendering context.
+    fn update<S: Serialize>(
+        &mut self,
+        name: &str,
+        ctx: &Rc<S>,
+    ) -> Result<()> {
+        unimplemented!()
+    }
+    /// Looks up the rendered content of an item with given name.
+    fn get(&self, name: &str) -> Result<Vec<u8>> {
         unimplemented!()
     }
 }
 
-impl DTRegistry for Handlebars<'_> {
-    fn register_templates(self, config: &DTConfig) -> Result<Self> {
+/// Registry with a cache for rendered item contents.
+#[derive(Debug, Default)]
+pub struct Registry<'reg> {
+    /// The templates before rendering.
+    pub env: Handlebars<'reg>,
+    /// The rendered contents of items.
+    pub content: HashMap<String, Vec<u8>>,
+}
+
+impl Register for Registry<'_> {
+    fn register_helpers(self) -> Result<Self> {
+        let mut render_env = self.env;
+
+        render_env.register_helper("get-mine", Box::new(helpers::get_mine));
+        render_env.register_helper("get_mine", Box::new(helpers::get_mine));
+        render_env.register_helper("getmine", Box::new(helpers::get_mine));
+
+        Ok(Self {
+            env: render_env,
+            ..self
+        })
+    }
+
+    fn load(self, config: &DTConfig) -> Result<Self> {
         let mut registry = self;
         for group in &config.local {
-            if group.is_templated() {
-                for s in &group.sources {
-                    if let Ok(content) = std::fs::read(s) {
+            for s in &group.sources {
+                let name = s.to_str().unwrap();
+                if let Ok(content) = std::fs::read(s) {
+                    if group.is_templated() {
                         if inspect(&content).is_text() {
-                            registry.register_template_string(
-                                s.to_str().unwrap(),
+                            registry.env.register_template_string(
+                                name,
                                 std::str::from_utf8(&content)?,
                             )?;
+                            registry.content.insert(
+                                name.to_owned(),
+                                registry
+                                    .env
+                                    .render(name, &config.context)?
+                                    .into(),
+                            );
                         } else {
                             log::trace!(
-                            "'{}' seems to have binary contents, it will not be rendered",
+                                "'{}' will not be rendered because it has binary contents",
+                                s.display(),
+                            );
+                            registry.content.insert(name.to_owned(), content);
+                        }
+                    } else {
+                        log::trace!(
+                            "'{}' will not be rendered because it is not templated",
                             s.display(),
                         );
-                        }
+                        registry.content.insert(name.to_owned(), content);
                     }
                 }
             }
@@ -59,14 +128,42 @@ impl DTRegistry for Handlebars<'_> {
         Ok(registry)
     }
 
-    fn register_helpers(self) -> Result<Self> {
-        let mut registry: Handlebars = self.into();
+    fn render<S: Serialize>(
+        &self,
+        name: &str,
+        ctx: &Rc<S>,
+    ) -> Result<Vec<u8>> {
+        if self.env.get_template(name).is_some() {
+            Ok(self.env.render(name, &**ctx)?.into())
+        } else {
+            match self.content.get(name) {
+                Some(content) => Ok(content.to_owned()),
+                None => Err(AppError::RenderingError(format!(
+                    "The template specified by '{}' is not known",
+                    name,
+                ))),
+            }
+        }
+    }
 
-        registry.register_helper("get-mine", Box::new(helpers::get_mine));
-        registry.register_helper("get_mine", Box::new(helpers::get_mine));
-        registry.register_helper("getmine", Box::new(helpers::get_mine));
+    fn update<S: Serialize>(
+        &mut self,
+        name: &str,
+        ctx: &Rc<S>,
+    ) -> Result<()> {
+        self.content
+            .insert(name.to_owned(), self.render(name, ctx)?);
+        Ok(())
+    }
 
-        Ok(registry.into())
+    fn get(&self, name: &str) -> Result<Vec<u8>> {
+        match self.content.get(name) {
+            Some(content) => Ok(content.to_owned()),
+            None => Err(AppError::TemplatingError(format!(
+                "The template specified by '{}' is not known",
+                name,
+            ))),
+        }
     }
 }
 
