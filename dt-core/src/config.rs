@@ -1,4 +1,5 @@
 use std::{
+    fmt::Display,
     path::{Path, PathBuf},
     rc::Rc,
     str::FromStr,
@@ -12,9 +13,88 @@ use url::Url;
 
 use crate::{
     error::{Error as AppError, Result},
-    item::DTItem,
+    item::Operate,
 };
 
+/// Helper type for a group's [name]
+///
+/// [name]: Group::name
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+pub struct GroupName(pub PathBuf);
+impl Display for GroupName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0.to_str().unwrap())
+    }
+}
+impl GroupName {
+    /// Gets the first component of this name, components are separated by
+    /// slashes.
+    pub fn main(&self) -> String {
+        let first_comp: PathBuf = self.0.components().take(1).collect();
+        first_comp.to_str().unwrap().to_owned()
+    }
+    /// Checks if this name is empty.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use dt_core::{config:: GroupName, error::Error as AppError};
+    /// assert!(GroupName("a".into()).validate().is_ok());
+    /// assert!(GroupName("a/b/c".into()).validate().is_ok());
+    /// assert!(GroupName("/starts/with/slash".into()).validate().is_err());
+    /// assert!(GroupName("relative/../path".into()).validate().is_err());
+    /// # Ok::<(), AppError>(())
+    /// ```
+    pub fn validate(&self) -> Result<()> {
+        if self
+            .0
+            .components()
+            .any(|comp| comp.as_os_str().to_str().unwrap() == "..")
+        {
+            Err(AppError::ConfigError(
+                "Group name should not contain relative component".to_owned(),
+            ))
+        } else if self.0.starts_with("/") {
+            Err(AppError::ConfigError(
+                "Group name should not start with slash".to_owned(),
+            ))
+        } else if self.0 == PathBuf::from_str("").unwrap() {
+            Err(AppError::ConfigError(
+                "Group name should not be empty".to_owned(),
+            ))
+        } else {
+            Ok(())
+        }
+    }
+    /// Returns a PathBuf, which adds a [`subgroup_prefix`] to each of the
+    /// components other than the main component.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use std::{str::FromStr, path::PathBuf};
+    /// # use dt_core::config::GroupName;
+    /// # use pretty_assertions::assert_eq;
+    /// let gn = GroupName("gui/gtk".into());
+    /// assert_eq!(
+    ///     gn.with_subgroup_prefix("#"),
+    ///     PathBuf::from_str("gui/#gtk").unwrap(),
+    /// );
+    /// ```
+    ///
+    /// [`subgroup_prefix`]: SubgroupPrefix
+    pub fn with_subgroup_prefix(&self, subgroup_prefix: &str) -> PathBuf {
+        PathBuf::from(self.main()).join(
+            self.0
+                .iter()
+                .skip(1)
+                .map(|comp| {
+                    subgroup_prefix.to_owned() + comp.to_str().unwrap()
+                })
+                .collect::<PathBuf>(),
+        )
+    }
+}
 /// Helper type for config key [`staging`]
 ///
 /// [`staging`]: GlobalConfig::staging
@@ -29,7 +109,33 @@ impl Default for StagingPath {
         }
     }
 }
-/// Helper type for config key `allow_overwrite`
+/// Syncing methods.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
+pub enum SyncMethod {
+    /// Instructs syncing module to directly copy each item from source to
+    /// target.
+    Copy,
+    /// Instructs syncing module to first copy iach item from source to its
+    /// staging directory, then symlink staged items from their staging
+    /// directory to target.
+    Symlink,
+}
+impl Default for SyncMethod {
+    fn default() -> Self {
+        SyncMethod::Symlink
+    }
+}
+/// Helper type for config key [`subgroup_prefix`]
+///
+/// [`subgroup_prefix`]: GlobalConfig::subgroup_prefix
+#[derive(Clone, Debug, Deserialize)]
+pub struct SubgroupPrefix(pub String);
+impl Default for SubgroupPrefix {
+    fn default() -> Self {
+        Self("#".to_owned())
+    }
+}
+/// Helper type for config key [`allow_overwrite`]
 ///
 /// [`allow_overwrite`]: GlobalConfig::allow_overwrite
 #[derive(Clone, Copy, Debug, Deserialize)]
@@ -40,7 +146,7 @@ impl Default for AllowOverwrite {
         Self(false)
     }
 }
-/// Helper type for config key `hostname_sep`
+/// Helper type for config key [`hostname_sep`]
 ///
 /// [`hostname_sep`]: GlobalConfig::hostname_sep
 #[derive(Clone, Debug, Deserialize)]
@@ -50,7 +156,7 @@ impl Default for HostnameSeparator {
         Self("@@".to_owned())
     }
 }
-/// Helper type for config key `rename`
+/// Helper type for config key [`rename`]
 ///
 /// [`rename`]: GlobalConfig::rename
 #[derive(Clone, Debug, Deserialize)]
@@ -61,21 +167,103 @@ impl Default for RenamingRules {
         Self(Vec::new())
     }
 }
-/// Syncing methods.
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
-pub enum SyncMethod {
-    /// Instructs syncing module to directly copy each item from source to
-    /// target.
-    Copy,
-
-    /// Instructs syncing module to first copy iach item from source to its
-    /// staging directory, then symlink staged items from their staging
-    /// directory to target.
-    Symlink,
+/// Scope of a group, used to resolve _priority_ of possibly duplicated items,
+/// to ensure every target path is pointed from only one source item.
+///
+/// The order of priority is:
+///
+/// [`Dropin`] > [`App`] > [`General`]
+///
+/// Within the same scope, the first defined group in the config file for DT
+/// has the highest priority, later defined groups have lower priorities.
+///
+/// Groups without a given scope are treated as of [`General`] scope.
+///
+/// [`Dropin`]: DTScope::Dropin
+/// [`App`]: DTScope::App
+/// [`General`]: DTScope::General
+///
+/// # Example
+///
+/// When you want to populate all your config files for apps that follows [the
+/// XDG standard], you might write a config file for DT that looks like this:
+///
+/// [the XDG standard]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
+///
+/// ```toml
+/// [[local]]
+/// name = "xdg_config_home"
+/// base = "/path/to/your/xdg/config/directory"
+/// sources = ["*"]
+/// target = "~/.config"
+/// ```
+///
+/// Let's say after some weeks or months, you have decided to also include
+/// `/usr/share/fontconfig/conf.avail/11-lcdfilter-default.conf` to your
+/// fontconfig directory, which is `~/.config/fontconfig/conf.d`, you do so by
+/// adding another `[[local]]` group into your config file for DT:
+///
+/// ```toml
+/// [[local]]
+/// name = "fontconfig-system"
+/// base = "/usr/share/fontconfig/conf.avail"
+/// sources = ["11-lcdfilter-default.conf"]
+/// target = "~/.config/fontconfig/conf.d"
+/// ```
+///
+/// A problem arises when you also maintain a version of
+/// `11-lcdfilter-default.conf` of your own: If DT syncs the
+/// `fontconfig-system` group last, the resulting config file in your
+/// `$XDG_CONFIG_HOME` is the system version;  While if DT syncs the
+/// `xdg_config_home` group last, that file ended up being your previously
+/// maintained version.
+///
+/// Actually, DT is quite predictable: it only performs operations in the
+/// order defined in the config file for your groups.  By defining the
+/// `fontconfig-system` group last, you can completely avoid the ambiguity
+/// above.
+///
+/// However, since the config file was written by you, a human, and humans are
+/// notorious for making mistakes, it would be great if DT could always know
+/// what to do when duplicated items are discovered in the config file.
+/// Instead of putting the groups with higher priority at the end of your
+/// config file, you could simply define `scope`s in their definitions:
+///
+/// ```toml
+/// [[local]]
+/// name = "fontconfig-system"
+/// scope = "Dropin"
+/// ...
+/// [[local]]
+/// name = "xdg_config_home"
+/// scope = "General"
+/// ...
+/// ```
+///
+/// Now, with the `scope` being set, DT will first remove the source item
+/// `11-lcdfilter-default.conf` (if it exists) from group `xdg_config_home`,
+/// then perform its syncing process.
+///
+/// This is also useful with `dt-cli`'s `-l|--local-name` option, which gives
+/// you more granular control over how items are synced.
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+pub enum DTScope {
+    /// The scope with lowest priority, this is the default scope,
+    /// recommended for directories that contains config files for many
+    /// un-categorized applications.
+    General,
+    /// The scope for a specific app, it's priority is higher than
+    /// [`General`] while lower than [`Dropin`].
+    ///
+    /// [`General`]: DTScope::General
+    /// [`Dropin`]: DTScope::Dropin
+    App,
+    /// The scope for drop-in replacements, it has the highest priority.
+    Dropin,
 }
-impl Default for SyncMethod {
+impl Default for DTScope {
     fn default() -> Self {
-        SyncMethod::Symlink
+        DTScope::General
     }
 }
 
@@ -116,8 +304,9 @@ impl DTConfig {
         Self::from_str(&confstr)
     }
 
-    /// Construct another [`DTConfig`] object with only groups with given
-    /// names remaining, unmatched given names are ignored.
+    /// Construct another [`DTConfig`] object with groups that match given
+    /// filters.  Groups are matched hierarchically, e.g. a filter `a/b` will
+    /// select `a/b/c` and `a/b/d`, but not `a/bcd`.
     pub fn filter_names(self, group_names: Vec<String>) -> Self {
         Self {
             global: self.global,
@@ -125,13 +314,17 @@ impl DTConfig {
             local: self
                 .local
                 .iter()
-                .filter(|l| group_names.iter().any(|n| l.name == *n))
+                .filter(|l| {
+                    group_names.iter().any(|n| l.name.0.starts_with(n))
+                })
                 .map(|l| l.to_owned())
                 .collect(),
             remote: self
                 .remote
                 .iter()
-                .filter(|l| group_names.iter().any(|n| l.name == *n))
+                .filter(|l| {
+                    group_names.iter().any(|n| l.name.0.starts_with(n))
+                })
                 .map(|l| l.to_owned())
                 .collect(),
         }
@@ -232,109 +425,6 @@ impl DTConfig {
     }
 }
 
-/// Scope of a group, used to resolve _priority_ of possibly duplicated items,
-/// to ensure every target path is pointed from only one source item.
-///
-/// The order of priority is:
-///
-/// [`Dropin`] > [`App`] > [`General`]
-///
-/// Within the same scope, the first defined group in the config file for DT
-/// has the highest priority, later defined groups have lower priorities.
-///
-/// Groups without a given scope are treated as of [`General`] scope.
-///
-/// [`Dropin`]: DTScope::Dropin
-/// [`App`]: DTScope::App
-/// [`General`]: DTScope::General
-///
-/// # Example
-///
-/// When you want to populate all your config files for apps that follows [the
-/// XDG standard], you might write a config file for DT that looks like this:
-///
-/// [the XDG standard]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
-///
-/// ```toml
-/// [[local]]
-/// name = "xdg_config_home"
-/// base = "/path/to/your/xdg/config/directory"
-/// sources = ["*"]
-/// target = "~/.config"
-/// ```
-///
-/// Let's say after some weeks or months, you have decided to also include
-/// `/usr/share/fontconfig/conf.avail/11-lcdfilter-default.conf` to your
-/// fontconfig directory, which is `~/.config/fontconfig/conf.d`, you do so by
-/// adding another `[[local]]` group into your config file for DT:
-///
-/// ```toml
-/// [[local]]
-/// name = "fontconfig-system"
-/// base = "/usr/share/fontconfig/conf.avail"
-/// sources = ["11-lcdfilter-default.conf"]
-/// target = "~/.config/fontconfig/conf.d"
-/// ```
-///
-/// A problem arises when you also maintain a version of
-/// `11-lcdfilter-default.conf` of your own: If DT syncs the
-/// `fontconfig-system` group last, the resulting config file in your
-/// `$XDG_CONFIG_HOME` is the system version;  While if DT syncs the
-/// `xdg_config_home` group last, that file ended up being your previously
-/// maintained version.
-///
-/// Actually, DT is quite predictable: it only performs operations in the
-/// order defined in the config file for your groups.  By defining the
-/// `fontconfig-system` group last, you can completely avoid the ambiguity
-/// above.
-///
-/// However, since the config file was written by you, a human, and humans are
-/// notorious for making mistakes, it would be great if DT could always know
-/// what to do when duplicated items are discovered in the config file.
-/// Instead of putting the groups with higher priority at the end of your
-/// config file, you could simply define `scope`s in their definitions:
-///
-/// ```toml
-/// [[local]]
-/// name = "fontconfig-system"
-/// scope = "Dropin"
-/// ...
-/// [[local]]
-/// name = "xdg_config_home"
-/// scope = "General"
-/// ...
-/// ```
-///
-/// Now, with the `scope` being set, DT will first remove the source item
-/// `11-lcdfilter-default.conf` (if it exists) from group `xdg_config_home`,
-/// then perform its syncing process.
-///
-/// This is also useful with `dt-cli`'s `-l|--local-name` option, which gives
-/// you more granular control over how items are synced.
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-pub enum DTScope {
-    /// The scope with lowest priority, this is the default scope,
-    /// recommended for directories that contains config files for many
-    /// un-categorized applications.
-    General,
-
-    /// The scope for a specific app, it's priority is higher than
-    /// [`General`] while lower than [`Dropin`].
-    ///
-    /// [`General`]: DTScope::General
-    /// [`Dropin`]: DTScope::Dropin
-    App,
-
-    /// The scope for drop-in replacements, it has the highest priority.
-    Dropin,
-}
-
-impl Default for DTScope {
-    fn default() -> Self {
-        DTScope::General
-    }
-}
-
 /// A single renaming rule, used for generating names for target files which
 /// are different from their sources.
 #[derive(Clone, Debug, Deserialize_tuple)]
@@ -391,6 +481,13 @@ pub struct GlobalConfig {
     #[serde(default)]
     pub method: SyncMethod,
 
+    /// A string to be prepended to a subgroup's name when creating its
+    /// staging directory with the [`Symlink`] syncing method.
+    ///
+    /// [`Symlink`]: SyncMethod::Symlink
+    #[serde(default)]
+    pub subgroup_prefix: SubgroupPrefix,
+
     /// Whether to allow overwriting existing files.
     ///
     /// This alters syncing behaviours when the target file exists.  If set
@@ -430,7 +527,10 @@ impl Default for ContextConfig {
 
 /// Configures how items are grouped.
 #[derive(Default, Clone, Deserialize, Debug)]
-pub struct Group<BaseType> {
+pub struct Group<T>
+where
+    T: Operate,
+{
     /// The global config object loaded from DT's config file.  This field
     /// _does not_ appear in the config file, but is only used by DT
     /// internally.  Skipping deserializing is achieved via serde's
@@ -450,7 +550,7 @@ pub struct Group<BaseType> {
     pub context: Rc<ContextConfig>,
 
     /// Name of this group, used as namespace in staging root directory.
-    pub name: String,
+    pub name: GroupName,
 
     /// The priority of this group, used to resolve possibly duplicated
     /// items.  See [`DTScope`] for details.
@@ -493,12 +593,12 @@ pub struct Group<BaseType> {
     /// (in this case, the directory where [DT] is being executed).
     ///
     /// [DT]: https://github.com/blurgyy/dt
-    pub base: BaseType,
+    pub base: T,
 
     /// Paths (relative to [`base`]) to the items to be synced.
     ///
     /// [`base`]: Group::base
-    pub sources: Vec<PathBuf>,
+    pub sources: Vec<T>,
 
     /// The path of the parent dir of the final synced items.
     ///
@@ -566,7 +666,8 @@ pub struct Group<BaseType> {
     /// On a machine with hostname set to `watson`, the below configuration
     /// (extraneous keys are omitted here)
     ///
-    /// ```toml [[local]]
+    /// ```toml
+    /// [[local]]
     /// ...
     /// hostname_sep = "@@"
     ///
@@ -597,6 +698,14 @@ pub struct Group<BaseType> {
     /// [`global.method`]: GlobalConfig::method
     pub method: Option<SyncMethod>,
 
+    /// A string to be prepended to a subgroup's name when creating its
+    /// staging directory with the [`Symlink`] syncing method, overrides
+    /// [`global.subgroup_prefix`] key.
+    ///
+    /// [`Symlink`]: SyncMethod::Symlink
+    /// [`global.subgroup_prefix`]: GlobalConfig::subgroup_prefix
+    pub subgroup_prefix: Option<SubgroupPrefix>,
+
     /// (Optional) Renaming rules, appends to [`global.rename`].
     ///
     /// [`global.rename`]: GlobalConfig::rename
@@ -604,9 +713,12 @@ pub struct Group<BaseType> {
     pub rename: RenamingRules,
 }
 
-impl<BaseType> Group<BaseType> {
-    /// Gets the [`allow_overwrite`] key from a `Group` object,
-    /// falls back to the `allow_overwrite` from provided global config.
+impl<T> Group<T>
+where
+    T: Operate,
+{
+    /// Gets the [`allow_overwrite`] key from a `Group` object, falls back to
+    /// the `allow_overwrite` from its parent global config.
     ///
     /// [`allow_overwrite`]: Group::allow_overwrite
     pub fn is_overwrite_allowed(&self) -> bool {
@@ -616,8 +728,19 @@ impl<BaseType> Group<BaseType> {
         }
     }
 
-    /// Gets the [`method`] key from a `Group` object, falls back
-    /// to the `method` from provided global config.
+    /// Gets the absolute path to this group's staging directory, with the
+    /// subgroup components padded with configured [`subgroup_prefix`]es.
+    ///
+    /// [`subgroup_prefix`]: Group::subgroup_prefix
+    pub fn get_staging_dir(&self) -> PathBuf {
+        self.global
+            .staging
+            .0
+            .join(self.name.with_subgroup_prefix(&self.get_subgroup_prefix()))
+    }
+
+    /// Gets the [`method`] key from a `Group` object, falls back to the
+    /// `method` from its parent global config.
     ///
     /// [`method`]: Group::method
     pub fn get_method(&self) -> SyncMethod {
@@ -627,8 +750,17 @@ impl<BaseType> Group<BaseType> {
         }
     }
 
-    /// Gets the [`hostname_sep`] key from a `Group` object, falls
-    /// back to the [`hostname_sep`] from provided global config.
+    /// Gets the [`subgroup_prefix`] key from a `Group` object, falls back to
+    /// the `subgroup_prefix` from its parent global config.
+    pub fn get_subgroup_prefix(&self) -> String {
+        match &self.subgroup_prefix {
+            Some(prefix) => prefix.0.to_owned(),
+            _ => self.global.subgroup_prefix.0.to_owned(),
+        }
+    }
+
+    /// Gets the [`hostname_sep`] key from a `Group` object, falls back to the
+    /// [`hostname_sep`] from its parent global config.
     ///
     /// [`hostname_sep`]: Group::hostname_sep
     pub fn get_hostname_sep(&self) -> String {
@@ -640,12 +772,14 @@ impl<BaseType> Group<BaseType> {
 
     /// Gets the list of [renaming rules] of this group, which is an array
     /// of (REGEX, SUBSTITUTION) tuples composed of [`global.rename`] and
-    /// [`local.rename`], used in [`DTItem::make_target`] to rename the item.
+    /// [`group.rename`], used in [`Operate::make_target`] to rename the item.
+    /// The returned list is a combination of the rules from global config and
+    /// the group's own rules.
     ///
     /// [renaming rules]: Group::rename
     /// [`global.rename`]: GlobalConfig::rename
-    /// [`local.rename`]: Group::rename
-    /// [`DTItem::make_target`]: crate::item::DTItem::make_target
+    /// [`group.rename`]: Group::rename
+    /// [`Operate::make_target`]: crate::item::Operate::make_target
     pub fn get_renaming_rules(&self) -> Vec<RenamingRule> {
         let mut ret: Vec<RenamingRule> = Vec::new();
         for r in &self.global.rename.0 {
@@ -663,7 +797,7 @@ impl<BaseType> Group<BaseType> {
     /// [context]: DTConfig::context
     pub fn is_templated(&self) -> bool {
         match self.context.0.as_table() {
-            Some(map) => map.get(&self.name).is_some(),
+            Some(map) => map.get(&self.name.main()).is_some(),
             None => false,
         }
     }
@@ -671,13 +805,12 @@ impl<BaseType> Group<BaseType> {
     /// Validates this group with readonly access to the filesystem.  The
     /// following cases are denied:
     ///
-    ///   1. Empty group name
-    ///   2. Slash in group name
-    ///   3. Source item referencing parent (because items are first populated
+    ///   1. Invalid group name
+    ///   2. Source item referencing parent (because items are first populated
     ///      to the [`staging`] directory, and the structure under the
     ///      [`staging`] directory depends on their original relative path to
     ///      their [`base`])
-    ///   4. TODO: Current group contains unimplemented [`ignored`] field
+    ///   3. TODO: Current group contains unimplemented [`ignored`] field
     ///
     /// NOTE: When [`base`] is empty, sources will be looked up in the cwd of
     /// the process.
@@ -685,25 +818,16 @@ impl<BaseType> Group<BaseType> {
     /// [`ignored`]: Group::ignored
     /// [`base`]: Group::base
     fn _validate_no_fs_query(&self) -> Result<()> {
-        // 1. Empty group name
-        if self.name.is_empty() {
-            return Err(AppError::ConfigError("empty group name".to_owned()));
-        }
-        // 2. Slash in group name
-        if self.name.contains('/') {
-            return Err(AppError::ConfigError(format!(
-                "group name '{}' contains the '/' character",
-                self.name,
-            )));
-        }
-        // 3. Source item referencing parent
-        if self.sources.iter().any(|s| s.starts_with("../")) {
+        // 1. Invalid group name
+        self.name.validate()?;
+        // 2. Source item referencing parent
+        if self.sources.iter().any(|s| s.is_twisted()) {
             return Err(AppError::ConfigError(format!(
                 "source item references parent directory in group '{}'",
                 self.name,
             )));
         }
-        // 4. Current group contains unimplemented `ignored` field
+        // 3. Current group contains unimplemented `ignored` field
         if self.ignored.is_some() {
             todo!("`ignored` array works poorly and I decided to implement it in the future");
         }
@@ -738,7 +862,7 @@ impl<BaseType> Group<BaseType> {
 
             // 2. Path to staging root contains readonly parent directory
             // NOTE: Must convert to an absolute path before checking readonly
-            if staging_path.absolute()?.parent_readonly() {
+            if staging_path.absolute()?.is_parent_readonly() {
                 return Err(AppError::ConfigError(
                     "staging root path cannot be created due to insufficient permissions"
                         .to_owned(),
@@ -756,7 +880,7 @@ impl<BaseType> Group<BaseType> {
 
         // 4. Path to target contains readonly parent directory
         // NOTE: Must convert to an absolute path before checking readonly
-        if self.target.absolute()?.parent_readonly() {
+        if self.target.absolute()?.is_parent_readonly() {
             return Err(AppError::ConfigError(format!(
                 "target path cannot be created due to insufficient permissions in group '{}'",
                 self.name,
@@ -775,19 +899,18 @@ impl LocalGroup {
     ///
     /// - Checks without querying the filesystem
     ///
-    ///   1. Empty group name
-    ///   2. Slash in group name
-    ///   3. Source item referencing parent (because items are first populated
+    ///   1. Empty [group name]
+    ///   2. Source item referencing parent (because items are first populated
     ///      to the [`staging`] directory, and the structure under the
     ///      [`staging`] directory depends on their original relative path to
     ///      their [`base`])
-    ///   4. Current group contains unimplemented [`ignored`] field
+    ///   3. Current group contains unimplemented [`ignored`] field
     ///
-    ///   5. Target and base are the same
-    ///   6. Base contains [`hostname_sep`]
-    ///   7. Source item is absolute (same reason as above)
-    ///   8. Source item contains bad globbing pattern
-    ///   9. Source item contains [`hostname_sep`]
+    ///   4. Target and base are the same
+    ///   5. Base contains [`hostname_sep`]
+    ///   6. Source item is absolute (same reason as above)
+    ///   7. Source item contains bad globbing pattern
+    ///   8. Source item contains [`hostname_sep`]
     ///
     /// - Checks that need to query the filesystem
     ///
@@ -893,17 +1016,39 @@ pub type RemoteGroup = Group<Url>;
 impl RemoteGroup {
     /// Validates this remote group, the following cases are denied:
     ///
-    ///   1. Empty group name
-    ///   2. Empty target
-    ///   3. Slash in group name
-    ///   4. Source item referencing parent (because items are first populated
+    /// - Checks without querying the filesystem
+    ///
+    ///   1. Empty [group name]
+    ///   2. Empty [`target`]
+    ///   3. Source item referencing parent (because items are first populated
     ///      to the [`staging`] directory, and the structure under the
     ///      [`staging`] directory depends on their original relative path to
     ///      their [`base`])
-    ///   5. Current group contains unimplemented [`ignored`] field
+    ///   4. Current group contains unimplemented [`ignored`] field
+    ///
+    /// - Checks that need to query the filesystem
+    ///
+    ///   1. Wrong type of existing [`staging`] path (if using the
+    ///      [`Symlink`] method)
+    ///   2. Path to staging root contains readonly parent directory (if
+    ///      using the [`Symlink`] method)
+    ///   3. Wrong type of existing [`target`] path
+    ///   4. Path to [`target`] contains readonly parent directory
+    ///
+    /// [group name]: LocalGroup::name
+    /// [`base`]: LocalGroup::base
+    /// [`target`]: LocalGroup::target
+    /// [`staging`]: GlobalConfig::staging
+    /// [`ignored`]: Group::ignored
+    /// [`Symlink`]: SyncMethod::Symlink
     fn validate(&self) -> Result<()> {
+        // - Checks without querying the filesystem --------------------------
         // 1-5
         self._validate_no_fs_query()?;
+
+        // - Checks that need to query the filesystem ------------------------
+        // 1-4
+        self._validate_with_fs_query()?;
 
         Ok(())
     }
@@ -1126,6 +1271,55 @@ mod validation {
     use crate::error::Error as AppError;
 
     #[test]
+    fn relative_component_in_group_name() -> Result<(), Report> {
+        if let Err(err) = DTConfig::from_str(
+            r#"
+[[local]]
+name = "a/../b"
+base = "~"
+sources = []
+target = ".""#,
+        ) {
+            assert_eq!(
+                err,
+                AppError::ConfigError(
+                    "Group name should not contain relative component"
+                        .to_owned(),
+                ),
+                "{}",
+                err,
+            );
+            Ok(())
+        } else {
+            Err(eyre!("This config should not be loaded because a group's name contains relative component"))
+        }
+    }
+
+    #[test]
+    fn prefix_slash_in_group_name() -> Result<(), Report> {
+        if let Err(err) = DTConfig::from_str(
+            r#"
+[[local]]
+name = "/a/b/c/d"
+base = "~"
+sources = []
+target = ".""#,
+        ) {
+            assert_eq!(
+                err,
+                AppError::ConfigError(
+                    "Group name should not start with slash".to_owned(),
+                ),
+                "{}",
+                err,
+            );
+            Ok(())
+        } else {
+            Err(eyre!("This config should not be loaded because a group's name starts with a slash"))
+        }
+    }
+
+    #[test]
     fn empty_group_name() -> Result<(), Report> {
         if let Err(err) = DTConfig::from_str(
             r#"
@@ -1137,38 +1331,15 @@ target = ".""#,
         ) {
             assert_eq!(
                 err,
-                AppError::ConfigError("empty group name".to_owned()),
-                "{}",
-                err,
-            );
-            Ok(())
-        } else {
-            Err(eyre!("This config should not be loaded because a group's name is empty"))
-        }
-    }
-
-    #[test]
-    fn slash_in_group_name() -> Result<(), Report> {
-        if let Err(err) = DTConfig::from_str(
-            r#"
-[[local]]
-name = "this/group/name/contains/slash"
-base = "~"
-sources = []
-target = "/tmp""#,
-        ) {
-            assert_eq!(
-                err,
                 AppError::ConfigError(
-                    "group name 'this/group/name/contains/slash' contains the '/' character"
-                        .to_owned()
+                    "Group name should not be empty".to_owned(),
                 ),
                 "{}",
                 err,
             );
             Ok(())
         } else {
-            Err(eyre!("This config should not be loaded because a group name contains slash"))
+            Err(eyre!("This config should not be loaded because a group's name is empty"))
         }
     }
 
