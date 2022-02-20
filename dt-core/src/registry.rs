@@ -26,7 +26,7 @@ where
     /// templated (see [`is_templated`]) will not be registered into templates
     /// but directly stored into the rendered cache.
     ///
-    /// [`is_templated`]: dt_core::config::Group::is_templated
+    /// [`is_templated`]: crate::config::Group::is_templated
     fn load(self, config: &DTConfig) -> Result<Self> {
         unimplemented!()
     }

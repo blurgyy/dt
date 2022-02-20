@@ -752,6 +752,8 @@ where
 
     /// Gets the [`subgroup_prefix`] key from a `Group` object, falls back to
     /// the `subgroup_prefix` from its parent global config.
+    ///
+    /// [`subgroup_prefix`]: Group::subgroup_prefix
     pub fn get_subgroup_prefix(&self) -> String {
         match &self.subgroup_prefix {
             Some(prefix) => prefix.0.to_owned(),

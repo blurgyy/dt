@@ -14,10 +14,12 @@ pub mod error;
 #[deny(missing_docs)]
 pub mod item;
 
-/// Helper utilites used internally (the [`DTRegistry`] trait) and exposed for
-/// templating uses (additional [built-in helpers]).
+/// Helper utilites used internally (the [`Register`] trait and the register
+/// type [`Registry`] with cache for templates and rendered contents) and
+/// exposed for templating uses (additional [built-in helpers]).
 ///
-/// [`DTRegistry`]: registry::DTRegistry
+/// [`Register`]: registry::Register
+/// [`Registry`]: registry::Registry
 /// [built-in helpers]: registry::helpers
 #[deny(missing_docs)]
 pub mod registry;
