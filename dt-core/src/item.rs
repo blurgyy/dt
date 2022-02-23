@@ -28,17 +28,17 @@ where
         unimplemented!()
     }
     /// Gets the absolute location of `self`, if applicable.
-    fn absolute(&self) -> Result<Self> {
+    fn absolute(self) -> Result<Self> {
         unimplemented!()
     }
     /// Gets the host-specific counterpart of `self`, if applicable.  If
     /// `self` is already host-specific, returns `self` directly.
-    fn host_specific(&self, hostname_sep: &str) -> Self {
+    fn host_specific(self, hostname_sep: &str) -> Self {
         unimplemented!()
     }
     /// Gets the non-host-specific counterpart of `self`, if applicable.  If
     /// `self` is already non-host-specific, returns `self` directly.
-    fn non_host_specific(&self, hostname_sep: &str) -> Self {
+    fn non_host_specific(self, hostname_sep: &str) -> Self {
         unimplemented!()
     }
     /// Checks whether any of the component above `self` is readonly.
@@ -54,7 +54,7 @@ where
     /// synced to.  Renaming rules are applied after host-specific suffixes
     /// are stripped.
     fn make_target<P>(
-        &self,
+        self,
         hostname_sep: &str,
         base: &Self,
         targetbase: P,
@@ -142,7 +142,7 @@ impl Operate for PathBuf {
     /// Gets the absolute path of `self`, **without** traversing symlinks.
     ///
     /// Reference: <https://stackoverflow.com/a/54817755/13482274>
-    fn absolute(&self) -> Result<Self> {
+    fn absolute(self) -> Result<Self> {
         let absolute_path = if self.is_absolute() {
             self.to_owned()
         } else {
@@ -155,7 +155,7 @@ impl Operate for PathBuf {
 
     /// Gets the host-specific counterpart of `self`.  If `self` is already
     /// host-specific, returns `self` directly.
-    fn host_specific(&self, hostname_sep: &str) -> Self {
+    fn host_specific(self, hostname_sep: &str) -> Self {
         if self.ends_with(utils::host_specific_suffix(hostname_sep)) {
             self.into()
         } else {
@@ -204,7 +204,7 @@ impl Operate for PathBuf {
     ///     PathBuf::from_str("/some/long/path").unwrap(),
     /// );
     /// ```
-    fn non_host_specific(&self, hostname_sep: &str) -> Self {
+    fn non_host_specific(self, hostname_sep: &str) -> Self {
         self
             .iter()
             .map(std::ffi::OsStr::to_str)
@@ -363,7 +363,12 @@ impl Operate for PathBuf {
     ///     substitution: ".${prefix}.".into(),
     /// };
     /// assert_eq!(
-    ///     itm.make_target("@@", &base, &targetbase, vec![named_capture])?,
+    ///     itm.to_owned().make_target(
+    ///         "@@",
+    ///         &base,
+    ///         &targetbase,
+    ///         vec![named_capture]
+    ///     )?,
     ///     PathBuf::from_str("/path/to/target/.dot.item.ext").unwrap(),
     /// );
     ///
@@ -374,7 +379,12 @@ impl Operate for PathBuf {
     ///     substitution: "_${1}_${0}".into(),
     /// };
     /// assert_eq!(
-    ///     itm.make_target("@@", &base, &targetbase, vec![numbered_capture])?,
+    ///     itm.to_owned().make_target(
+    ///         "@@",
+    ///         &base,
+    ///         &targetbase,
+    ///         vec![numbered_capture]
+    ///     )?,
     ///     PathBuf::from_str("/path/to/target/_dot_item_ext_.ext").unwrap(),
     /// );
     /// # Ok::<(), AppError>(())
@@ -382,17 +392,17 @@ impl Operate for PathBuf {
     ///
     /// [renaming rule]: crate::config::RenamingRule
     fn make_target<P: AsRef<Path>>(
-        &self,
+        self,
         hostname_sep: &str,
         base: &Self,
         targetbase: P,
         renaming_rules: Vec<RenamingRule>,
     ) -> Result<Self> {
         // Get non-host-specific counterpart of `self`
-        let nhself = self.non_host_specific(hostname_sep);
+        let nhself = self.to_owned().non_host_specific(hostname_sep);
 
         // Get non-host-specific counterpart of `base`
-        let base = base.non_host_specific(hostname_sep);
+        let base = base.to_owned().non_host_specific(hostname_sep);
 
         // The tail of the target path, which is the non-host-specific `self`
         // without its `base` prefix path
@@ -440,7 +450,7 @@ impl Operate for PathBuf {
         registry: Rc<T>,
     ) -> Result<()> {
         // Create possibly missing parent directories along target's path.
-        let tpath = self.make_target(
+        let tpath = self.to_owned().make_target(
             &group.get_hostname_sep(),
             &group.base,
             &group.target,
@@ -566,7 +576,7 @@ impl Operate for PathBuf {
                 }
             }
             SyncMethod::Symlink => {
-                let staging_path = self.make_target(
+                let staging_path = self.to_owned().make_target(
                     &group.get_hostname_sep(),
                     &group.base,
                     &group.get_staging_dir(),
@@ -779,7 +789,7 @@ impl Operate for PathBuf {
     /// group config.  The given group config is expected to be the group
     /// where this item belongs to.
     fn populate_dry(&self, group: Rc<LocalGroup>) -> Result<()> {
-        let tpath = self.make_target(
+        let tpath = self.to_owned().make_target(
             &group.get_hostname_sep(),
             &group.base,
             &group.target,
