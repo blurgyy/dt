@@ -39,16 +39,17 @@ fn expand(config: DTConfig) -> Result<DTConfig> {
     for original in config.local {
         let mut next = LocalGroup {
             global: Rc::clone(&original.global),
-            base: original.base.absolute()?,
+            base: original.base.to_owned().absolute()?,
             sources: Vec::new(),
-            target: original.target.absolute()?,
+            target: original.target.to_owned().absolute()?,
             ..original.to_owned()
         };
 
         let group_hostname_sep = original.get_hostname_sep();
 
         // Check for host-specific `base`
-        let host_specific_base = next.base.host_specific(&group_hostname_sep);
+        let host_specific_base =
+            next.base.to_owned().host_specific(&group_hostname_sep);
         if host_specific_base.exists() {
             next.base = host_specific_base;
         }
@@ -128,7 +129,8 @@ fn expand_recursive(
                 // hosts, replace current path to its host-specific
                 // counterpart if it exists.
                 .map(|x| {
-                    let host_specific_x = x.host_specific(hostname_sep);
+                    let host_specific_x =
+                        x.to_owned().host_specific(hostname_sep);
                     if host_specific_x.exists() {
                         host_specific_x
                     } else {
@@ -137,7 +139,7 @@ fn expand_recursive(
                 })
                 // Convert to absolute paths
                 .map(|x| {
-                    x.absolute().unwrap_or_else(|_| {
+                    x.to_owned().absolute().unwrap_or_else(|_| {
                         panic!(
                             "Failed converting to absolute path '{}'",
                             x.display(),
@@ -179,7 +181,8 @@ fn expand_recursive(
             // hosts, replace current path to its host-specific
             // counterpart if it exists.
             .map(|x| {
-                let host_specific_x = x.host_specific(hostname_sep);
+                let host_specific_x =
+                    x.to_owned().host_specific(hostname_sep);
                 if host_specific_x.exists() {
                     host_specific_x
                 } else {
@@ -220,7 +223,7 @@ fn resolve(config: DTConfig) -> Result<DTConfig> {
     for i in 0..config.local.len() {
         let current_priority = &config.local[i].scope;
         for s in &config.local[i].sources {
-            let t = s.make_target(
+            let t = s.to_owned().make_target(
                 &config.local[i].get_hostname_sep(),
                 &config.local[i].base,
                 &config.local[i].target,
@@ -254,8 +257,9 @@ fn resolve(config: DTConfig) -> Result<DTConfig> {
                 sources: group
                     .sources
                     .iter()
-                    .filter(|s| {
+                    .filter(|&s| {
                         let t = s
+                            .to_owned()
                             .make_target(
                                 &group.get_hostname_sep(),
                                 &group.base,
