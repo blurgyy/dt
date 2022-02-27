@@ -146,6 +146,17 @@ impl Default for AllowOverwrite {
         Self(false)
     }
 }
+/// Helper type for config key [`ignore_failure`]
+///
+/// [`ignore_failure`]: GlobalConfig::ignore_failure
+#[derive(Clone, Copy, Debug, Deserialize)]
+pub struct IgnoreFailure(pub bool);
+#[allow(clippy::derivable_impls)]
+impl Default for IgnoreFailure {
+    fn default() -> Self {
+        Self(false)
+    }
+}
 /// Helper type for config key [`hostname_sep`]
 ///
 /// [`hostname_sep`]: GlobalConfig::hostname_sep
@@ -498,6 +509,14 @@ pub struct GlobalConfig {
     #[serde(default)]
     pub allow_overwrite: AllowOverwrite,
 
+    /// Whether to treat errors omitted during syncing as warnings.  It has a
+    /// [per-group counterpart] to set per-group behaviours.  Note that errors
+    /// occured before or after syncing are NOT affected.
+    ///
+    /// [per-group counterpart]: Group::ignore_failure
+    #[serde(default)]
+    pub ignore_failure: IgnoreFailure,
+
     /// The hostname separator.
     ///
     /// Specifies default value when [`Group::hostname_sep`] is not set.
@@ -693,6 +712,11 @@ where
     /// (regardless of this option).
     pub allow_overwrite: Option<AllowOverwrite>,
 
+    /// (Optional) Whether to treat errors omitted during syncing of this
+    /// group as warnings.  Note that errors occured before or after syncing
+    /// are NOT affected.
+    pub ignore_failure: Option<IgnoreFailure>,
+
     /// (Optional) Syncing method, overrides [`global.method`] key.
     ///
     /// [`global.method`]: GlobalConfig::method
@@ -725,6 +749,15 @@ where
         match self.allow_overwrite {
             Some(allow_overwrite) => allow_overwrite.0,
             _ => self.global.allow_overwrite.0,
+        }
+    }
+
+    /// Gets the [`ignore_failure`] key from a `Group` object, falls back to
+    /// the `ignore_failure` from its parent global config.
+    pub fn is_failure_ignored(&self) -> bool {
+        match self.ignore_failure {
+            Some(ignore_failure) => ignore_failure.0,
+            _ => self.global.ignore_failure.0,
         }
     }
 

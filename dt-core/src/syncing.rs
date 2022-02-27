@@ -335,10 +335,23 @@ pub fn sync(config: DTConfig, dry_run: bool) -> Result<()> {
         let group_ref = Rc::new(group.to_owned());
         for spath in &group.sources {
             if dry_run {
-                spath.populate_dry(Rc::clone(&group_ref))?;
+                if let Err(e) = spath.populate_dry(Rc::clone(&group_ref)) {
+                    if group.is_failure_ignored() {
+                        log::warn!("Error ignored: {}", e);
+                    } else {
+                        return Err(e);
+                    }
+                }
             } else {
-                spath
-                    .populate(Rc::clone(&group_ref), Rc::clone(&registry))?;
+                if let Err(e) = spath
+                    .populate(Rc::clone(&group_ref), Rc::clone(&registry))
+                {
+                    if group.is_failure_ignored() {
+                        log::warn!("Error ignored: {}", e);
+                    } else {
+                        return Err(e);
+                    }
+                }
             }
         }
     }
