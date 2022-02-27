@@ -572,7 +572,10 @@ impl Operate for PathBuf {
                         src_perm.mode(),
                         dest_perm.mode()
                     );
-                    std::fs::set_permissions(tpath, src_perm)?;
+                    if let Err(e) = std::fs::set_permissions(tpath, src_perm)
+                    {
+                        log::warn!("Could not set permission: {}", e);
+                    }
                 }
             }
             SyncMethod::Symlink => {
@@ -725,7 +728,11 @@ impl Operate for PathBuf {
                             src_perm.mode(),
                             dest_perm.mode()
                         );
-                        std::fs::set_permissions(&staging_path, src_perm)?;
+                        if let Err(e) =
+                            std::fs::set_permissions(&staging_path, src_perm)
+                        {
+                            log::warn!("Could not set permission: {}", e);
+                        }
                     }
 
                     // 2. Symlinking
