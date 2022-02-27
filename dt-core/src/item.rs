@@ -411,7 +411,7 @@ impl Operate for PathBuf {
         // Apply renaming rules to the tail component
         for rr in renaming_rules {
             log::trace!("Processing renaming rule: {:#?}", rr);
-            log::trace!("Before renaming: '{}'", tail.display());
+            log::debug!("Before renaming: '{}'", tail.display());
 
             let RenamingRule {
                 pattern,
@@ -426,7 +426,7 @@ impl Operate for PathBuf {
                 })
                 .collect();
 
-            log::trace!("After renaming: '{}'", tail.display());
+            log::debug!("After renaming: '{}'", tail.display());
         }
 
         // The target is the target base appended with `tail`
@@ -478,7 +478,7 @@ impl Operate for PathBuf {
                     );
                 }
                 if tpath.is_symlink() {
-                    log::trace!(
+                    log::debug!(
                         "SYNC::COPY [{}]> '{}' is a symlink, removing it",
                         group.name,
                         tpath.display(),
@@ -495,7 +495,7 @@ impl Operate for PathBuf {
                     );
                     self.render(&registry, &group.context)?
                 } else {
-                    log::trace!(
+                    log::debug!(
                         "RENDER::SKIP [{}]> '{}'",
                         group.name,
                         self.display(),
@@ -507,7 +507,7 @@ impl Operate for PathBuf {
                     // Check target file's contents, if it has identical
                     // contents as self, there is no need to write to it.
                     if src_content == dest_content {
-                        log::trace!(
+                        log::debug!(
                             "SYNC::COPY::SKIP [{}]> '{}' has identical content as '{}'",
                             group.name,
                             tpath.display(),
@@ -524,7 +524,7 @@ impl Operate for PathBuf {
                             tpath.display(),
                         );
                         std::fs::remove_file(&tpath)?;
-                        log::trace!(
+                        log::debug!(
                             "SYNC::COPY::OVERWRITE [{}]> '{}' => '{}'",
                             group.name,
                             self.display(),
@@ -542,7 +542,7 @@ impl Operate for PathBuf {
                         tpath.display(),
                     );
                     std::fs::remove_file(&tpath)?;
-                    log::trace!(
+                    log::debug!(
                         "SYNC::COPY::OVERWRITE [{}]> '{}' => '{}'",
                         group.name,
                         self.display(),
@@ -553,7 +553,7 @@ impl Operate for PathBuf {
                 // If the target file does not exist --- this is the simplest
                 // case --- we just write the contents to `tpath`.
                 else {
-                    log::trace!(
+                    log::debug!(
                         "SYNC::COPY [{}]> '{}' => '{}'",
                         group.name,
                         self.display(),
@@ -566,7 +566,7 @@ impl Operate for PathBuf {
                 let src_perm = self.metadata()?.permissions();
                 let dest_perm = tpath.metadata()?.permissions();
                 if dest_perm != src_perm {
-                    log::trace!(
+                    log::debug!(
                         "SYNC::COPY::SETPERM [{}]> source('{:o}') => target('{:o}')",
                         group.name,
                         src_perm.mode(),
@@ -646,7 +646,7 @@ impl Operate for PathBuf {
                         );
                         self.render(&registry, &group.context)?
                     } else {
-                        log::trace!(
+                        log::debug!(
                             "RENDER::SKIP [{}]> '{}'",
                             group.name,
                             self.display(),
@@ -658,7 +658,7 @@ impl Operate for PathBuf {
                         // Check staging file's contents, if it has identical
                         // contents as self, there is no need to write to it.
                         if src_content == dest_content {
-                            log::trace!(
+                            log::debug!(
                                 "SYNC::STAGE::SKIP [{}]> '{}' has identical content as '{}'",
                                 group.name,
                                 staging_path.display(),
@@ -677,7 +677,7 @@ impl Operate for PathBuf {
                                 staging_path.display(),
                             );
                             std::fs::remove_file(&staging_path)?;
-                            log::trace!(
+                            log::debug!(
                                 "SYNC::STAGE [{}]> '{}' => '{}'",
                                 group.name,
                                 self.display(),
@@ -696,7 +696,7 @@ impl Operate for PathBuf {
                             staging_path.display(),
                         );
                         std::fs::remove_file(&staging_path)?;
-                        log::trace!(
+                        log::debug!(
                             "SYNC::STAGE::OVERWRITE [{}]> '{}' => '{}'",
                             group.name,
                             self.display(),
@@ -708,7 +708,7 @@ impl Operate for PathBuf {
                     // simplest case --- we just write the contents to
                     // `staging_path`.
                     else {
-                        log::trace!(
+                        log::debug!(
                             "SYNC::STAGE [{}]> '{}' => '{}'",
                             group.name,
                             self.display(),
@@ -722,7 +722,7 @@ impl Operate for PathBuf {
                     let src_perm = self.metadata()?.permissions();
                     let dest_perm = staging_path.metadata()?.permissions();
                     if dest_perm != src_perm {
-                        log::trace!(
+                        log::debug!(
                             "SYNC::STAGE::SETPERM [{}]> source('{:o}') => staging('{:o}')",
                             group.name,
                             src_perm.mode(),
@@ -741,14 +741,14 @@ impl Operate for PathBuf {
                     // that points to the correct location.
                     if let Ok(dest) = std::fs::read_link(&tpath) {
                         if dest == staging_path {
-                            log::trace!(
+                            log::debug!(
                                 "SYNC::SYMLINK::SKIP [{}]> '{}' is already a symlink pointing to '{}'",
                                 group.name,
                                 tpath.display(),
                                 staging_path.display(),
                             );
                         } else {
-                            log::trace!(
+                            log::debug!(
                                 "SYNC::SYMLINK::OVERWRITE [{}]> '{}' => '{}'",
                                 group.name,
                                 staging_path.display(),
@@ -765,7 +765,7 @@ impl Operate for PathBuf {
                     // remove it first, then make a symlink from
                     // `staging_path` to `tpath`.
                     else if tpath.exists() {
-                        log::trace!(
+                        log::debug!(
                             "SYNC::SYMLINK::OVERWRITE [{}]> '{}' => '{}'",
                             group.name,
                             staging_path.display(),
@@ -777,7 +777,7 @@ impl Operate for PathBuf {
                     // The final case is that when `tpath` does not exist
                     // yet, we can then directly create a symlink.
                     else {
-                        log::trace!(
+                        log::debug!(
                             "SYNC::SYMLINK [{}]> '{}' => '{}'",
                             group.name,
                             staging_path.display(),
