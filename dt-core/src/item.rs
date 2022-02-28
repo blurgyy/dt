@@ -66,10 +66,10 @@ where
         unimplemented!()
     }
     /// Renders this item with given context to the `dest` path.
-    fn render<S: Serialize, T: Register>(
+    fn get_content<R: Register, O: Operate>(
         &self,
-        registry: &Rc<T>,
-        ctx: &Rc<S>,
+        registry: &Rc<R>,
+        group: &Rc<Group<O>>,
     ) -> Result<Vec<u8>> {
         unimplemented!()
     }
@@ -433,13 +433,17 @@ impl Operate for PathBuf {
         Ok(targetbase.as_ref().join(tail))
     }
 
-    fn render<S: Serialize, R: Register>(
+    fn get_content<R: Register, O: Operate>(
         &self,
         registry: &Rc<R>,
-        ctx: &Rc<S>,
+        group: &Rc<Group<O>>,
     ) -> Result<Vec<u8>> {
         let name = self.to_str().unwrap();
-        registry.render(name, ctx)
+        if group.is_templated() {
+            registry.get(name)
+        } else {
+            Ok(std::fs::read(self)?)
+        }
     }
 
     /// Populate this item with given group config.  The given group config is
@@ -485,23 +489,10 @@ impl Operate for PathBuf {
                     );
                     std::fs::remove_file(&tpath)?;
                 }
-                // Render the template
-                let src_content: Vec<u8> = if group.is_templated() {
-                    log::trace!(
-                        "RENDER [{}]> '{}' with context: {:#?}",
-                        group.name,
-                        self.display(),
-                        group.context,
-                    );
-                    self.render(&registry, &group.context)?
-                } else {
-                    log::debug!(
-                        "RENDER::SKIP [{}]> '{}'",
-                        group.name,
-                        self.display(),
-                    );
-                    std::fs::read(self)?
-                };
+
+                // Get content of this item
+                let src_content: Vec<u8> =
+                    self.get_content(&registry, &group)?;
 
                 if let Ok(dest_content) = std::fs::read(&tpath) {
                     // Check target file's contents, if it has identical
@@ -636,23 +627,9 @@ impl Operate for PathBuf {
                     // operation is significantly faster than copying to an
                     // existing target file.
 
-                    // Render the template
-                    let src_content: Vec<u8> = if group.is_templated() {
-                        log::trace!(
-                            "RENDER [{}]> '{}' with context: {:#?}",
-                            group.name,
-                            self.display(),
-                            group.context,
-                        );
-                        self.render(&registry, &group.context)?
-                    } else {
-                        log::debug!(
-                            "RENDER::SKIP [{}]> '{}'",
-                            group.name,
-                            self.display(),
-                        );
-                        std::fs::read(self)?
-                    };
+                    // Get content of this item
+                    let src_content: Vec<u8> =
+                        self.get_content(&registry, &group)?;
 
                     if let Ok(dest_content) = std::fs::read(&staging_path) {
                         // Check staging file's contents, if it has identical
