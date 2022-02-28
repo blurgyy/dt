@@ -113,7 +113,7 @@ fn expand_recursive(
         };
 
         let initial: Vec<PathBuf> =
-            glob::glob_with(path.to_str().unwrap(), globbing_options)?
+            glob::glob_with(&path.to_string_lossy(), globbing_options)?
                 // Extract value from Result<PathBuf>
                 .map(|x| {
                     x.unwrap_or_else(|_| {

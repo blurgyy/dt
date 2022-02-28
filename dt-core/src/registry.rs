@@ -93,19 +93,19 @@ impl Register for Registry<'_> {
         let mut registry = self;
         for group in &config.local {
             for s in &group.sources {
-                let name = s.to_str().unwrap();
+                let name = s.to_string_lossy();
                 if let Ok(content) = std::fs::read(s) {
                     if group.is_templated() {
                         if inspect(&content).is_text() {
                             registry.env.register_template_string(
-                                name,
+                                &name,
                                 std::str::from_utf8(&content)?,
                             )?;
                             registry.content.insert(
-                                name.to_owned(),
+                                name.to_string(),
                                 registry
                                     .env
-                                    .render(name, &config.context)?
+                                    .render(&name, &config.context)?
                                     .into(),
                             );
                         } else {
@@ -113,14 +113,16 @@ impl Register for Registry<'_> {
                                 "'{}' will not be rendered because it has binary contents",
                                 s.display(),
                             );
-                            registry.content.insert(name.to_owned(), content);
+                            registry
+                                .content
+                                .insert(name.to_string(), content);
                         }
                     } else {
                         log::trace!(
                             "'{}' will not be rendered because it is not templated",
                             s.display(),
                         );
-                        registry.content.insert(name.to_owned(), content);
+                        registry.content.insert(name.to_string(), content);
                     }
                 }
             }
@@ -200,9 +202,7 @@ pub mod helpers {
         let map = match h.param(0) {
             Some(map) => map.value(),
             None => {
-                out.write(
-                    gethostname().to_str().expect("Failed getting hostname"),
-                )?;
+                out.write(&gethostname().to_string_lossy())?;
                 return Ok(());
             }
         };
@@ -225,12 +225,11 @@ Inline helper `{0}`:
             }
         };
 
-        let content = match map
-            .get(gethostname().to_str().expect("Failed getting hostname"))
-        {
-            Some(content) => content.render(),
-            None => default_content.render(),
-        };
+        let content =
+            match map.get(gethostname().to_string_lossy().to_string()) {
+                Some(content) => content.render(),
+                None => default_content.render(),
+            };
 
         out.write(&content)?;
 

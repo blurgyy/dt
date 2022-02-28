@@ -136,7 +136,8 @@ impl Operate for PathBuf {
         );
 
         splitted.len() > 1
-            && splitted.last() != gethostname::gethostname().to_str().as_ref()
+            && *splitted.last().unwrap()
+                != gethostname::gethostname().to_string_lossy()
     }
 
     /// Gets the absolute path of `self`, **without** traversing symlinks.
@@ -421,7 +422,7 @@ impl Operate for PathBuf {
                 .iter()
                 .map(|comp| {
                     pattern
-                        .replace(comp.to_str().unwrap(), &substitution)
+                        .replace(&comp.to_string_lossy(), &substitution)
                         .into_owned()
                 })
                 .collect();
@@ -438,9 +439,9 @@ impl Operate for PathBuf {
         registry: &Rc<R>,
         group: &Rc<Group<O>>,
     ) -> Result<Vec<u8>> {
-        let name = self.to_str().unwrap();
+        let name = self.to_string_lossy();
         if group.is_templated() {
-            registry.get(name)
+            registry.get(&name)
         } else {
             Ok(std::fs::read(self)?)
         }

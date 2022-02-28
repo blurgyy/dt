@@ -23,7 +23,7 @@ use crate::{
 pub struct GroupName(pub PathBuf);
 impl Display for GroupName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.0.to_str().unwrap())
+        f.write_str(&self.0.to_string_lossy())
     }
 }
 impl GroupName {
@@ -31,7 +31,7 @@ impl GroupName {
     /// slashes.
     pub fn main(&self) -> String {
         let first_comp: PathBuf = self.0.components().take(1).collect();
-        first_comp.to_str().unwrap().to_owned()
+        first_comp.to_string_lossy().to_string()
     }
     /// Checks if this name is empty.
     ///
@@ -49,7 +49,7 @@ impl GroupName {
         if self
             .0
             .components()
-            .any(|comp| comp.as_os_str().to_str().unwrap() == "..")
+            .any(|comp| comp.as_os_str().to_string_lossy() == "..")
         {
             Err(AppError::ConfigError(
                 "Group name should not contain relative component".to_owned(),
@@ -89,7 +89,7 @@ impl GroupName {
                 .iter()
                 .skip(1)
                 .map(|comp| {
-                    subgroup_prefix.to_owned() + comp.to_str().unwrap()
+                    subgroup_prefix.to_owned() + &comp.to_string_lossy()
                 })
                 .collect::<PathBuf>(),
         )
@@ -383,12 +383,7 @@ impl DTConfig {
         } else {
             StagingPath(
                 PathBuf::from_str(&shellexpand::tilde(
-                    staging.0.to_str().unwrap_or_else(|| {
-                        panic!(
-                            "Failed expanding tilde in `global.staging` ({})",
-                            staging.0.display(),
-                        )
-                    }),
+                    &staging.0.to_string_lossy(),
                 ))
                 .unwrap(),
             )
@@ -402,12 +397,7 @@ impl DTConfig {
                 ".".into()
             } else {
                 PathBuf::from_str(&shellexpand::tilde(
-                    group.base.to_str().unwrap_or_else(|| {
-                        panic!(
-                            "Failed expanding tilde in `local.base` '{}'",
-                            group.base.display(),
-                        )
-                    }),
+                    &group.base.to_string_lossy(),
                 ))
                 .unwrap()
             };
@@ -421,12 +411,7 @@ impl DTConfig {
                 ".".into()
             } else {
                 PathBuf::from_str(&shellexpand::tilde(
-                    group.target.to_str().unwrap_or_else(|| {
-                        panic!(
-                            "Failed expanding tilde in `local.target` '{}'",
-                            group.target.display(),
-                        )
-                    }),
+                    &group.target.to_string_lossy(),
                 ))
                 .unwrap()
             };
@@ -980,7 +965,7 @@ impl LocalGroup {
 
         // 6. Base contains hostname_sep
         let hostname_sep = self.get_hostname_sep();
-        if self.base.to_str().unwrap().contains(&hostname_sep) {
+        if self.base.to_string_lossy().contains(&hostname_sep) {
             return Err(AppError::ConfigError(format!(
                 "base directory contains hostname_sep ({}) in group '{}'",
                 hostname_sep, self.name,
@@ -1019,7 +1004,7 @@ impl LocalGroup {
 
         // 9. Source item contains hostname_sep
         if self.sources.iter().any(|s| {
-            let s = s.to_str().unwrap();
+            let s = s.to_string_lossy();
             s.contains(&hostname_sep)
         }) {
             return Err(AppError::ConfigError(format!(
