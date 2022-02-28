@@ -79,9 +79,9 @@ impl Register for Registry<'_> {
     fn register_helpers(self) -> Result<Self> {
         let mut render_env = self.env;
 
-        render_env.register_helper("get-mine", Box::new(helpers::get_mine));
         render_env.register_helper("get_mine", Box::new(helpers::get_mine));
-        render_env.register_helper("getmine", Box::new(helpers::get_mine));
+        render_env.register_helper("for_user", Box::new(helpers::for_user));
+        render_env.register_helper("for_uid", Box::new(helpers::for_uid));
 
         Ok(Self {
             env: render_env,
@@ -174,8 +174,9 @@ pub mod helpers {
     use gethostname::gethostname;
     use handlebars::{
         Context, Handlebars, Helper, HelperResult, JsonRender, Output,
-        RenderContext, RenderError,
+        RenderContext, RenderError, Renderable,
     };
+    use users::{get_current_uid, get_current_username};
 
     /// A templating helper that retrieves the value for current host from a
     /// map, returns a default value when current host is not recorded in the
@@ -185,10 +186,10 @@ pub mod helpers {
     ///
     /// 1. `{{ get_mine }}`
     ///
-    ///     Render current machin's hostname.
+    ///     Renders current machine's hostname.
     /// 2. `{{ get_mine <map> <default-value> }}`
     ///
-    ///     Render `<map>.$CURRENT_HOSTNAME`, falls back to `<default-value>`.
+    ///     Renders `<map>.$CURRENT_HOSTNAME`, falls back to `<default-value>`.
     pub fn get_mine(
         h: &Helper,
         _: &Handlebars,
@@ -210,12 +211,12 @@ pub mod helpers {
             None => {
                 return Err(RenderError::new(&format!(
                     r#"
-Helper `{0}`:
+Inline helper `{0}`:
     expected 0 or 2 arguments, 1 found
 
     Usage:
         1. {{{{ {0} }}}}
-            (Render current machine's hostname)
+            (Renders current machine's hostname)
 
         2. {{{{ {0} <map> <default-value> }}}}
             (Gets value of <map>.$CURRENT_HOSTNAME, falls back to <default-value>)"#,
@@ -233,6 +234,151 @@ Helper `{0}`:
 
         out.write(&content)?;
 
+        Ok(())
+    }
+
+    /// A templating helper that tests if current user's username matches a
+    /// given string.
+    ///
+    /// Usage:
+    ///
+    /// 1. `{{#for_user "foo"}}..content..{{/for_user}}`
+    ///
+    ///     Renders content only if current user's username is "foo".
+    /// 2. `{{#for_user "foo"}}{{else}}..content..{{/for_user}}`
+    ///
+    ///     Renders content only if current user's username is NOT "foo".
+    pub fn for_user<'reg, 'rc>(
+        h: &Helper<'reg, 'rc>,
+        r: &'reg Handlebars<'reg>,
+        ctx: &'rc Context,
+        rc: &mut RenderContext<'reg, 'rc>,
+        out: &mut dyn Output,
+    ) -> HelperResult {
+        if h.params().len() > 1 {
+            return Err(RenderError::new(&format!(
+                r#"
+Block helper `#{0}`:
+    expected exactly 1 argument, {1} found
+
+    Usage:
+        1. {{{{#{0} "foo"}}}}..content..{{{{/{0}}}}}
+                (Renders `..content..` only if current user's username is "foo")
+
+        2. {{{{#{0} "foo"}}}}{{{{else}}}}..content..{{{{/{0}}}}}
+                (Renders `..content..` only if current user's username is NOT "foo")
+                    "#,
+                h.name(),
+                h.params().len(),
+            )));
+        }
+
+        let username: String = match h.param(0) {
+            Some(v) => v.value().render(),
+            None => {
+                return Err(RenderError::new(&format!(
+                    r#"
+Block helper `#{0}`:
+    expected exactly 1 argument, 0 found
+
+    Usage:
+        1. {{{{#{0} "foo"}}}}..content..{{{{/{0}}}}}
+                (Renders `..content..` only if current user's username is "foo")
+
+        2. {{{{#{0} "foo"}}}}{{{{else}}}}..content..{{{{/{0}}}}}
+                (Renders `..content..` only if current user's username is NOT "foo")
+                    "#,
+                    h.name(),
+                )));
+            }
+        };
+
+        let current_username = get_current_username()
+            .unwrap()
+            .to_string_lossy()
+            .to_string();
+        if current_username == username {
+            log::debug!(
+                "Current username {} matches {}",
+                current_username,
+                username,
+            );
+            h.template().map(|t| t.render(r, ctx, rc, out));
+        } else {
+            log::debug!(
+                "Current username {} is not {}",
+                current_username,
+                username,
+            );
+            h.inverse().map(|t| t.render(r, ctx, rc, out));
+        }
+        Ok(())
+    }
+
+    /// A templating helper that tests if current user's effective uid matches
+    /// a given integer.
+    ///
+    /// Usage:
+    ///
+    /// 1. `{{#for_uid 0}}..content..{{/for_uid}}`
+    ///
+    ///     Renders `..content..` only if current user's effective uid is 0.
+    /// 2. `{{#for_uid 0}}{{else}}..content..{{/for_uid}}`
+    ///
+    ///     Renders `..content..` only if current user's effective uid is NOT 0.
+    pub fn for_uid<'reg, 'rc>(
+        h: &Helper<'reg, 'rc>,
+        r: &'reg Handlebars<'reg>,
+        ctx: &'rc Context,
+        rc: &mut RenderContext<'reg, 'rc>,
+        out: &mut dyn Output,
+    ) -> HelperResult {
+        if h.params().len() > 1 {
+            return Err(RenderError::new(&format!(
+                r#"
+Block helper `#{0}`:
+    expected exactly 1 argument, {1} found
+
+    Usage:
+        1. {{{{#{0} 0}}}}..content..{{{{/{0}}}}}
+            (Renders `..content..` only if current user's effective uid is 0)
+
+        2. {{{{#{0} 0}}}}{{{{else}}}}..content..{{{{/{0}}}}}
+            (Renders `..content..` only if current user's effective uid is NOT 0)
+                    "#,
+                h.name(),
+                h.params().len(),
+            )));
+        }
+
+        let uid: u32 = match h.param(0) {
+            Some(v) => v.value().render().parse()?,
+            None => {
+                return Err(RenderError::new(&format!(
+                    r#"
+Block helper `#{0}`:
+    expected exactly 1 argument, 0 found
+
+    Usage:
+        1. {{{{#{0} 0}}}}..content..{{{{/{0}}}}}
+            (Renders `..content..` only if current user's effective uid is 0)
+
+        2. {{{{#{0} 0}}}}{{{{else}}}}..content..{{{{/{0}}}}}
+            (Renders `..content..` only if current user's effective uid is NOT 0)
+                    "#,
+                    h.name(),
+                )));
+            }
+        };
+
+        let current_uid = get_current_uid();
+        if current_uid == uid {
+            log::debug!("Current uid '{}' matches '{}'", current_uid, uid);
+            h.template().map(|t| t.render(r, ctx, rc, out));
+        } else {
+            log::debug!("Current uid '{}' is not '{}'", current_uid, uid);
+            h.inverse().map(|t| t.render(r, ctx, rc, out));
+        }
         Ok(())
     }
 }
