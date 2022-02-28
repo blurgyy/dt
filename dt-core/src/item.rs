@@ -5,7 +5,6 @@ use std::{
 };
 
 use path_clean::PathClean;
-use serde::Serialize;
 use url::Url;
 
 use crate::{
