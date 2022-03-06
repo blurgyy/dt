@@ -739,6 +739,8 @@ where
 
     /// Gets the [`ignore_failure`] key from a `Group` object, falls back to
     /// the `ignore_failure` from its parent global config.
+    ///
+    /// [`ignore_failure`]: Group::ignore_failure
     pub fn is_failure_ignored(&self) -> bool {
         match self.ignore_failure {
             Some(ignore_failure) => ignore_failure.0,

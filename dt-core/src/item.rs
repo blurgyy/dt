@@ -565,7 +565,11 @@ impl Operate for PathBuf {
                     );
                     if let Err(e) = std::fs::set_permissions(tpath, src_perm)
                     {
-                        log::warn!("Could not set permission: {}", e);
+                        log::warn!(
+                            "'{}': Could not set permission: {}",
+                            self.display(),
+                            e,
+                        );
                     }
                 }
             }
@@ -708,7 +712,11 @@ impl Operate for PathBuf {
                         if let Err(e) =
                             std::fs::set_permissions(&staging_path, src_perm)
                         {
-                            log::warn!("Could not set permission: {}", e);
+                            log::warn!(
+                                "'{}': Could not set permission: {}",
+                                self.display(),
+                                e,
+                            );
                         }
                     }
 

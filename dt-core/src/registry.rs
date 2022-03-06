@@ -82,6 +82,7 @@ impl Register for Registry<'_> {
         render_env.register_helper("get_mine", Box::new(helpers::get_mine));
         render_env.register_helper("for_user", Box::new(helpers::for_user));
         render_env.register_helper("for_uid", Box::new(helpers::for_uid));
+        render_env.register_helper("for_host", Box::new(helpers::for_host));
 
         Ok(Self {
             env: render_env,
@@ -376,6 +377,82 @@ Block helper `#{0}`:
             h.template().map(|t| t.render(r, ctx, rc, out));
         } else {
             log::debug!("Current uid '{}' is not '{}'", current_uid, uid);
+            h.inverse().map(|t| t.render(r, ctx, rc, out));
+        }
+        Ok(())
+    }
+
+    /// A templating helper that tests if current machine's hostname matches a
+    /// given string.
+    ///
+    /// Usage:
+    ///
+    /// 1. `{{#for_host "bar"}}..content..{{/for_host}}`
+    ///
+    ///     Renders content only if current machine's hostname is "bar".
+    /// 2. `{{#for_host "bar"}}{{else}}..content..{{/for_host}}`
+    ///
+    ///     Renders content only if current machine's hostname is NOT "bar".
+    pub fn for_host<'reg, 'rc>(
+        h: &Helper<'reg, 'rc>,
+        r: &'reg Handlebars<'reg>,
+        ctx: &'rc Context,
+        rc: &mut RenderContext<'reg, 'rc>,
+        out: &mut dyn Output,
+    ) -> HelperResult {
+        if h.params().len() > 1 {
+            return Err(RenderError::new(&format!(
+                r#"
+Block helper `#{0}`:
+    expected exactly 1 argument, {1} found
+
+    Usage:
+        1. {{{{#{0} "bar"}}}}..content..{{{{/{0}}}}}
+                (Renders `..content..` only if current machine's hostname is "bar")
+
+        2. {{{{#{0} "bar"}}}}{{{{else}}}}..content..{{{{/{0}}}}}
+                (Renders `..content..` only if current machine's hostname is NOT "bar")
+                    "#,
+                h.name(),
+                h.params().len(),
+            )));
+        }
+
+        let expected_hostname: String = match h.param(0) {
+            Some(v) => v.value().render(),
+            None => {
+                return Err(RenderError::new(&format!(
+                    r#"
+Block helper `#{0}`:
+    expected exactly 1 argument, 0 found
+
+    Usage:
+        1. {{{{#{0} "bar"}}}}..content..{{{{/{0}}}}}
+                (Renders `..content..` only if current machine's hostname is "bar")
+
+        2. {{{{#{0} "bar"}}}}{{{{else}}}}..content..{{{{/{0}}}}}
+                (Renders `..content..` only if current machine's hostname is NOT "bar")
+                    "#,
+                    h.name(),
+                )));
+            }
+        };
+
+        let current_hostname = gethostname();
+        let current_hostname = current_hostname.to_string_lossy();
+        if current_hostname == expected_hostname {
+            log::debug!(
+                "Current hostname {} matches {}",
+                current_hostname,
+                expected_hostname,
+            );
+            h.template().map(|t| t.render(r, ctx, rc, out));
+        } else {
+            log::debug!(
+                "Current hostname {} is not {}",
+                current_hostname,
+                expected_hostname,
+            );
             h.inverse().map(|t| t.render(r, ctx, rc, out));
         }
         Ok(())
