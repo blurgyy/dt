@@ -1,6 +1,10 @@
 use std::path::PathBuf;
 
-use dt_core::{config::DTConfig, utils::default_config_path};
+use dt_core::{
+    config::DTConfig,
+    error::{Error as AppError, Result},
+    utils::default_config_path,
+};
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
@@ -43,8 +47,7 @@ struct Opt {
     quiet: i8,
 }
 
-#[tokio::main]
-async fn main() {
+async fn run() -> Result<()> {
     let opt = Opt::from_args();
     setup(opt.verbose - opt.quiet);
 
@@ -60,16 +63,22 @@ async fn main() {
             "DT_SERVER_CONFIG_PATH",
             "DT_CONFIG_DIR",
             &["server.toml"],
-        ),
+        )?,
     };
 
-    let config = match DTConfig::from_path(config_path) {
-        Ok(config) => config,
-        Err(e) => {
-            log::error!("{}", e);
-            std::process::exit(1);
+    let config = DTConfig::from_path(config_path)?;
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() {
+    if let Err(e) = run().await {
+        log::error!("{}", e);
+        match e {
+            #[allow(unreachable_patterns)]
+            _ => std::process::exit(255),
         }
-    };
+    }
 }
 
 fn setup(verbosity: i8) {

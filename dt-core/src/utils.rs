@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use crate::error::{Error as AppError, Result};
+
 /// Gets config path from environment variables, or infer one.
 ///
 /// 1. If the environment variable indexed by `env_for_file`'s value is
@@ -15,7 +17,7 @@ use std::path::{Path, PathBuf};
 /// std::env::set_var("DT_CLI_CONFIG_PATH", "/tmp/dt/configuration.toml");
 /// assert_eq!(
 ///     default_config_path::<&str>("DT_CLI_CONFIG_PATH", "", &[]),
-///     PathBuf::from_str("/tmp/dt/configuration.toml").unwrap(),
+///     Ok(PathBuf::from_str("/tmp/dt/configuration.toml").unwrap()),
 /// );
 /// ```
 ///
@@ -39,7 +41,7 @@ use std::path::{Path, PathBuf};
 ///         "DT_CONFIG_DIR",
 ///         &[],
 ///     ),
-///     PathBuf::from_str("/tmp/d/t/config.toml").unwrap(),
+///     Ok(PathBuf::from_str("/tmp/d/t/config.toml").unwrap()),
 /// );
 /// ```
 ///
@@ -61,7 +63,7 @@ use std::path::{Path, PathBuf};
 ///         "some_other_non_existing_var",
 ///         &[],
 ///     ),
-///     PathBuf::from_str("/tmp/confighome/dt/config.toml").unwrap(),
+///     Ok(PathBuf::from_str("/tmp/confighome/dt/config.toml").unwrap()),
 /// );
 ///
 /// std::env::remove_var("XDG_CONFIG_HOME");
@@ -72,21 +74,21 @@ use std::path::{Path, PathBuf};
 ///         "some_other_non_existing_var",
 ///         &[],
 ///     ),
-///     PathBuf::from_str("/tmp/home/.config/dt/config.toml").unwrap(),
+///     Ok(PathBuf::from_str("/tmp/home/.config/dt/config.toml").unwrap()),
 /// );
 /// ```
 pub fn default_config_path<P: AsRef<Path>>(
     env_for_file: &str,
     env_for_dir: &str,
     search_list: &[P],
-) -> PathBuf {
+) -> Result<PathBuf> {
     if let Ok(file_path) = std::env::var(env_for_file) {
         log::debug!(
             "Using config file '{}' (from environment variable `{}`)",
             file_path,
             env_for_file,
         );
-        file_path.into()
+        Ok(file_path.into())
     } else {
         let dir_path = match std::env::var(env_for_dir) {
             Ok(dir_path) => {
@@ -98,12 +100,17 @@ pub fn default_config_path<P: AsRef<Path>>(
                 dir_path.into()
             }
             _ => {
-                let dir_path = dirs::config_dir().unwrap().join("dt");
-                log::debug!(
-                    "Using config directory '{}' (inferred)",
-                    dir_path.display(),
-                );
-                dir_path
+                if let Some(dir_path) = dirs::config_dir() {
+                    log::debug!(
+                        "Using config directory '{}' (inferred)",
+                        dir_path.display(),
+                    );
+                    dir_path.join("dt")
+                } else {
+                    return Err(AppError::ConfigError(
+                        "Could not infer directory to config file".to_owned(),
+                    ));
+                }
             }
         };
         let mut file_path = dir_path.join("config.toml");
@@ -115,7 +122,7 @@ pub fn default_config_path<P: AsRef<Path>>(
             }
         }
         log::debug!("Using config file '{}' (inferred)", file_path.display());
-        file_path
+        Ok(file_path)
     }
 }
 
