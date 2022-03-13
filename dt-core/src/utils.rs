@@ -1,32 +1,122 @@
 use std::path::{Path, PathBuf};
 
-/// Gets the default config file path, according to `$XDG_CONFIG_HOME` or
-/// `$HOME`, with last component specified by `filename`.
+/// Gets config path from environment variables, or infer one.
+///
+/// 1. If the environment variable indexed by `env_for_file`'s value is
+/// present, that environment variable's value is returned as the config file
+/// path.
 ///
 /// # Example
 ///
-/// ```rust
+/// ```
 /// # use dt_core::utils::default_config_path;
 /// # use std::path::PathBuf;
 /// # use std::str::FromStr;
-///  std::env::set_var("HOME", "/tmp/john");
-///  std::env::set_var("XDG_CONFIG_HOME", "/tmp/watson/.config");
-///  assert_eq!(
-///      default_config_path("cli.toml"),
-///      PathBuf::from_str("/tmp/watson/.config/dt/cli.toml").unwrap(),
-///  );
-///
-///  std::env::remove_var("XDG_CONFIG_HOME");
-///  assert_eq!(
-///      default_config_path("cli.toml"),
-///      PathBuf::from_str("/tmp/john/.config/dt/cli.toml").unwrap(),
-///  );
+/// std::env::set_var("DT_CLI_CONFIG_PATH", "/tmp/dt/configuration.toml");
+/// assert_eq!(
+///     default_config_path::<&str>("DT_CLI_CONFIG_PATH", "", &[]),
+///     PathBuf::from_str("/tmp/dt/configuration.toml").unwrap(),
+/// );
 /// ```
-pub fn default_config_path(filename: impl AsRef<Path>) -> PathBuf {
-    dirs::config_dir()
-        .unwrap_or_else(|| panic!("Cannot determine default config path"))
-        .join("dt")
-        .join(filename)
+///
+/// 2. Otherwise, if the environment variable indexed by `env_for_dir`'s value
+/// is present, that environment variable's value is considered the parent
+/// directory of the returned config path, filenames within `search_list` will
+/// be checked in order and the first existing file's path will be returned.
+/// If none of the `search_list` exists, a fallback filename `config.toml`
+/// will be used.
+///
+/// # Example
+///
+/// ```
+/// # use dt_core::utils::default_config_path;
+/// # use std::path::PathBuf;
+/// # use std::str::FromStr;
+/// std::env::set_var("DT_CONFIG_DIR", "/tmp/d/t");
+/// assert_eq!(
+///     default_config_path::<&str>(
+///         "some_non_existing_var",
+///         "DT_CONFIG_DIR",
+///         &[],
+///     ),
+///     PathBuf::from_str("/tmp/d/t/config.toml").unwrap(),
+/// );
+/// ```
+///
+/// 3. When neither of `env_for_file`'s and `env_for_dir`'s corresponding
+/// environment variable exists, the parent directory of returned path is
+/// inferred as `$XDG_CONFIG_HOME/dt`, or `$HOME/.config/dt` if
+/// XDG_CONFIG_HOME is not set in the runtime environment.
+///
+/// # Example
+///
+/// ```
+/// # use dt_core::utils::default_config_path;
+/// # use std::path::PathBuf;
+/// # use std::str::FromStr;
+/// std::env::set_var("XDG_CONFIG_HOME", "/tmp/confighome");
+/// assert_eq!(
+///     default_config_path::<&str>(
+///         "some_non_existing_var",
+///         "some_other_non_existing_var",
+///         &[],
+///     ),
+///     PathBuf::from_str("/tmp/confighome/dt/config.toml").unwrap(),
+/// );
+///
+/// std::env::remove_var("XDG_CONFIG_HOME");
+/// std::env::set_var("HOME", "/tmp/home");
+/// assert_eq!(
+///     default_config_path::<&str>(
+///         "some_non_existing_var",
+///         "some_other_non_existing_var",
+///         &[],
+///     ),
+///     PathBuf::from_str("/tmp/home/.config/dt/config.toml").unwrap(),
+/// );
+/// ```
+pub fn default_config_path<P: AsRef<Path>>(
+    env_for_file: &str,
+    env_for_dir: &str,
+    search_list: &[P],
+) -> PathBuf {
+    if let Ok(file_path) = std::env::var(env_for_file) {
+        log::debug!(
+            "Using config file '{}' (from environment variable `{}`)",
+            file_path,
+            env_for_file,
+        );
+        file_path.into()
+    } else {
+        let dir_path = match std::env::var(env_for_dir) {
+            Ok(dir_path) => {
+                log::debug!(
+                    "Using config directory '{}' (from environment variable `{}`)",
+                    dir_path,
+                    env_for_dir,
+                );
+                dir_path.into()
+            }
+            _ => {
+                let dir_path = dirs::config_dir().unwrap().join("dt");
+                log::debug!(
+                    "Using config directory '{}' (inferred)",
+                    dir_path.display(),
+                );
+                dir_path
+            }
+        };
+        let mut file_path = dir_path.join("config.toml");
+        for p in search_list {
+            let candidate = dir_path.join(p);
+            if candidate.exists() {
+                file_path = candidate;
+                break;
+            }
+        }
+        log::debug!("Using config file '{}' (inferred)", file_path.display());
+        file_path
+    }
 }
 
 /// Gets the host-specific suffix, according to given [`hostname_sep`] and

@@ -52,21 +52,16 @@ fn main() {
     let config_path = match opt.config_path {
         Some(p) => {
             log::debug!(
-                "Using config file from command line '{}'",
+                "Using config file '{}' (from command line)",
                 p.display(),
             );
             p
         }
-        None => {
-            let p = default_config_path("cli.toml");
-            let p = if p.exists() {
-                p
-            } else {
-                default_config_path("config.toml")
-            };
-            log::debug!("Using inferred config file '{}'", p.display());
-            p
-        }
+        None => default_config_path(
+            "DT_CLI_CONFIG_PATH",
+            "DT_CONFIG_DIR",
+            &["cli.toml"],
+        ),
     };
 
     let config = match DTConfig::from_path(config_path) {
