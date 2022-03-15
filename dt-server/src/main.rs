@@ -12,33 +12,29 @@ use structopt::StructOpt;
     global_settings(&[structopt::clap::AppSettings::ColoredHelp])
 )]
 struct Opt {
-    #[structopt(help = "Specifies path to config file", short, long)]
+    /// Specifies path to config file
+    #[structopt(short, long)]
     config_path: Option<PathBuf>,
 
-    #[structopt(
-        help = "Specifies a directory to serve static files from",
-        short,
-        long
-    )]
+    /// Specifies a directory to serve static files from
+    #[structopt(short, long)]
     static_dir: Option<PathBuf>,
 
-    #[structopt(
-        help = "Specifies the url prefix for served items",
-        short,
-        long
-    )]
+    ///Specifies the url prefix for served items
+    #[structopt(short, long)]
     root: Option<String>,
 
+    /// Increases logging verbosity
     #[structopt(
-        help = "Increases logging verbosity",
         short,
         long,
-        parse(from_occurrences)
+        parse(from_occurrences),
+        conflicts_with = "quiet"
     )]
     verbose: i8,
 
+    /// Decreases logging verbosity
     #[structopt(
-        help = "Decreases logging verbosity",
         short,
         long,
         parse(from_occurrences),

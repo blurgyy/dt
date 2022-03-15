@@ -14,32 +14,29 @@ use dt_core::{
     global_settings(&[structopt::clap::AppSettings::ColoredHelp])
 )]
 struct Opt {
-    #[structopt(help = "Specifies path to config file", short, long)]
+    /// Specifies path to config file
+    #[structopt(short, long)]
     config_path: Option<PathBuf>,
 
-    #[structopt(
-        name = "group_name",
-        help = "Specifies name(s) of the group(s) to be processed"
-    )]
+    ///Specifies name(s) of the group(s) to be processed"
+    #[structopt(name = "group_name")]
     group_names: Vec<String>,
 
-    #[structopt(
-        help = "Shows changes to be made without actually syncing files",
-        short,
-        long
-    )]
+    /// Shows changes to be made without actually syncing files
+    #[structopt(short, long)]
     dry_run: bool,
 
+    /// Increases logging verbosity
     #[structopt(
-        help = "Increases logging verbosity",
         short,
         long,
-        parse(from_occurrences)
+        parse(from_occurrences),
+        conflicts_with = "quiet"
     )]
     verbose: i8,
 
+    /// Decreases logging verbosity
     #[structopt(
-        help = "Decreases logging verbosity",
         short,
         long,
         parse(from_occurrences),
