@@ -1,7 +1,7 @@
 [package]
 name = "dt-cli"
 description = "$HOME, $HOME everywhere"
-version = "0.7.4"
+version = "0.7.5"
 edition = "2021"
 authors = ["Gaoyang Zhang <gy@blurgy.xyz>"]
 documentation = "https://dt.cli.rs/"
@@ -14,7 +14,7 @@ keywords = ["config", "dotfile", "manager"]
 
 [dependencies]
 dirs = "4.0.0"
-dt-core = { path = "../dt-core", version = "0.7.4" }
+dt-core = { path = "../dt-core", version = "0.7.5" }
 log = "0.4.14"
 pretty_env_logger = "0.4.0"
 structopt = "0.3.25"
