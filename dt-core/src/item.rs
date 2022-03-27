@@ -40,8 +40,16 @@ where
     fn non_host_specific(self, hostname_sep: &str) -> Self {
         unimplemented!()
     }
+    /// Gets the nearest existing parent component of `self`.
+    fn nearest_existing_parent(&self) -> Self {
+        unimplemented!()
+    }
     /// Checks whether any of the component above `self` is readonly.
     fn is_parent_readonly(&self) -> bool {
+        unimplemented!()
+    }
+    /// Checks whether any component of `self`'s parent is not a directory.
+    fn has_file_as_parent(&self) -> bool {
         unimplemented!()
     }
     /// Checks whether any of the component refernces its parent.
@@ -232,20 +240,30 @@ impl Operate for PathBuf {
             .collect::<PathBuf>()
     }
 
-    /// Checks whether any of the component above `self` is readonly.
-    fn is_parent_readonly(&self) -> bool {
+    /// Gets the nearest existing parent component of `self`.
+    fn nearest_existing_parent(&self) -> Self {
         let mut p: &Path = self.as_ref();
-        let first_existing_parent = loop {
+        let p = loop {
             if p.exists() {
                 break p;
             }
             p = p.parent().unwrap();
         };
-        first_existing_parent
+        p.into()
+    }
+
+    /// Checks whether any of the component above `self` is readonly.
+    fn is_parent_readonly(&self) -> bool {
+        self.nearest_existing_parent()
             .metadata()
             .unwrap()
             .permissions()
             .readonly()
+    }
+
+    /// Checks whether any component of `self`'s parent is not a directory.
+    fn has_file_as_parent(&self) -> bool {
+        self.nearest_existing_parent().metadata().unwrap().is_file()
     }
 
     /// Checks whether any of the component refernces its parent.
@@ -460,7 +478,14 @@ impl Operate for PathBuf {
             &group.target,
             group.get_renaming_rules(),
         )?;
-        std::fs::create_dir_all(tpath.parent().unwrap())?;
+        let tparent = tpath.parent().unwrap().to_owned();
+        if tparent.has_file_as_parent() {
+            return Err(AppError::PathError(format!(
+                "target path's parent '{}' contains one or more file components thus can not be created as a directory",
+                tparent.display()
+            )));
+        }
+        std::fs::create_dir_all(tparent)?;
         if group.target.canonicalize()? == group.base.canonicalize()? {
             return Err(AppError::PathError(format!(
                 "base directory and its target point to the same path in group '{}'",
@@ -580,7 +605,14 @@ impl Operate for PathBuf {
                     &group.get_staging_dir(),
                     Vec::new(), // Do not apply renaming on staging path
                 )?;
-                std::fs::create_dir_all(staging_path.parent().unwrap())?;
+                let sparent = staging_path.parent().unwrap().to_owned();
+                if sparent.has_file_as_parent() {
+                    return Err(AppError::PathError(format!(
+                        "staging path's parent '{}' contains one or more file component thus can not be created as a directory",
+                        sparent.display()
+                    )));
+                }
+                std::fs::create_dir_all(sparent)?;
                 if group.global.staging.0.canonicalize()?
                     == group.base.canonicalize()?
                 {
