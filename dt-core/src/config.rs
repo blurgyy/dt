@@ -818,12 +818,15 @@ where
     }
 
     /// Check if this group is templated by checking whether the [context]
-    /// section contains this group's name as a key.
+    /// section contains any component of this group's name as a key.
     ///
     /// [context]: DTConfig::context
     pub fn is_templated(&self) -> bool {
         match self.context.0.as_table() {
-            Some(map) => map.get(&self.name.main()).is_some(),
+            Some(map) => self.name.0.components().any(|comp| {
+                map.get(&comp.as_os_str().to_string_lossy().to_string())
+                    .is_some()
+            }),
             None => false,
         }
     }
