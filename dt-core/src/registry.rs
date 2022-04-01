@@ -217,10 +217,10 @@ Inline helper `{0}`:
 
     Usage:
         1. {{{{ {0} }}}}
-            (Renders current machine's hostname)
+           Renders current machine's hostname
 
         2. {{{{ {0} <map> <default-value> }}}}
-            (Gets value of <map>.$CURRENT_HOSTNAME, falls back to <default-value>)"#,
+           Gets value of <map>.$CURRENT_HOSTNAME, falls back to <default-value>"#,
                     h.name(),
                 )))
             }
@@ -238,16 +238,18 @@ Inline helper `{0}`:
     }
 
     /// A templating helper that tests if current user's username matches a
-    /// given string.
+    /// set of given string(s).
     ///
     /// Usage:
     ///
-    /// 1. `{{#for_user "foo"}}..content..{{/for_user}}`
+    /// 1. {{#for_user "!foo,!bar"}}..baz..{{/for_user}}
     ///
-    ///     Renders content only if current user's username is "foo".
-    /// 2. `{{#for_user "foo"}}{{else}}..content..{{/for_user}}`
+    ///    Renders `..baz..` only if current user's username is neither "foo"
+    ///    nor "bar".
+    /// 2. {{#for_user "foo"}}..baz..{{else}}..qux..{{/for_user}}
     ///
-    ///     Renders content only if current user's username is NOT "foo".
+    ///    Renders `..baz..` only if current user's username is "foo", renders
+    ///    `..qux..` only if current user's username is NOT "foo".
     pub fn for_user<'reg, 'rc>(
         h: &Helper<'reg, 'rc>,
         r: &'reg Handlebars<'reg>,
@@ -262,12 +264,13 @@ Block helper `#{0}`:
     expected exactly 1 argument, {1} found
 
     Usage:
-        1. {{{{#{0} "foo"}}}}..content..{{{{/{0}}}}}
-                (Renders `..content..` only if current user's username is "foo")
+        1. {{{{#{0} "!foo,!bar"}}}}..baz..{{{{/{0}}}}}
+           Renders `..baz..` only if current user's username is neither "foo"
+           nor "bar"
 
-        2. {{{{#{0} "foo"}}}}{{{{else}}}}..content..{{{{/{0}}}}}
-                (Renders `..content..` only if current user's username is NOT "foo")
-                    "#,
+        2. {{{{#{0} "foo"}}}}..baz..{{{{else}}}}..qux..{{{{/{0}}}}}
+           Renders `..baz..` only if current user's username is "foo", renders
+           `..qux..` only if current user's username is NOT "foo""#,
                 h.name(),
                 h.params().len(),
             )));
@@ -282,50 +285,99 @@ Block helper `#{0}`:
     expected exactly 1 argument, 0 found
 
     Usage:
-        1. {{{{#{0} "foo"}}}}..content..{{{{/{0}}}}}
-                (Renders `..content..` only if current user's username is "foo")
+        1. {{{{#{0} "!foo,!bar"}}}}..baz..{{{{/{0}}}}}
+           Renders `..baz..` only if current user's username is neither "foo"
+           nor "bar"
 
-        2. {{{{#{0} "foo"}}}}{{{{else}}}}..content..{{{{/{0}}}}}
-                (Renders `..content..` only if current user's username is NOT "foo")
-                    "#,
+        2. {{{{#{0} "foo"}}}}..baz..{{{{else}}}}..qux..{{{{/{0}}}}}
+           Renders `..baz..` only if current user's username is "foo", renders
+           `..qux..` only if current user's username is NOT "foo""#,
                     h.name(),
                 )));
             }
         };
 
-        let current_username = get_current_username()
+        let current_username: &str = &get_current_username()
             .unwrap()
             .to_string_lossy()
             .to_string();
-        if current_username == username {
-            log::debug!(
-                "Current username {} matches {}",
-                current_username,
-                username,
-            );
-            h.template().map(|t| t.render(r, ctx, rc, out));
+        let allowed_usernames: Vec<&str> = username
+            .split(',')
+            .filter(|u| !u.starts_with("!"))
+            .collect();
+        let disallowed_usernames: Vec<&str> = username
+            .split(',')
+            .filter_map(|u| {
+                if u.starts_with("!") {
+                    u.strip_prefix("!")
+                } else {
+                    None
+                }
+            })
+            .collect();
+        if allowed_usernames.len() > 0 && disallowed_usernames.len() > 0 {
+            return Err(RenderError::new(format!(
+                "you can only supply one of positve OR negated type of arguments in a single {}",
+                h.name(),
+            )));
+        }
+        if allowed_usernames.len() > 0 {
+            if allowed_usernames.contains(&current_username) {
+                log::debug!(
+                    "Current username {} matches {}",
+                    current_username,
+                    username,
+                );
+                h.template().map(|t| t.render(r, ctx, rc, out));
+            } else {
+                log::debug!(
+                    "Current username {} does not match {}",
+                    current_username,
+                    username,
+                );
+                h.inverse().map(|t| t.render(r, ctx, rc, out));
+            }
+        } else if disallowed_usernames.len() > 0 {
+            if disallowed_usernames.contains(&current_username) {
+                log::debug!(
+                    "Current username {} does not match {}",
+                    current_username,
+                    username,
+                );
+                h.inverse().map(|t| t.render(r, ctx, rc, out));
+            } else {
+                log::debug!(
+                    "Current username {} matches {}",
+                    current_username,
+                    username,
+                );
+                h.template().map(|t| t.render(r, ctx, rc, out));
+            }
         } else {
-            log::debug!(
-                "Current username {} is not {}",
-                current_username,
-                username,
-            );
-            h.inverse().map(|t| t.render(r, ctx, rc, out));
+            return Err(RenderError::new(format!(
+                "no username(s) supplied for matching in helper {}",
+                h.name(),
+            )));
         }
         Ok(())
     }
 
     /// A templating helper that tests if current user's effective uid matches
-    /// a given integer.
+    /// a set of given integer(s).
     ///
     /// Usage:
     ///
-    /// 1. `{{#for_uid 0}}..content..{{/for_uid}}`
+    /// 1. `{{#for_uid "!0"}}..foo..{{/for_uid}}`
     ///
-    ///     Renders `..content..` only if current user's effective uid is 0.
-    /// 2. `{{#for_uid 0}}{{else}}..content..{{/for_uid}}`
+    ///    Renders `..foo..` only if current user's effective uid is not `0`.
+    /// 2. `{{#for_uid 0}}..foo..{{else}}..bar..{{/for_uid}}`
     ///
-    ///     Renders `..content..` only if current user's effective uid is NOT 0.
+    ///    Renders `..foo..` only if current user's effective uid is `0`,
+    ///    renders `..bar..` only if current user's effective uid is not `0`.
+    /// 3. `{{#for_uid "1000,1001"}}..foo..{{/for_uid}}`
+    ///
+    ///    Renders `..foo..` only if current user's effective uid is either
+    ///    `1000` or `1001`.
     pub fn for_uid<'reg, 'rc>(
         h: &Helper<'reg, 'rc>,
         r: &'reg Handlebars<'reg>,
@@ -340,19 +392,23 @@ Block helper `#{0}`:
     expected exactly 1 argument, {1} found
 
     Usage:
-        1. {{{{#{0} 0}}}}..content..{{{{/{0}}}}}
-            (Renders `..content..` only if current user's effective uid is 0)
+        1. {{{{#{0} "!0"}}}}..foo..{{{{/{0}}}}}
+           Renders `..foo..` only if current user's effective uid is not 0
 
-        2. {{{{#{0} 0}}}}{{{{else}}}}..content..{{{{/{0}}}}}
-            (Renders `..content..` only if current user's effective uid is NOT 0)
-                    "#,
+        2. {{{{#{0} 0}}}}..foo..{{{{else}}}}..bar..{{{{/{0}}}}}
+           Renders `..foo..` only if current user's effective uid is 0,
+           renders `..bar..` if current user's effective uid is not 0
+
+        3. {{{{#{0} "1000,1001"}}}}..foo..{{{{/{0}}}}}
+           Renders `..foo..` only if current user's effective uid is either
+           1000 or 1001"#,
                 h.name(),
                 h.params().len(),
             )));
         }
 
-        let uid: u32 = match h.param(0) {
-            Some(v) => v.value().render().parse()?,
+        let uid: String = match h.param(0) {
+            Some(v) => v.value().render(),
             None => {
                 return Err(RenderError::new(&format!(
                     r#"
@@ -360,39 +416,102 @@ Block helper `#{0}`:
     expected exactly 1 argument, 0 found
 
     Usage:
-        1. {{{{#{0} 0}}}}..content..{{{{/{0}}}}}
-            (Renders `..content..` only if current user's effective uid is 0)
+        1. {{{{#{0} "!0"}}}}..foo..{{{{/{0}}}}}
+           Renders `..foo..` only if current user's effective uid is not 0
 
-        2. {{{{#{0} 0}}}}{{{{else}}}}..content..{{{{/{0}}}}}
-            (Renders `..content..` only if current user's effective uid is NOT 0)
-                    "#,
+        2. {{{{#{0} 0}}}}..foo..{{{{else}}}}..bar..{{{{/{0}}}}}
+           Renders `..foo..` only if current user's effective uid is 0,
+           renders `..bar..` if current user's effective uid is not 0
+
+        3. {{{{#{0} "1000,1001"}}}}..foo..{{{{/{0}}}}}
+           Renders `..foo..` only if current user's effective uid is either
+           1000 or 1001"#,
                     h.name(),
                 )));
             }
         };
 
         let current_uid = get_current_uid();
-        if current_uid == uid {
-            log::debug!("Current uid '{}' matches '{}'", current_uid, uid);
-            h.template().map(|t| t.render(r, ctx, rc, out));
+        let allowed_uids: Vec<u32> = uid
+            .split(',')
+            .filter_map(|id| {
+                if !id.starts_with("!") {
+                    id.parse().ok()
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let disallowed_uids: Vec<u32> = uid
+            .split(',')
+            .filter_map(|id| {
+                if id.starts_with("!") {
+                    id.strip_prefix("!").unwrap().parse().ok()
+                } else {
+                    None
+                }
+            })
+            .collect();
+        if allowed_uids.len() > 0 && disallowed_uids.len() > 0 {
+            return Err(RenderError::new(format!(
+                "you can only supply one of positve OR negated type of arguments in a single {}",
+                h.name(),
+            )));
+        }
+        if allowed_uids.len() > 0 {
+            if allowed_uids.contains(&current_uid) {
+                log::debug!(
+                    "Current uid '{}' matches '{}'",
+                    current_uid,
+                    uid,
+                );
+                h.template().map(|t| t.render(r, ctx, rc, out));
+            } else {
+                log::debug!(
+                    "Current uid '{}' does not match '{}'",
+                    current_uid,
+                    uid,
+                );
+                h.inverse().map(|t| t.render(r, ctx, rc, out));
+            }
+        } else if disallowed_uids.len() > 0 {
+            if disallowed_uids.contains(&current_uid) {
+                log::debug!(
+                    "Current uid '{}' does not match '{}'",
+                    current_uid,
+                    uid,
+                );
+                h.inverse().map(|t| t.render(r, ctx, rc, out));
+            } else {
+                log::debug!(
+                    "Current uid '{}' matches '{}'",
+                    current_uid,
+                    uid,
+                );
+                h.template().map(|t| t.render(r, ctx, rc, out));
+            }
         } else {
-            log::debug!("Current uid '{}' is not '{}'", current_uid, uid);
-            h.inverse().map(|t| t.render(r, ctx, rc, out));
+            return Err(RenderError::new(format!(
+                "no uid(s) supplied for matching in helper {}",
+                h.name(),
+            )));
         }
         Ok(())
     }
 
     /// A templating helper that tests if current machine's hostname matches a
-    /// given string.
+    /// set of given string(s).
     ///
     /// Usage:
     ///
-    /// 1. `{{#for_host "bar"}}..content..{{/for_host}}`
+    /// 1. {{#for_host "!foo,!bar"}}..baz..{{/for_host}}
     ///
-    ///     Renders content only if current machine's hostname is "bar".
-    /// 2. `{{#for_host "bar"}}{{else}}..content..{{/for_host}}`
+    ///    Renders `..baz..` only if current machine's hostname is neither
+    ///    "foo" nor "bar".
+    /// 2. {{#for_host "foo"}}..baz..{{else}}..qux..{{/for_host}}
     ///
-    ///     Renders content only if current machine's hostname is NOT "bar".
+    ///    Renders `..baz..` only if current machine's hostname is "foo",
+    ///    renders `..qux..` only if current user's username is NOT "foo".
     pub fn for_host<'reg, 'rc>(
         h: &Helper<'reg, 'rc>,
         r: &'reg Handlebars<'reg>,
@@ -407,12 +526,13 @@ Block helper `#{0}`:
     expected exactly 1 argument, {1} found
 
     Usage:
-        1. {{{{#{0} "bar"}}}}..content..{{{{/{0}}}}}
-                (Renders `..content..` only if current machine's hostname is "bar")
+        1. {{{{#{0} "!foo,!bar"}}}}..bar..{{{{/{0}}}}}
+           Renders `..bar..` only if current machine's hostname is neither
+           "foo" nor "bar"
 
-        2. {{{{#{0} "bar"}}}}{{{{else}}}}..content..{{{{/{0}}}}}
-                (Renders `..content..` only if current machine's hostname is NOT "bar")
-                    "#,
+        2. {{{{#{0} "foo"}}}}..baz..{{{{else}}}}..qux..{{{{/{0}}}}}
+           Renders `..baz..` only if current machine's hostname is "foo",
+           renders `..qux..` only if current user's username is NOT "foo""#,
                 h.name(),
                 h.params().len(),
             )));
@@ -427,33 +547,78 @@ Block helper `#{0}`:
     expected exactly 1 argument, 0 found
 
     Usage:
-        1. {{{{#{0} "bar"}}}}..content..{{{{/{0}}}}}
-                (Renders `..content..` only if current machine's hostname is "bar")
+        1. {{{{#{0} "!foo,!bar"}}}}..bar..{{{{/{0}}}}}
+           Renders `..bar..` only if current machine's hostname is neither
+           "foo" nor "bar"
 
-        2. {{{{#{0} "bar"}}}}{{{{else}}}}..content..{{{{/{0}}}}}
-                (Renders `..content..` only if current machine's hostname is NOT "bar")
-                    "#,
+        2. {{{{#{0} "foo"}}}}..baz..{{{{else}}}}..qux..{{{{/{0}}}}}
+           Renders `..baz..` only if current machine's hostname is "foo",
+           renders `..qux..` only if current user's username is NOT "foo""#,
                     h.name(),
                 )));
             }
         };
 
         let current_hostname = gethostname();
-        let current_hostname = current_hostname.to_string_lossy();
-        if current_hostname == expected_hostname {
-            log::debug!(
-                "Current hostname {} matches {}",
-                current_hostname,
-                expected_hostname,
-            );
-            h.template().map(|t| t.render(r, ctx, rc, out));
+        let current_hostname: &str =
+            &current_hostname.to_string_lossy().to_string();
+        let allowed_hostnames: Vec<&str> = expected_hostname
+            .split(',')
+            .filter(|h| !h.starts_with("!"))
+            .collect();
+        let disallowed_hostnames: Vec<&str> = expected_hostname
+            .split(',')
+            .filter_map(|h| {
+                if h.starts_with("!") {
+                    h.strip_prefix("!")
+                } else {
+                    None
+                }
+            })
+            .collect();
+        if allowed_hostnames.len() > 0 && disallowed_hostnames.len() > 0 {
+            return Err(RenderError::new(format!(
+                "you can only supply one of positve OR negated type of arguments in a single {}",
+                h.name(),
+            )));
+        }
+        if allowed_hostnames.len() > 0 {
+            if allowed_hostnames.contains(&current_hostname) {
+                log::debug!(
+                    "Current hostname {} matches {}",
+                    current_hostname,
+                    expected_hostname,
+                );
+                h.template().map(|t| t.render(r, ctx, rc, out));
+            } else {
+                log::debug!(
+                    "Current hostname {} does not match {}",
+                    current_hostname,
+                    expected_hostname,
+                );
+                h.inverse().map(|t| t.render(r, ctx, rc, out));
+            }
+        } else if disallowed_hostnames.len() > 0 {
+            if disallowed_hostnames.contains(&current_hostname) {
+                log::debug!(
+                    "Current hostname {} does not match {}",
+                    current_hostname,
+                    expected_hostname,
+                );
+                h.inverse().map(|t| t.render(r, ctx, rc, out));
+            } else {
+                log::debug!(
+                    "Current hostname {} matches {}",
+                    current_hostname,
+                    expected_hostname,
+                );
+                h.template().map(|t| t.render(r, ctx, rc, out));
+            }
         } else {
-            log::debug!(
-                "Current hostname {} is not {}",
-                current_hostname,
-                expected_hostname,
-            );
-            h.inverse().map(|t| t.render(r, ctx, rc, out));
+            return Err(RenderError::new(format!(
+                "no hostname(s) supplied for matching in helper {}",
+                h.name(),
+            )));
         }
         Ok(())
     }
