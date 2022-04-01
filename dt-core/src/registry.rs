@@ -277,7 +277,19 @@ Block helper `#{0}`:
         }
 
         let username: String = match h.param(0) {
-            Some(v) => v.value().render(),
+            Some(v) => {
+                if v.value().is_array() {
+                    v.value()
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|elem| elem.render())
+                        .collect::<Vec<_>>()
+                        .join(",")
+                } else {
+                    v.value().render()
+                }
+            }
             None => {
                 return Err(RenderError::new(&format!(
                     r#"
@@ -408,7 +420,19 @@ Block helper `#{0}`:
         }
 
         let uid: String = match h.param(0) {
-            Some(v) => v.value().render(),
+            Some(v) => {
+                if v.value().is_array() {
+                    v.value()
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|elem| elem.render())
+                        .collect::<Vec<_>>()
+                        .join(",")
+                } else {
+                    v.value().render()
+                }
+            }
             None => {
                 return Err(RenderError::new(&format!(
                     r#"
@@ -539,7 +563,19 @@ Block helper `#{0}`:
         }
 
         let expected_hostname: String = match h.param(0) {
-            Some(v) => v.value().render(),
+            Some(v) => {
+                if v.value().is_array() {
+                    v.value()
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|elem| elem.render())
+                        .collect::<Vec<_>>()
+                        .join(",")
+                } else {
+                    v.value().render()
+                }
+            }
             None => {
                 return Err(RenderError::new(&format!(
                     r#"
