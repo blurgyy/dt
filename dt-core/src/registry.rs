@@ -258,7 +258,7 @@ Inline helper `{0}`:
     ///
     ///    Renders `..baz..` only if current user's username is either "foo"
     ///    or "bar".
-    /// 2. {{#if_user foo}}..baz..{{else}}..qux..{{/if_user}}
+    /// 2. {{#if_user "foo"}}..baz..{{else}}..qux..{{/if_user}}
     ///
     ///    Renders `..baz..` only if current user's username is "foo", renders
     ///    `..qux..` only if current user's username is NOT "foo".
@@ -381,7 +381,7 @@ Block helper `#{0}`:
     ///
     ///    Renders `..baz..` only if current user's username is neither "foo"
     ///    nor "bar".
-    /// 2. {{#unless_user foo}}..baz..{{else}}..qux..{{/unless_user}}
+    /// 2. {{#unless_user "foo"}}..baz..{{else}}..qux..{{/unless_user}}
     ///
     ///    Renders `..baz..` only if current user's username is NOT "foo",
     ///    renders `..qux..` only if current user's username is "foo".
@@ -747,7 +747,7 @@ Block helper `#{0}`:
     ///
     ///    Renders `..baz..` only if current machine's hostname is either
     ///    "foo" or "bar".
-    /// 2. {{#if_host foo}}..baz..{{else}}..qux..{{/if_host}}
+    /// 2. {{#if_host "foo"}}..baz..{{else}}..qux..{{/if_host}}
     ///
     ///    Renders `..baz..` only if current machine's hostname is "foo",
     ///    renders `..qux..` only if current user's username is NOT "foo".
@@ -869,7 +869,7 @@ Block helper `#{0}`:
     ///
     ///    Renders `..baz..` only if current machine's hostname is neither
     ///    "foo" nor "bar".
-    /// 2. {{#unless_host foo}}..baz..{{else}}..qux..{{/unless_host}}
+    /// 2. {{#unless_host "foo"}}..baz..{{else}}..qux..{{/unless_host}}
     ///
     ///    Renders `..baz..` only if current machine's hostname is NOT "foo",
     ///    renders `..qux..` only if current user's username is "foo".
