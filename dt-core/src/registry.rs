@@ -242,11 +242,11 @@ Inline helper `{0}`:
     ///
     /// Usage:
     ///
-    /// 1. {{#if_user "!foo,!bar"}}..baz..{{/if_user}}
+    /// 1. {{#if_user "foo,bar"}}..baz..{{/if_user}}
     ///
-    ///    Renders `..baz..` only if current user's username is neither "foo"
-    ///    nor "bar".
-    /// 2. {{#if_user "foo"}}..baz..{{else}}..qux..{{/if_user}}
+    ///    Renders `..baz..` only if current user's username is either "foo"
+    ///    or "bar".
+    /// 2. {{#if_user foo}}..baz..{{else}}..qux..{{/if_user}}
     ///
     ///    Renders `..baz..` only if current user's username is "foo", renders
     ///    `..qux..` only if current user's username is NOT "foo".
@@ -264,9 +264,9 @@ Block helper `#{0}`:
     expected exactly 1 argument, {1} found
 
     Usage:
-        1. {{{{#{0} "!foo,!bar"}}}}..baz..{{{{/{0}}}}}
-           Renders `..baz..` only if current user's username is neither "foo"
-           nor "bar"
+        1. {{{{#{0} "foo,bar"}}}}..baz..{{{{/{0}}}}}
+           Renders `..baz..` only if current user's username is either "foo"
+           or "bar"
 
         2. {{{{#{0} "foo"}}}}..baz..{{{{else}}}}..qux..{{{{/{0}}}}}
            Renders `..baz..` only if current user's username is "foo", renders
@@ -297,9 +297,9 @@ Block helper `#{0}`:
     expected exactly 1 argument, 0 found
 
     Usage:
-        1. {{{{#{0} "!foo,!bar"}}}}..baz..{{{{/{0}}}}}
-           Renders `..baz..` only if current user's username is neither "foo"
-           nor "bar"
+        1. {{{{#{0} "foo,bar"}}}}..baz..{{{{/{0}}}}}
+           Renders `..baz..` only if current user's username is either "foo"
+           or "bar"
 
         2. {{{{#{0} "foo"}}}}..baz..{{{{else}}}}..qux..{{{{/{0}}}}}
            Renders `..baz..` only if current user's username is "foo", renders
@@ -313,26 +313,8 @@ Block helper `#{0}`:
             .unwrap()
             .to_string_lossy()
             .to_string();
-        let allowed_usernames: Vec<&str> = username
-            .split(',')
-            .filter(|u| !u.starts_with("!"))
-            .collect();
-        let disallowed_usernames: Vec<&str> = username
-            .split(',')
-            .filter_map(|u| {
-                if u.starts_with("!") {
-                    u.strip_prefix("!")
-                } else {
-                    None
-                }
-            })
-            .collect();
-        if allowed_usernames.len() > 0 && disallowed_usernames.len() > 0 {
-            return Err(RenderError::new(format!(
-                "you can only supply one of positve OR negated type of arguments in a single {}",
-                h.name(),
-            )));
-        }
+        let allowed_usernames: Vec<&str> =
+            username.split(',').map(|u| u.trim()).collect();
         if allowed_usernames.len() > 0 {
             if allowed_usernames.contains(&current_username) {
                 log::debug!(
@@ -349,22 +331,6 @@ Block helper `#{0}`:
                 );
                 h.inverse().map(|t| t.render(r, ctx, rc, out));
             }
-        } else if disallowed_usernames.len() > 0 {
-            if disallowed_usernames.contains(&current_username) {
-                log::debug!(
-                    "Current username {} does not match {}",
-                    current_username,
-                    username,
-                );
-                h.inverse().map(|t| t.render(r, ctx, rc, out));
-            } else {
-                log::debug!(
-                    "Current username {} matches {}",
-                    current_username,
-                    username,
-                );
-                h.template().map(|t| t.render(r, ctx, rc, out));
-            }
         } else {
             return Err(RenderError::new(format!(
                 "no username(s) supplied for matching in helper {}",
@@ -379,17 +345,14 @@ Block helper `#{0}`:
     ///
     /// Usage:
     ///
-    /// 1. `{{#if_uid "!0"}}..foo..{{/if_uid}}`
+    /// 1. `{{#if_uid "1000,1001"}}..foo..{{/if_uid}}`
     ///
-    ///    Renders `..foo..` only if current user's effective uid is not `0`.
+    ///    Renders `..foo..` only if current user's effective uid is either
+    ///    `1000` or `1001`.
     /// 2. `{{#if_uid 0}}..foo..{{else}}..bar..{{/if_uid}}`
     ///
     ///    Renders `..foo..` only if current user's effective uid is `0`,
     ///    renders `..bar..` only if current user's effective uid is not `0`.
-    /// 3. `{{#if_uid "1000,1001"}}..foo..{{/if_uid}}`
-    ///
-    ///    Renders `..foo..` only if current user's effective uid is either
-    ///    `1000` or `1001`.
     pub fn if_uid<'reg, 'rc>(
         h: &Helper<'reg, 'rc>,
         r: &'reg Handlebars<'reg>,
@@ -404,16 +367,13 @@ Block helper `#{0}`:
     expected exactly 1 argument, {1} found
 
     Usage:
-        1. {{{{#{0} "!0"}}}}..foo..{{{{/{0}}}}}
-           Renders `..foo..` only if current user's effective uid is not 0
+        1. {{{{#{0} "1000,1001"}}}}..foo..{{{{/{0}}}}}
+           Renders `..foo..` only if current user's effective uid is either
+           `1000` or `1001`"
 
         2. {{{{#{0} 0}}}}..foo..{{{{else}}}}..bar..{{{{/{0}}}}}
-           Renders `..foo..` only if current user's effective uid is 0,
-           renders `..bar..` if current user's effective uid is not 0
-
-        3. {{{{#{0} "1000,1001"}}}}..foo..{{{{/{0}}}}}
-           Renders `..foo..` only if current user's effective uid is either
-           1000 or 1001"#,
+           Renders `..foo..` only if current user's effective uid is `0`,
+           renders `..bar..` if current user's effective uid is not `0`"#,
                 h.name(),
                 h.params().len(),
             )));
@@ -440,16 +400,13 @@ Block helper `#{0}`:
     expected exactly 1 argument, 0 found
 
     Usage:
-        1. {{{{#{0} "!0"}}}}..foo..{{{{/{0}}}}}
-           Renders `..foo..` only if current user's effective uid is not 0
+        1. {{{{#{0} "1000,1001"}}}}..foo..{{{{/{0}}}}}
+           Renders `..foo..` only if current user's effective uid is either
+           `1000` or `1001`"
 
         2. {{{{#{0} 0}}}}..foo..{{{{else}}}}..bar..{{{{/{0}}}}}
-           Renders `..foo..` only if current user's effective uid is 0,
-           renders `..bar..` if current user's effective uid is not 0
-
-        3. {{{{#{0} "1000,1001"}}}}..foo..{{{{/{0}}}}}
-           Renders `..foo..` only if current user's effective uid is either
-           1000 or 1001"#,
+           Renders `..foo..` only if current user's effective uid is `0`,
+           renders `..bar..` if current user's effective uid is not `0`"#,
                     h.name(),
                 )));
             }
@@ -458,30 +415,8 @@ Block helper `#{0}`:
         let current_uid = get_current_uid();
         let allowed_uids: Vec<u32> = uid
             .split(',')
-            .filter_map(|id| {
-                if !id.starts_with("!") {
-                    id.parse().ok()
-                } else {
-                    None
-                }
-            })
-            .collect();
-        let disallowed_uids: Vec<u32> = uid
-            .split(',')
-            .filter_map(|id| {
-                if id.starts_with("!") {
-                    id.strip_prefix("!").unwrap().parse().ok()
-                } else {
-                    None
-                }
-            })
-            .collect();
-        if allowed_uids.len() > 0 && disallowed_uids.len() > 0 {
-            return Err(RenderError::new(format!(
-                "you can only supply one of positve OR negated type of arguments in a single {}",
-                h.name(),
-            )));
-        }
+            .map(|u| u.trim().parse())
+            .collect::<Result<Vec<u32>, _>>()?;
         if allowed_uids.len() > 0 {
             if allowed_uids.contains(&current_uid) {
                 log::debug!(
@@ -498,22 +433,6 @@ Block helper `#{0}`:
                 );
                 h.inverse().map(|t| t.render(r, ctx, rc, out));
             }
-        } else if disallowed_uids.len() > 0 {
-            if disallowed_uids.contains(&current_uid) {
-                log::debug!(
-                    "Current uid '{}' does not match '{}'",
-                    current_uid,
-                    uid,
-                );
-                h.inverse().map(|t| t.render(r, ctx, rc, out));
-            } else {
-                log::debug!(
-                    "Current uid '{}' matches '{}'",
-                    current_uid,
-                    uid,
-                );
-                h.template().map(|t| t.render(r, ctx, rc, out));
-            }
         } else {
             return Err(RenderError::new(format!(
                 "no uid(s) supplied for matching in helper {}",
@@ -528,11 +447,11 @@ Block helper `#{0}`:
     ///
     /// Usage:
     ///
-    /// 1. {{#if_host "!foo,!bar"}}..baz..{{/if_host}}
+    /// 1. {{#if_host "foo,bar"}}..baz..{{/if_host}}
     ///
-    ///    Renders `..baz..` only if current machine's hostname is neither
-    ///    "foo" nor "bar".
-    /// 2. {{#if_host "foo"}}..baz..{{else}}..qux..{{/if_host}}
+    ///    Renders `..baz..` only if current machine's hostname is either
+    ///    "foo" or "bar".
+    /// 2. {{#if_host foo}}..baz..{{else}}..qux..{{/if_host}}
     ///
     ///    Renders `..baz..` only if current machine's hostname is "foo",
     ///    renders `..qux..` only if current user's username is NOT "foo".
@@ -550,9 +469,9 @@ Block helper `#{0}`:
     expected exactly 1 argument, {1} found
 
     Usage:
-        1. {{{{#{0} "!foo,!bar"}}}}..bar..{{{{/{0}}}}}
-           Renders `..bar..` only if current machine's hostname is neither
-           "foo" nor "bar"
+        1. {{{{#{0} "foo,bar"}}}}..bar..{{{{/{0}}}}}
+           Renders `..bar..` only if current machine's hostname is either
+           "foo" or "bar"
 
         2. {{{{#{0} "foo"}}}}..baz..{{{{else}}}}..qux..{{{{/{0}}}}}
            Renders `..baz..` only if current machine's hostname is "foo",
@@ -598,26 +517,8 @@ Block helper `#{0}`:
         let current_hostname = gethostname();
         let current_hostname: &str =
             &current_hostname.to_string_lossy().to_string();
-        let allowed_hostnames: Vec<&str> = expected_hostname
-            .split(',')
-            .filter(|h| !h.starts_with("!"))
-            .collect();
-        let disallowed_hostnames: Vec<&str> = expected_hostname
-            .split(',')
-            .filter_map(|h| {
-                if h.starts_with("!") {
-                    h.strip_prefix("!")
-                } else {
-                    None
-                }
-            })
-            .collect();
-        if allowed_hostnames.len() > 0 && disallowed_hostnames.len() > 0 {
-            return Err(RenderError::new(format!(
-                "you can only supply one of positve OR negated type of arguments in a single {}",
-                h.name(),
-            )));
-        }
+        let allowed_hostnames: Vec<&str> =
+            expected_hostname.split(',').map(|h| h.trim()).collect();
         if allowed_hostnames.len() > 0 {
             if allowed_hostnames.contains(&current_hostname) {
                 log::debug!(
@@ -633,22 +534,6 @@ Block helper `#{0}`:
                     expected_hostname,
                 );
                 h.inverse().map(|t| t.render(r, ctx, rc, out));
-            }
-        } else if disallowed_hostnames.len() > 0 {
-            if disallowed_hostnames.contains(&current_hostname) {
-                log::debug!(
-                    "Current hostname {} does not match {}",
-                    current_hostname,
-                    expected_hostname,
-                );
-                h.inverse().map(|t| t.render(r, ctx, rc, out));
-            } else {
-                log::debug!(
-                    "Current hostname {} matches {}",
-                    current_hostname,
-                    expected_hostname,
-                );
-                h.template().map(|t| t.render(r, ctx, rc, out));
             }
         } else {
             return Err(RenderError::new(format!(
