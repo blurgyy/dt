@@ -295,7 +295,7 @@ Block helper `#{0}`:
             )));
         }
 
-        let username: String = match h.param(0) {
+        let allowed_usernames: Vec<String> = match h.param(0) {
             Some(v) => {
                 if v.value().is_array() {
                     v.value()
@@ -303,10 +303,13 @@ Block helper `#{0}`:
                         .unwrap()
                         .iter()
                         .map(|elem| elem.render())
-                        .collect::<Vec<_>>()
-                        .join(",")
+                        .collect()
                 } else {
-                    v.value().render()
+                    v.value()
+                        .render()
+                        .split(',')
+                        .map(|u| u.trim().to_owned())
+                        .collect()
                 }
             }
             None => {
@@ -333,25 +336,23 @@ Block helper `#{0}`:
             }
         };
 
-        let current_username: &str = &get_current_username()
+        let current_username = get_current_username()
             .unwrap()
             .to_string_lossy()
             .to_string();
-        let allowed_usernames: Vec<&str> =
-            username.split(',').map(|u| u.trim()).collect();
         if allowed_usernames.len() > 0 {
             if allowed_usernames.contains(&current_username) {
                 log::debug!(
-                    "Current username {} matches {}",
+                    "Current username '{}' matches allowed usernames '{:?}'",
                     current_username,
-                    username,
+                    allowed_usernames,
                 );
                 h.template().map(|t| t.render(r, ctx, rc, out));
             } else {
                 log::debug!(
-                    "Current username {} does not match {}",
+                    "Current username '{}' does not match allowed usernames {:?}",
                     current_username,
-                    username,
+                    allowed_usernames,
                 );
                 h.inverse().map(|t| t.render(r, ctx, rc, out));
             }
@@ -419,7 +420,7 @@ Block helper `#{0}`:
             )));
         }
 
-        let username: String = match h.param(0) {
+        let disallowed_usernames: Vec<String> = match h.param(0) {
             Some(v) => {
                 if v.value().is_array() {
                     v.value()
@@ -427,10 +428,13 @@ Block helper `#{0}`:
                         .unwrap()
                         .iter()
                         .map(|elem| elem.render())
-                        .collect::<Vec<_>>()
-                        .join(",")
+                        .collect()
                 } else {
-                    v.value().render()
+                    v.value()
+                        .render()
+                        .split(',')
+                        .map(|u| u.trim().to_owned())
+                        .collect()
                 }
             }
             None => {
@@ -458,25 +462,23 @@ Block helper `#{0}`:
             }
         };
 
-        let current_username: &str = &get_current_username()
+        let current_username: String = get_current_username()
             .unwrap()
             .to_string_lossy()
             .to_string();
-        let disallowed_usernames: Vec<&str> =
-            username.split(',').map(|u| u.trim()).collect();
         if disallowed_usernames.len() > 0 {
             if disallowed_usernames.contains(&current_username) {
                 log::debug!(
-                    "Current username {} does not match {}",
+                    "Current username '{}' matches disallowed usernames '{:?}'",
                     current_username,
-                    username,
+                    disallowed_usernames,
                 );
                 h.inverse().map(|t| t.render(r, ctx, rc, out));
             } else {
                 log::debug!(
-                    "Current username {} matches {}",
+                    "Current username '{}' does not match disallowed usernames {:?}",
                     current_username,
-                    username,
+                    disallowed_usernames,
                 );
                 h.template().map(|t| t.render(r, ctx, rc, out));
             }
@@ -541,18 +543,21 @@ Block helper `#{0}`:
             )));
         }
 
-        let uid: String = match h.param(0) {
+        let allowed_uids: Vec<u32> = match h.param(0) {
             Some(v) => {
                 if v.value().is_array() {
                     v.value()
                         .as_array()
                         .unwrap()
                         .iter()
-                        .map(|elem| elem.render())
-                        .collect::<Vec<_>>()
-                        .join(",")
+                        .map(|elem| elem.render().parse())
+                        .collect::<Result<Vec<_>, _>>()?
                 } else {
-                    v.value().render()
+                    v.value()
+                        .render()
+                        .split(',')
+                        .map(|uid| uid.parse())
+                        .collect::<Result<Vec<_>, _>>()?
                 }
             }
             None => {
@@ -581,23 +586,19 @@ Block helper `#{0}`:
         };
 
         let current_uid = get_current_uid();
-        let allowed_uids: Vec<u32> = uid
-            .split(',')
-            .map(|u| u.trim().parse())
-            .collect::<Result<Vec<u32>, _>>()?;
         if allowed_uids.len() > 0 {
             if allowed_uids.contains(&current_uid) {
                 log::debug!(
-                    "Current uid '{}' matches '{}'",
+                    "Current uid '{}' matches allowed uids '{:?}'",
                     current_uid,
-                    uid,
+                    allowed_uids,
                 );
                 h.template().map(|t| t.render(r, ctx, rc, out));
             } else {
                 log::debug!(
-                    "Current uid '{}' does not match '{}'",
+                    "Current uid '{}' does not match allowed uids {:?}",
                     current_uid,
-                    uid,
+                    allowed_uids,
                 );
                 h.inverse().map(|t| t.render(r, ctx, rc, out));
             }
@@ -663,18 +664,21 @@ Block helper `#{0}`:
             )));
         }
 
-        let uid: String = match h.param(0) {
+        let disallowed_uids: Vec<u32> = match h.param(0) {
             Some(v) => {
                 if v.value().is_array() {
                     v.value()
                         .as_array()
                         .unwrap()
                         .iter()
-                        .map(|elem| elem.render())
-                        .collect::<Vec<_>>()
-                        .join(",")
+                        .map(|elem| elem.render().parse())
+                        .collect::<Result<Vec<_>, _>>()?
                 } else {
-                    v.value().render()
+                    v.value()
+                        .render()
+                        .split(',')
+                        .map(|uid| uid.parse())
+                        .collect::<Result<Vec<_>, _>>()?
                 }
             }
             None => {
@@ -703,23 +707,19 @@ Block helper `#{0}`:
         };
 
         let current_uid = get_current_uid();
-        let disallowed_uids: Vec<u32> = uid
-            .split(',')
-            .map(|u| u.trim().parse())
-            .collect::<Result<Vec<u32>, _>>()?;
         if disallowed_uids.len() > 0 {
             if disallowed_uids.contains(&current_uid) {
                 log::debug!(
-                    "Current uid '{}' does not match '{}'",
+                    "Current uid '{}' matches disallowed uids '{:?}'",
                     current_uid,
-                    uid,
+                    disallowed_uids,
                 );
                 h.inverse().map(|t| t.render(r, ctx, rc, out));
             } else {
                 log::debug!(
-                    "Current uid '{}' matches '{}'",
+                    "Current uid '{}' does not match disallowed uids '{:?}'",
                     current_uid,
-                    uid,
+                    disallowed_uids,
                 );
                 h.template().map(|t| t.render(r, ctx, rc, out));
             }
@@ -784,7 +784,7 @@ Block helper `#{0}`:
             )));
         }
 
-        let expected_hostname: String = match h.param(0) {
+        let allowed_hostnames: Vec<String> = match h.param(0) {
             Some(v) => {
                 if v.value().is_array() {
                     v.value()
@@ -793,9 +793,12 @@ Block helper `#{0}`:
                         .iter()
                         .map(|elem| elem.render())
                         .collect::<Vec<_>>()
-                        .join(",")
                 } else {
-                    v.value().render()
+                    v.value()
+                        .render()
+                        .split(',')
+                        .map(|h| h.trim().to_owned())
+                        .collect()
                 }
             }
             None => {
@@ -824,23 +827,21 @@ Block helper `#{0}`:
         };
 
         let current_hostname = gethostname();
-        let current_hostname: &str =
-            &current_hostname.to_string_lossy().to_string();
-        let allowed_hostnames: Vec<&str> =
-            expected_hostname.split(',').map(|h| h.trim()).collect();
+        let current_hostname: String =
+            current_hostname.to_string_lossy().to_string();
         if allowed_hostnames.len() > 0 {
             if allowed_hostnames.contains(&current_hostname) {
                 log::debug!(
-                    "Current hostname {} matches {}",
+                    "Current hostname '{}' matches allowed hostnames '{:?}'",
                     current_hostname,
-                    expected_hostname,
+                    allowed_hostnames,
                 );
                 h.template().map(|t| t.render(r, ctx, rc, out));
             } else {
                 log::debug!(
-                    "Current hostname {} does not match {}",
+                    "Current hostname '{}' does not match allowed hostnames '{:?}'",
                     current_hostname,
-                    expected_hostname,
+                    allowed_hostnames,
                 );
                 h.inverse().map(|t| t.render(r, ctx, rc, out));
             }
@@ -906,7 +907,7 @@ Block helper `#{0}`:
             )));
         }
 
-        let expected_hostname: String = match h.param(0) {
+        let disallowed_hostnames: Vec<String> = match h.param(0) {
             Some(v) => {
                 if v.value().is_array() {
                     v.value()
@@ -915,9 +916,12 @@ Block helper `#{0}`:
                         .iter()
                         .map(|elem| elem.render())
                         .collect::<Vec<_>>()
-                        .join(",")
                 } else {
-                    v.value().render()
+                    v.value()
+                        .render()
+                        .split(',')
+                        .map(|h| h.trim().to_owned())
+                        .collect()
                 }
             }
             None => {
@@ -946,23 +950,21 @@ Block helper `#{0}`:
         };
 
         let current_hostname = gethostname();
-        let current_hostname: &str =
-            &current_hostname.to_string_lossy().to_string();
-        let disallowed_hostnames: Vec<&str> =
-            expected_hostname.split(',').map(|h| h.trim()).collect();
+        let current_hostname: String =
+            current_hostname.to_string_lossy().to_string();
         if disallowed_hostnames.len() > 0 {
             if disallowed_hostnames.contains(&current_hostname) {
                 log::debug!(
-                    "Current hostname {} does not match {}",
+                    "Current hostname '{}' matches disallowed hostnames '{:?}'",
                     current_hostname,
-                    expected_hostname,
+                    disallowed_hostnames,
                 );
                 h.inverse().map(|t| t.render(r, ctx, rc, out));
             } else {
                 log::debug!(
-                    "Current hostname {} matches {}",
+                    "Current hostname '{}' does not match disallowed hostnames '{:?}'",
                     current_hostname,
-                    expected_hostname,
+                    disallowed_hostnames,
                 );
                 h.template().map(|t| t.render(r, ctx, rc, out));
             }
