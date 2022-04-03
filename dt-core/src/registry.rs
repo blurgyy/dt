@@ -101,36 +101,33 @@ impl Register for Registry<'_> {
         for group in &config.local {
             for s in &group.sources {
                 let name = s.to_string_lossy();
-                if let Ok(content) = std::fs::read(s) {
-                    if group.is_templated() {
-                        if inspect(&content).is_text() {
-                            registry.env.register_template_string(
-                                &name,
-                                std::str::from_utf8(&content)?,
-                            )?;
-                            registry.content.insert(
-                                name.to_string(),
-                                registry
-                                    .env
-                                    .render(&name, &config.context)?
-                                    .into(),
-                            );
-                        } else {
-                            log::trace!(
+                let content = std::fs::read(s)?;
+                if group.is_templated() {
+                    if inspect(&content).is_text() {
+                        registry.env.register_template_string(
+                            &name,
+                            std::str::from_utf8(&content)?,
+                        )?;
+                        registry.content.insert(
+                            name.to_string(),
+                            registry
+                                .env
+                                .render(&name, &config.context)?
+                                .into(),
+                        );
+                    } else {
+                        log::trace!(
                                 "'{}' will not be rendered because it has binary contents",
                                 s.display(),
                             );
-                            registry
-                                .content
-                                .insert(name.to_string(), content);
-                        }
-                    } else {
-                        log::trace!(
+                        registry.content.insert(name.to_string(), content);
+                    }
+                } else {
+                    log::trace!(
                             "'{}' will not be rendered because it is not templated",
                             s.display(),
                         );
-                        registry.content.insert(name.to_string(), content);
-                    }
+                    registry.content.insert(name.to_string(), content);
                 }
             }
         }
