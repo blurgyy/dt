@@ -180,12 +180,21 @@ impl Register for Registry<'_> {
 
 /// Additional built-in helpers
 pub mod helpers {
-    use gethostname::gethostname;
+    #[cfg(not(test))]
+    use {
+        gethostname::gethostname,
+        users::{get_current_uid, get_current_username},
+    };
+
+    #[cfg(test)]
+    use crate::utils::testing::{
+        get_current_uid, get_current_username, gethostname,
+    };
+
     use handlebars::{
         Context, Handlebars, Helper, HelperResult, JsonRender, Output,
         RenderContext, RenderError, Renderable,
     };
-    use users::{get_current_uid, get_current_username};
 
     /// A templating helper that retrieves the value for current host from a
     /// map, returns a default value when current host is not recorded in the

@@ -140,7 +140,8 @@ pub fn host_specific_suffix(hostname_sep: &str) -> String {
 #[cfg(test)]
 pub(crate) mod testing {
     use std::{
-        fs::Permissions, os::unix::prelude::PermissionsExt, path::PathBuf,
+        ffi::OsString, fs::Permissions, os::unix::prelude::PermissionsExt,
+        path::PathBuf,
     };
 
     use color_eyre::Report;
@@ -173,6 +174,27 @@ pub(crate) mod testing {
         )?;
         std::fs::set_permissions(&abspath, Permissions::from_mode(mode))?;
         Ok(abspath)
+    }
+
+    pub fn gethostname() -> OsString {
+        match std::env::var("DT_TEST_HOSTNAME_OVERRIDE") {
+            Ok(hostname) => hostname.into(),
+            _ => gethostname::gethostname(),
+        }
+    }
+
+    pub fn get_current_uid() -> users::uid_t {
+        match std::env::var("DT_TEST_UID_OVERRIDE") {
+            Ok(uid) => uid.parse().unwrap(),
+            _ => users::get_current_uid(),
+        }
+    }
+
+    pub fn get_current_username() -> Option<OsString> {
+        match std::env::var("DT_TEST_USERNAME_OVERRIDE") {
+            Ok(username) => Some(username.into()),
+            _ => users::get_current_username(),
+        }
     }
 }
 
