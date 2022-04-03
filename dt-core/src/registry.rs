@@ -80,9 +80,9 @@ impl Register for Registry<'_> {
         let mut render_env = self.env;
 
         render_env.register_helper("get_mine", Box::new(helpers::get_mine));
-        render_env.register_helper("for_user", Box::new(helpers::for_user));
-        render_env.register_helper("for_uid", Box::new(helpers::for_uid));
-        render_env.register_helper("for_host", Box::new(helpers::for_host));
+        render_env.register_helper("if_user", Box::new(helpers::if_user));
+        render_env.register_helper("if_uid", Box::new(helpers::if_uid));
+        render_env.register_helper("if_host", Box::new(helpers::if_host));
 
         Ok(Self {
             env: render_env,
@@ -242,15 +242,15 @@ Inline helper `{0}`:
     ///
     /// Usage:
     ///
-    /// 1. {{#for_user "!foo,!bar"}}..baz..{{/for_user}}
+    /// 1. {{#if_user "!foo,!bar"}}..baz..{{/if_user}}
     ///
     ///    Renders `..baz..` only if current user's username is neither "foo"
     ///    nor "bar".
-    /// 2. {{#for_user "foo"}}..baz..{{else}}..qux..{{/for_user}}
+    /// 2. {{#if_user "foo"}}..baz..{{else}}..qux..{{/if_user}}
     ///
     ///    Renders `..baz..` only if current user's username is "foo", renders
     ///    `..qux..` only if current user's username is NOT "foo".
-    pub fn for_user<'reg, 'rc>(
+    pub fn if_user<'reg, 'rc>(
         h: &Helper<'reg, 'rc>,
         r: &'reg Handlebars<'reg>,
         ctx: &'rc Context,
@@ -379,18 +379,18 @@ Block helper `#{0}`:
     ///
     /// Usage:
     ///
-    /// 1. `{{#for_uid "!0"}}..foo..{{/for_uid}}`
+    /// 1. `{{#if_uid "!0"}}..foo..{{/if_uid}}`
     ///
     ///    Renders `..foo..` only if current user's effective uid is not `0`.
-    /// 2. `{{#for_uid 0}}..foo..{{else}}..bar..{{/for_uid}}`
+    /// 2. `{{#if_uid 0}}..foo..{{else}}..bar..{{/if_uid}}`
     ///
     ///    Renders `..foo..` only if current user's effective uid is `0`,
     ///    renders `..bar..` only if current user's effective uid is not `0`.
-    /// 3. `{{#for_uid "1000,1001"}}..foo..{{/for_uid}}`
+    /// 3. `{{#if_uid "1000,1001"}}..foo..{{/if_uid}}`
     ///
     ///    Renders `..foo..` only if current user's effective uid is either
     ///    `1000` or `1001`.
-    pub fn for_uid<'reg, 'rc>(
+    pub fn if_uid<'reg, 'rc>(
         h: &Helper<'reg, 'rc>,
         r: &'reg Handlebars<'reg>,
         ctx: &'rc Context,
@@ -528,15 +528,15 @@ Block helper `#{0}`:
     ///
     /// Usage:
     ///
-    /// 1. {{#for_host "!foo,!bar"}}..baz..{{/for_host}}
+    /// 1. {{#if_host "!foo,!bar"}}..baz..{{/if_host}}
     ///
     ///    Renders `..baz..` only if current machine's hostname is neither
     ///    "foo" nor "bar".
-    /// 2. {{#for_host "foo"}}..baz..{{else}}..qux..{{/for_host}}
+    /// 2. {{#if_host "foo"}}..baz..{{else}}..qux..{{/if_host}}
     ///
     ///    Renders `..baz..` only if current machine's hostname is "foo",
     ///    renders `..qux..` only if current user's username is NOT "foo".
-    pub fn for_host<'reg, 'rc>(
+    pub fn if_host<'reg, 'rc>(
         h: &Helper<'reg, 'rc>,
         r: &'reg Handlebars<'reg>,
         ctx: &'rc Context,
