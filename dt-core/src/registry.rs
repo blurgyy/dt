@@ -250,6 +250,14 @@ Inline helper `{0}`:
     ///
     ///    Renders `..baz..` only if current user's username is "foo", renders
     ///    `..qux..` only if current user's username is NOT "foo".
+    ///
+    /// 3. {{#if_user some.array}}..foo..{{/if_user}}
+    ///
+    ///    Renders `..foo..` only if current user's username is exactly one of
+    ///    the values from the templating variable `some.array` (defined in
+    ///    the config file's [`[context]`] section).
+    ///
+    /// [`[context]`]: dt_core::config::ContextConfig
     pub fn if_user<'reg, 'rc>(
         h: &Helper<'reg, 'rc>,
         r: &'reg Handlebars<'reg>,
@@ -270,7 +278,12 @@ Block helper `#{0}`:
 
         2. {{{{#{0} "foo"}}}}..baz..{{{{else}}}}..qux..{{{{/{0}}}}}
            Renders `..baz..` only if current user's username is "foo", renders
-           `..qux..` only if current user's username is NOT "foo""#,
+           `..qux..` only if current user's username is NOT "foo"
+
+        3. {{#if_user some.array}}..foo..{{/if_user}}
+           Renders `..foo..` only if current user's username is exactly one of
+           the values from the templating variable `some.array` (defined in
+           the config file's `[context]` section)"#,
                 h.name(),
                 h.params().len(),
             )));
@@ -303,7 +316,12 @@ Block helper `#{0}`:
 
         2. {{{{#{0} "foo"}}}}..baz..{{{{else}}}}..qux..{{{{/{0}}}}}
            Renders `..baz..` only if current user's username is "foo", renders
-           `..qux..` only if current user's username is NOT "foo""#,
+           `..qux..` only if current user's username is NOT "foo"
+
+        3. {{#if_user some.array}}..foo..{{/if_user}}
+           Renders `..foo..` only if current user's username is exactly one of
+           the values from the templating variable `some.array` (defined in
+           the config file's `[context]` section)"#,
                     h.name(),
                 )));
             }
@@ -353,6 +371,13 @@ Block helper `#{0}`:
     ///
     ///    Renders `..foo..` only if current user's effective uid is `0`,
     ///    renders `..bar..` only if current user's effective uid is not `0`.
+    /// 3. `{{#if_uid some.array}}..foo..{{/if_uid}}`
+    ///
+    ///    Renders `..foo..` only if current user's effective uid is exactly
+    ///    one of the values from the templating variable `some.array`
+    ///    (defined in the config file's [`[context]`] section).
+    ///
+    /// [`[context]`]: dt_core::config::ContextConfig
     pub fn if_uid<'reg, 'rc>(
         h: &Helper<'reg, 'rc>,
         r: &'reg Handlebars<'reg>,
@@ -373,7 +398,13 @@ Block helper `#{0}`:
 
         2. {{{{#{0} 0}}}}..foo..{{{{else}}}}..bar..{{{{/{0}}}}}
            Renders `..foo..` only if current user's effective uid is `0`,
-           renders `..bar..` if current user's effective uid is not `0`"#,
+           renders `..bar..` if current user's effective uid is not `0`
+
+        3. `{{#if_uid some.array}}..foo..{{/if_uid}}`
+
+           Renders `..foo..` only if current user's effective uid is exactly
+           one of the values from the templating variable `some.array`
+           (defined in the config file's `[context]` section)"#,
                 h.name(),
                 h.params().len(),
             )));
@@ -406,7 +437,13 @@ Block helper `#{0}`:
 
         2. {{{{#{0} 0}}}}..foo..{{{{else}}}}..bar..{{{{/{0}}}}}
            Renders `..foo..` only if current user's effective uid is `0`,
-           renders `..bar..` if current user's effective uid is not `0`"#,
+           renders `..bar..` if current user's effective uid is not `0`
+
+        3. `{{#if_uid some.array}}..foo..{{/if_uid}}`
+
+           Renders `..foo..` only if current user's effective uid is exactly
+           one of the values from the templating variable `some.array`
+           (defined in the config file's `[context]` section)"#,
                     h.name(),
                 )));
             }
@@ -455,6 +492,13 @@ Block helper `#{0}`:
     ///
     ///    Renders `..baz..` only if current machine's hostname is "foo",
     ///    renders `..qux..` only if current user's username is NOT "foo".
+    /// 3. `{{#if_host some.array}}..foo..{{/if_host}}`
+    ///
+    ///    Renders `..foo..` only if current machine's hostname is exactly one
+    ///    of the values from the templating variable `some.array` (defined in
+    ///    the config file's [`[context]`] section).
+    ///
+    /// [`[context]`]: dt_core::config::ContextConfig
     pub fn if_host<'reg, 'rc>(
         h: &Helper<'reg, 'rc>,
         r: &'reg Handlebars<'reg>,
@@ -475,7 +519,13 @@ Block helper `#{0}`:
 
         2. {{{{#{0} "foo"}}}}..baz..{{{{else}}}}..qux..{{{{/{0}}}}}
            Renders `..baz..` only if current machine's hostname is "foo",
-           renders `..qux..` only if current user's username is NOT "foo""#,
+           renders `..qux..` only if current user's username is NOT "foo"
+
+        3. `{{#if_host some.array}}..foo..{{/if_host}}`
+
+           Renders `..foo..` only if current machine's hostname is exactly one
+           of the values from the templating variable `some.array` (defined in
+           the config file's `[context]` section)"#,
                 h.name(),
                 h.params().len(),
             )));
@@ -502,13 +552,19 @@ Block helper `#{0}`:
     expected exactly 1 argument, 0 found
 
     Usage:
-        1. {{{{#{0} "!foo,!bar"}}}}..bar..{{{{/{0}}}}}
-           Renders `..bar..` only if current machine's hostname is neither
-           "foo" nor "bar"
+        1. {{{{#{0} "foo,bar"}}}}..bar..{{{{/{0}}}}}
+           Renders `..bar..` only if current machine's hostname is either
+           "foo" or "bar"
 
         2. {{{{#{0} "foo"}}}}..baz..{{{{else}}}}..qux..{{{{/{0}}}}}
            Renders `..baz..` only if current machine's hostname is "foo",
-           renders `..qux..` only if current user's username is NOT "foo""#,
+           renders `..qux..` only if current user's username is NOT "foo"
+
+        3. `{{#if_host some.array}}..foo..{{/if_host}}`
+
+           Renders `..foo..` only if current machine's hostname is exactly one
+           of the values from the templating variable `some.array` (defined in
+           the config file's `[context]` section)"#,
                     h.name(),
                 )));
             }
