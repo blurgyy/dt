@@ -141,15 +141,15 @@ pub fn host_specific_suffix(hostname_sep: &str) -> String {
 pub(crate) mod testing {
     use std::{
         ffi::OsString, fs::Permissions, os::unix::prelude::PermissionsExt,
-        path::PathBuf,
+        path::PathBuf, str::FromStr,
     };
 
     use color_eyre::Report;
 
-    const TESTROOT: &str = "/tmp/dt-testing/syncing";
+    const TESTROOT: &str = "/tmp/dt-testing";
 
-    pub fn get_testroot() -> PathBuf {
-        TESTROOT.into()
+    pub fn get_testroot(top_level: &str) -> PathBuf {
+        PathBuf::from_str(TESTROOT).unwrap().join(top_level)
     }
 
     pub fn prepare_directory(

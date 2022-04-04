@@ -25,7 +25,7 @@ use crate::{
 /// [`global.staging`]: crate::config::GlobalConfig::staging
 /// [`base`]: crate::config::Group::base
 /// [`target`]: crate::config::Group::target
-fn expand(config: DTConfig) -> Result<DTConfig> {
+pub(crate) fn expand(config: DTConfig) -> Result<DTConfig> {
     let mut ret = DTConfig {
         // Remove `global` and `context` in expanded configuration object.
         // Further references of these two values are referenced via Rc from
@@ -379,13 +379,17 @@ mod tests {
             // setup
             let source_basename = "src-file-but-unreadable";
             let base = prepare_directory(
-                get_testroot().join("unreadable_source").join("base"),
+                get_testroot("syncing")
+                    .join("unreadable_source")
+                    .join("base"),
                 0o755,
             )?;
             let _source_path =
                 prepare_file(base.join(source_basename), 0o200)?;
             let target_path = prepare_directory(
-                get_testroot().join("unreadable_source").join("target"),
+                get_testroot("syncing")
+                    .join("unreadable_source")
+                    .join("target"),
                 0o755,
             )?;
 
@@ -435,7 +439,7 @@ target = "{}""#,
         #[test]
         fn glob() -> Result<(), Report> {
             let target_path = prepare_directory(
-                get_testroot().join("glob").join("target"),
+                get_testroot("syncing").join("glob").join("target"),
                 0o755,
             )?;
 
@@ -501,12 +505,16 @@ target = "{}""#,
         fn sorting_and_deduping() -> Result<(), Report> {
             println!("Creating base ..");
             let base_path = prepare_directory(
-                get_testroot().join("sorting_and_deduping").join("base"),
+                get_testroot("syncing")
+                    .join("sorting_and_deduping")
+                    .join("base"),
                 0o755,
             )?;
             println!("Creating target ..");
             let target_path = prepare_directory(
-                get_testroot().join("sorting_and_deduping").join("target"),
+                get_testroot("syncing")
+                    .join("sorting_and_deduping")
+                    .join("target"),
                 0o755,
             )?;
             for f in ["A-a", "A-b", "A-c", "B-a", "B-b", "B-c"] {

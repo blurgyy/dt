@@ -1555,17 +1555,21 @@ target = "target-ce59cb1aea35e22e43195d4a444ff2e7-dir""#,
     #[test]
     fn staging_is_file() -> Result<(), Report> {
         let staging_path = prepare_file(
-            get_testroot()
+            get_testroot("validation_physical")
                 .join("staging_is_file")
                 .join("staging-but-file"),
             0o644,
         )?;
         let base = prepare_directory(
-            get_testroot().join("staging_is_file").join("base"),
+            get_testroot("validation_physical")
+                .join("staging_is_file")
+                .join("base"),
             0o755,
         )?;
         let target = prepare_directory(
-            get_testroot().join("staging_is_file").join("target"),
+            get_testroot("validation_physical")
+                .join("staging_is_file")
+                .join("target"),
             0o755,
         )?;
 
@@ -1603,17 +1607,21 @@ target = "{}""#,
     #[test]
     fn staging_readonly() -> Result<(), Report> {
         let staging_path = prepare_directory(
-            get_testroot()
+            get_testroot("validation_physical")
                 .join("staging_readonly")
                 .join("staging-but-readonly"),
             0o555,
         )?;
         let base = prepare_directory(
-            get_testroot().join("staging_readonly").join("base"),
+            get_testroot("validation_physical")
+                .join("staging_readonly")
+                .join("base"),
             0o755,
         )?;
         let target_path = prepare_directory(
-            get_testroot().join("staging_readonly").join("target"),
+            get_testroot("validation_physical")
+                .join("staging_readonly")
+                .join("target"),
             0o755,
         )?;
 
@@ -1650,7 +1658,7 @@ target = "{}""#,
     #[test]
     fn target_is_file() -> Result<(), Report> {
         let target_path = prepare_file(
-            get_testroot()
+            get_testroot("validation_physical")
                 .join("target_is_file")
                 .join("target-but-file"),
             0o755,
@@ -1685,11 +1693,13 @@ target = "{}""#,
     fn target_readonly() -> Result<(), Report> {
         // setup
         let base = prepare_directory(
-            get_testroot().join("target_readonly").join("base"),
+            get_testroot("validation_physical")
+                .join("target_readonly")
+                .join("base"),
             0o755,
         )?;
         let target_path = prepare_directory(
-            get_testroot()
+            get_testroot("validation_physical")
                 .join("target_readonly")
                 .join("target-but-readonly"),
             0o555,
@@ -1726,7 +1736,7 @@ target = "{}""#,
     fn identical_configured_base_and_target_in_local() -> Result<(), Report> {
         // setup
         let base = prepare_directory(
-            get_testroot()
+            get_testroot("validation_physical")
                 .join("local_group_has_same_base_and_target")
                 .join("base-and-target"),
             0o755,
@@ -1764,7 +1774,9 @@ target = "{}"
     #[test]
     fn base_unreadable() -> Result<(), Report> {
         let base = prepare_file(
-            get_testroot().join("base_unreadable").join("base-but-file"),
+            get_testroot("validation_physical")
+                .join("base_unreadable")
+                .join("base-but-file"),
             0o311,
         )?;
         if let Err(err) = DTConfig::from_str(&format!(
@@ -1789,7 +1801,7 @@ target = ".""#,
         }
 
         let base = prepare_directory(
-            get_testroot()
+            get_testroot("validation_physical")
                 .join("base_unreadable")
                 .join("base-unreadable"),
             0o311,
