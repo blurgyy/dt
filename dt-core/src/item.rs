@@ -152,7 +152,7 @@ impl Operate for PathBuf {
     /// Reference: <https://stackoverflow.com/a/54817755/13482274>
     fn absolute(self) -> Result<Self> {
         let absolute_path = if self.is_absolute() {
-            self.to_owned()
+            self
         } else {
             std::env::current_dir()?.join(self)
         }
@@ -165,7 +165,7 @@ impl Operate for PathBuf {
     /// host-specific, returns `self` directly.
     fn host_specific(self, hostname_sep: &str) -> Self {
         if self.ends_with(utils::host_specific_suffix(hostname_sep)) {
-            self.into()
+            self
         } else {
             let hs_filename = self
                 .file_name()
@@ -417,7 +417,7 @@ impl Operate for PathBuf {
         renaming_rules: Vec<RenamingRule>,
     ) -> Result<Self> {
         // Get non-host-specific counterpart of `self`
-        let nhself = self.to_owned().non_host_specific(hostname_sep);
+        let nhself = self.non_host_specific(hostname_sep);
 
         // Get non-host-specific counterpart of `base`
         let base = base.to_owned().non_host_specific(hostname_sep);

@@ -346,7 +346,7 @@ Block helper `#{0}`:
             .unwrap()
             .to_string_lossy()
             .to_string();
-        if allowed_usernames.len() > 0 {
+        if !allowed_usernames.is_empty() {
             if allowed_usernames.contains(&current_username) {
                 log::debug!(
                     "Current username '{}' matches allowed usernames '{:?}'",
@@ -472,7 +472,7 @@ Block helper `#{0}`:
             .unwrap()
             .to_string_lossy()
             .to_string();
-        if disallowed_usernames.len() > 0 {
+        if !disallowed_usernames.is_empty() {
             if disallowed_usernames.contains(&current_username) {
                 log::debug!(
                     "Current username '{}' matches disallowed usernames '{:?}'",
@@ -592,7 +592,7 @@ Block helper `#{0}`:
         };
 
         let current_uid = get_current_uid();
-        if allowed_uids.len() > 0 {
+        if !allowed_uids.is_empty() {
             if allowed_uids.contains(&current_uid) {
                 log::debug!(
                     "Current uid '{}' matches allowed uids '{:?}'",
@@ -713,7 +713,7 @@ Block helper `#{0}`:
         };
 
         let current_uid = get_current_uid();
-        if disallowed_uids.len() > 0 {
+        if !disallowed_uids.is_empty() {
             if disallowed_uids.contains(&current_uid) {
                 log::debug!(
                     "Current uid '{}' matches disallowed uids '{:?}'",
@@ -835,7 +835,7 @@ Block helper `#{0}`:
         let current_hostname = gethostname();
         let current_hostname: String =
             current_hostname.to_string_lossy().to_string();
-        if allowed_hostnames.len() > 0 {
+        if !allowed_hostnames.is_empty() {
             if allowed_hostnames.contains(&current_hostname) {
                 log::debug!(
                     "Current hostname '{}' matches allowed hostnames '{:?}'",
@@ -958,7 +958,7 @@ Block helper `#{0}`:
         let current_hostname = gethostname();
         let current_hostname: String =
             current_hostname.to_string_lossy().to_string();
-        if disallowed_hostnames.len() > 0 {
+        if !disallowed_hostnames.is_empty() {
             if disallowed_hostnames.contains(&current_hostname) {
                 log::debug!(
                     "Current hostname '{}' matches disallowed hostnames '{:?}'",

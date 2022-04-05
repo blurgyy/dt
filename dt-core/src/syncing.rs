@@ -343,6 +343,7 @@ pub fn sync(config: DTConfig, dry_run: bool) -> Result<()> {
                     }
                 }
             } else {
+                #[allow(clippy::collapsible_else_if)]
                 if let Err(e) = spath
                     .populate(Rc::clone(&group_ref), Rc::clone(&registry))
                 {

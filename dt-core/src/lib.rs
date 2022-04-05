@@ -254,7 +254,6 @@ sources = ["{}"]
                 )?,
             );
 
-            let test_username = "watson";
             let config = expand(DTConfig::from_str(&format!(
                 r#"
 [context.user]
