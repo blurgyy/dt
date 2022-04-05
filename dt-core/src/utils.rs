@@ -177,24 +177,15 @@ pub(crate) mod testing {
     }
 
     pub fn gethostname() -> OsString {
-        match std::env::var("DT_TEST_HOSTNAME_OVERRIDE") {
-            Ok(hostname) => hostname.into(),
-            _ => gethostname::gethostname(),
-        }
+        "r2d2".into()
     }
 
     pub fn get_current_uid() -> users::uid_t {
-        match std::env::var("DT_TEST_UID_OVERRIDE") {
-            Ok(uid) => uid.parse().unwrap(),
-            _ => users::get_current_uid(),
-        }
+        418
     }
 
     pub fn get_current_username() -> Option<OsString> {
-        match std::env::var("DT_TEST_USERNAME_OVERRIDE") {
-            Ok(username) => Some(username.into()),
-            _ => users::get_current_username(),
-        }
+        Some("luke".into())
     }
 }
 
