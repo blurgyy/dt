@@ -157,6 +157,17 @@ impl Default for IgnoreFailure {
         Self(false)
     }
 }
+/// Helper type for config key [`renderable`]
+///
+/// [`renderable`]: GlobalConfig::renderable
+#[derive(Clone, Copy, Debug, Deserialize)]
+pub struct Renderable(pub bool);
+#[allow(clippy::derivable_impls)]
+impl Default for Renderable {
+    fn default() -> Self {
+        Self(true)
+    }
+}
 /// Helper type for config key [`hostname_sep`]
 ///
 /// [`hostname_sep`]: GlobalConfig::hostname_sep
@@ -506,6 +517,13 @@ pub struct GlobalConfig {
     #[serde(default)]
     pub ignore_failure: IgnoreFailure,
 
+    /// Whether to enable templating.  It has a [per-group counterpart] to set
+    /// if a group is to be rendered.
+    ///
+    /// [per-group counterpart]: Group::renderable
+    #[serde(default)]
+    pub renderable: Renderable,
+
     /// The hostname separator.
     ///
     /// Specifies default value when [`Group::hostname_sep`] is not set.
@@ -706,6 +724,11 @@ where
     /// are NOT affected.
     pub ignore_failure: Option<IgnoreFailure>,
 
+    /// (Optional) Whether to enable templating for source files in this
+    /// group.
+    #[serde(default)]
+    pub renderable: Option<Renderable>,
+
     /// (Optional) Syncing method, overrides [`global.method`] key.
     ///
     /// [`global.method`]: GlobalConfig::method
@@ -736,7 +759,7 @@ where
     /// [`allow_overwrite`]: Group::allow_overwrite
     pub fn is_overwrite_allowed(&self) -> bool {
         match self.allow_overwrite {
-            Some(allow_overwrite) => allow_overwrite.0,
+            Some(AllowOverwrite(allow_overwrite)) => allow_overwrite,
             _ => self.global.allow_overwrite.0,
         }
     }
@@ -747,7 +770,7 @@ where
     /// [`ignore_failure`]: Group::ignore_failure
     pub fn is_failure_ignored(&self) -> bool {
         match self.ignore_failure {
-            Some(ignore_failure) => ignore_failure.0,
+            Some(IgnoreFailure(ignore_failure)) => ignore_failure,
             _ => self.global.ignore_failure.0,
         }
     }
@@ -817,17 +840,12 @@ where
         ret
     }
 
-    /// Check if this group is templated by checking whether the [context]
-    /// section contains any component of this group's name as a key.
-    ///
-    /// [context]: DTConfig::context
-    pub fn is_templated(&self) -> bool {
-        match self.context.0.as_table() {
-            Some(map) => self.name.0.components().any(|comp| {
-                map.get(&comp.as_os_str().to_string_lossy().to_string())
-                    .is_some()
-            }),
-            None => false,
+    /// Check if this group is renderable according to the cascaded config
+    /// options.
+    pub fn is_renderable(&self) -> bool {
+        match self.renderable {
+            Some(Renderable(renderable)) => renderable,
+            _ => self.global.renderable.0,
         }
     }
 

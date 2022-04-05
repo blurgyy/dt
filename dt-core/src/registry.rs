@@ -102,7 +102,7 @@ impl Register for Registry<'_> {
             for s in &group.sources {
                 let name = s.to_string_lossy();
                 let content = std::fs::read(s)?;
-                if group.is_templated() {
+                if group.is_renderable() {
                     if inspect(&content).is_text() {
                         registry.env.register_template_string(
                             &name,

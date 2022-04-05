@@ -457,7 +457,7 @@ impl Operate for PathBuf {
         group: &Rc<Group<O>>,
     ) -> Result<Vec<u8>> {
         let name = self.to_string_lossy();
-        if group.is_templated() {
+        if group.is_renderable() {
             registry.get(&name)
         } else {
             Ok(std::fs::read(self)?)
