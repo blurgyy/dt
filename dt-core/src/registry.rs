@@ -23,10 +23,10 @@ where
         unimplemented!()
     }
     /// Load templates and render them into cached storage, items that are not
-    /// templated (see [`is_templated`]) will not be registered into templates
+    /// templated (see [`renderable`]) will not be registered into templates
     /// but directly stored into the rendered cache.
     ///
-    /// [`is_templated`]: crate::config::Group::is_templated
+    /// [`renderable`]: crate::config::Group::renderable
     fn load(self, config: &DTConfig) -> Result<Self> {
         unimplemented!()
     }
@@ -117,16 +117,17 @@ impl Register for Registry<'_> {
                         );
                     } else {
                         log::trace!(
-                                "'{}' will not be rendered because it has binary contents",
-                                s.display(),
-                            );
+                            "'{}' has binary contents, skipping rendering",
+                            s.display(),
+                        );
                         registry.content.insert(name.to_string(), content);
                     }
                 } else {
                     log::trace!(
-                            "'{}' will not be rendered because it is not templated",
-                            s.display(),
-                        );
+                        "'{}' is from an unrenderable group '{}'",
+                        s.display(),
+                        group.name,
+                    );
                     registry.content.insert(name.to_string(), content);
                 }
             }
