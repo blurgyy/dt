@@ -60,9 +60,6 @@ mod inline_helpers {
             let target = prepare_directory(base.join("target"), 0o755)?;
             let config = expand(DTConfig::from_str(&format!(
                 r#"
-[context]
-group = true  # enable templating for the group below
-
 [[local]]
 name = "group"
 base = "{}"
@@ -158,9 +155,6 @@ mod block_helpers {
             let target = prepare_directory(base.join("target"), 0o755)?;
             let config = expand(DTConfig::from_str(&format!(
                 r#"
-[context]
-user = true  # enable templating for the group below
-
 [[local]]
 name = "user"
 base = "{}"
@@ -227,9 +221,6 @@ sources = ["{}"]
             let target = prepare_directory(base.join("target"), 0o755)?;
             let config = expand(DTConfig::from_str(&format!(
                 r#"
-[context]
-user = true  # enable templating for the group below
-
 [[local]]
 name = "user"
 base = "{}"
@@ -300,9 +291,6 @@ sources = ["{}"]
             let target = prepare_directory(base.join("target"), 0o755)?;
             let config = expand(DTConfig::from_str(&format!(
                 r#"
-[context]
-user = true  # enable templating for the group below
-
 [[local]]
 name = "user"
 base = "{}"
@@ -369,9 +357,6 @@ sources = ["{}"]
             let target = prepare_directory(base.join("target"), 0o755)?;
             let config = expand(DTConfig::from_str(&format!(
                 r#"
-[context]
-user = true  # enable templating for the group below
-
 [[local]]
 name = "user"
 base = "{}"
@@ -456,9 +441,6 @@ sources = ["{}"]
             let target = prepare_directory(base.join("target"), 0o755)?;
             let config = expand(DTConfig::from_str(&format!(
                 r#"
-[context]
-uid = true  # enable templating for the group below
-
 [[local]]
 name = "uid"
 base = "{}"
@@ -595,9 +577,6 @@ sources = ["{}"]
             let target = prepare_directory(base.join("target"), 0o755)?;
             let config = expand(DTConfig::from_str(&format!(
                 r#"
-[context]
-uid = true  # enable templating for the group below
-
 [[local]]
 name = "uid"
 base = "{}"
@@ -665,9 +644,6 @@ sources = ["{}"]
             let target = prepare_directory(base.join("target"), 0o755)?;
             let config = expand(DTConfig::from_str(&format!(
                 r#"
-[context]
-uid = true  # enable templating for the group below
-
 [[local]]
 name = "uid"
 base = "{}"
@@ -749,9 +725,6 @@ sources = ["{}"]
             let target = prepare_directory(base.join("target"), 0o755)?;
             let config = expand(DTConfig::from_str(&format!(
                 r#"
-[context]
-host = true  # enable templating for the group below
-
 [[local]]
 name = "host"
 base = "{}"
@@ -819,9 +792,6 @@ sources = ["{}"]
             let target = prepare_directory(base.join("target"), 0o755)?;
             let config = expand(DTConfig::from_str(&format!(
                 r#"
-[context]
-host = true  # enable templating for the group below
-
 [[local]]
 name = "host"
 base = "{}"
@@ -892,9 +862,6 @@ sources = ["{}"]
             let target = prepare_directory(base.join("target"), 0o755)?;
             let config = expand(DTConfig::from_str(&format!(
                 r#"
-[context]
-host = true  # enable templating for the group below
-
 [[local]]
 name = "host"
 base = "{}"
@@ -962,9 +929,6 @@ sources = ["{}"]
             let target = prepare_directory(base.join("target"), 0o755)?;
             let config = expand(DTConfig::from_str(&format!(
                 r#"
-[context]
-host = true  # enable templating for the group below
-
 [[local]]
 name = "host"
 base = "{}"
@@ -1016,6 +980,284 @@ sources = ["{}"]
             println!("{:?}", crate::utils::testing::gethostname());
             assert_eq!(
                 "I have beep boop bop feeling about this",
+                std::str::from_utf8(
+                    &reg.get(&template_path.to_string_lossy())?
+                )?,
+            );
+            Ok(())
+        }
+    }
+
+    mod os {
+        use std::str::FromStr;
+
+        use crate::{
+            config::DTConfig,
+            registry::{Register, Registry},
+            syncing::expand,
+            utils::testing::{get_testroot, prepare_directory, prepare_file},
+        };
+
+        use color_eyre::Report;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn if_os_exact() -> Result<(), Report> {
+            let base = prepare_directory(
+                get_testroot("block_helpers").join("os").join("if_os_exact"),
+                0o755,
+            )?;
+            let src_name = "template";
+            let template_path = prepare_file(base.join(src_name), 0o644)?;
+            let target = prepare_directory(base.join("target"), 0o755)?;
+            let config = expand(DTConfig::from_str(&format!(
+                r#"
+[[local]]
+name = "os"
+base = "{}"
+target = "{}"
+sources = ["{}"]
+"#,
+                base.display(),
+                target.display(),
+                src_name,
+            ))?)?;
+
+            std::fs::write(
+                &template_path,
+                r#"{{#if_os "id" "dt"}}It works{{else}}Nope it's not working{{/if_os}}"#,
+            )?;
+            let reg =
+                Registry::default().register_helpers()?.load(&config)?;
+            assert_eq!(
+                "It works",
+                std::str::from_utf8(
+                    &reg.get(&template_path.to_string_lossy())?
+                )?,
+            );
+
+            let config = expand(DTConfig::from_str(&format!(
+                r#"
+[context.os]
+version = "latest"
+
+[[local]]
+name = "host"
+base = "{}"
+target = "{}"
+sources = ["{}"]
+"#,
+                base.display(),
+                target.display(),
+                src_name,
+            ))?)?;
+            std::fs::write(
+                &template_path,
+                r#"{{#if_os "version" os.version}}It works{{else}}Not working{{/if_os}}"#,
+            )?;
+            let reg =
+                Registry::default().register_helpers()?.load(&config)?;
+            assert_eq!(
+                "It works",
+                std::str::from_utf8(
+                    &reg.get(&template_path.to_string_lossy())?
+                )?,
+            );
+            Ok(())
+        }
+
+        #[test]
+        fn if_os_any() -> Result<(), Report> {
+            let base = prepare_directory(
+                get_testroot("block_helpers").join("os").join("if_os_any"),
+                0o755,
+            )?;
+            let src_name = "template";
+            let template_path = prepare_file(base.join(src_name), 0o644)?;
+            let target = prepare_directory(base.join("target"), 0o755)?;
+            let config = expand(DTConfig::from_str(&format!(
+                r#"
+[[local]]
+name = "os"
+base = "{}"
+target = "{}"
+sources = ["{}"]
+"#,
+                base.display(),
+                target.display(),
+                src_name,
+            ))?)?;
+
+            std::fs::write(
+                &template_path,
+                r#"{{#if_os "id" "dummy-version,dt"}}It works{{else}}Nope it's not working{{/if_os}}"#,
+            )?;
+            let reg =
+                Registry::default().register_helpers()?.load(&config)?;
+            assert_eq!(
+                "It works",
+                std::str::from_utf8(
+                    &reg.get(&template_path.to_string_lossy())?
+                )?,
+            );
+
+            let config = expand(DTConfig::from_str(&format!(
+                r#"
+[context.os]
+version = ["0.99.99", "99.0.0"]
+
+[[local]]
+name = "host"
+base = "{}"
+target = "{}"
+sources = ["{}"]
+"#,
+                base.display(),
+                target.display(),
+                src_name,
+            ))?)?;
+            std::fs::write(
+                &template_path,
+                r#"{{#if_os "version_id" os.version}}It works{{else}}Not working{{/if_os}}"#,
+            )?;
+            let reg =
+                Registry::default().register_helpers()?.load(&config)?;
+            assert_eq!(
+                "It works",
+                std::str::from_utf8(
+                    &reg.get(&template_path.to_string_lossy())?
+                )?,
+            );
+            Ok(())
+        }
+
+        #[test]
+        fn unless_os_exact() -> Result<(), Report> {
+            let base = prepare_directory(
+                get_testroot("block_helpers")
+                    .join("os")
+                    .join("unless_os_exact"),
+                0o755,
+            )?;
+            let src_name = "template";
+            let template_path = prepare_file(base.join(src_name), 0o644)?;
+            let target = prepare_directory(base.join("target"), 0o755)?;
+            let config = expand(DTConfig::from_str(&format!(
+                r#"
+[[local]]
+name = "os"
+base = "{}"
+target = "{}"
+sources = ["{}"]
+"#,
+                base.display(),
+                target.display(),
+                src_name,
+            ))?)?;
+
+            std::fs::write(
+                &template_path,
+                r##"{{#unless_os "build_id" "#somethingsomething"}}Nope it's not working properly{{else}}It's working{{/unless_os}}"##,
+            )?;
+            let reg =
+                Registry::default().register_helpers()?.load(&config)?;
+            assert_eq!(
+                "It's working",
+                std::str::from_utf8(
+                    &reg.get(&template_path.to_string_lossy())?
+                )?,
+            );
+
+            let config = expand(DTConfig::from_str(&format!(
+                r#"
+[context.os]
+logo = "Buzz Lightyear"
+
+[[local]]
+name = "host"
+base = "{}"
+target = "{}"
+sources = ["{}"]
+"#,
+                base.display(),
+                target.display(),
+                src_name,
+            ))?)?;
+            std::fs::write(
+                &template_path,
+                r#"{{#unless_os "logo" os.logo}}Broken{{else}}Up and running{{/unless_os}}"#,
+            )?;
+            let reg =
+                Registry::default().register_helpers()?.load(&config)?;
+            assert_eq!(
+                "Up and running",
+                std::str::from_utf8(
+                    &reg.get(&template_path.to_string_lossy())?
+                )?,
+            );
+            Ok(())
+        }
+
+        #[test]
+        fn unless_os_any() -> Result<(), Report> {
+            let base = prepare_directory(
+                get_testroot("block_helpers")
+                    .join("os")
+                    .join("unless_os_any"),
+                0o755,
+            )?;
+            let src_name = "template";
+            let template_path = prepare_file(base.join(src_name), 0o644)?;
+            let target = prepare_directory(base.join("target"), 0o755)?;
+            let config = expand(DTConfig::from_str(&format!(
+                r#"
+[[local]]
+name = "os"
+base = "{}"
+target = "{}"
+sources = ["{}"]
+"#,
+                base.display(),
+                target.display(),
+                src_name,
+            ))?)?;
+
+            std::fs::write(
+                &template_path,
+                r##"{{#unless_os "home_url" "https://example.com/,https://github.com/blurgyy/dt/"}}Nope it's not working properly{{else}}It's working{{/unless_os}}"##,
+            )?;
+            let reg =
+                Registry::default().register_helpers()?.load(&config)?;
+            assert_eq!(
+                "It's working",
+                std::str::from_utf8(
+                    &reg.get(&template_path.to_string_lossy())?
+                )?,
+            );
+
+            let config = expand(DTConfig::from_str(&format!(
+                r#"
+[context.os.documentation]
+url = ["https://dt.cli.rs/", "https://github.com/blurgyy/dt/wiki/"]
+
+[[local]]
+name = "host"
+base = "{}"
+target = "{}"
+sources = ["{}"]
+"#,
+                base.display(),
+                target.display(),
+                src_name,
+            ))?)?;
+            std::fs::write(
+                &template_path,
+                r#"{{#unless_os "documentation_url" os.documentation.url}}xxxBroken{{else}}Up and running{{/unless_os}}"#,
+            )?;
+            let reg =
+                Registry::default().register_helpers()?.load(&config)?;
+            assert_eq!(
+                "Up and running",
                 std::str::from_utf8(
                     &reg.get(&template_path.to_string_lossy())?
                 )?,

@@ -155,7 +155,7 @@ pub(crate) mod testing {
     pub fn prepare_directory(
         abspath: PathBuf,
         mode: u32,
-    ) -> Result<PathBuf, Report> {
+    ) -> std::result::Result<PathBuf, Report> {
         std::fs::create_dir_all(&abspath)?;
         std::fs::set_permissions(&abspath, Permissions::from_mode(mode))?;
         Ok(abspath)
@@ -164,7 +164,7 @@ pub(crate) mod testing {
     pub fn prepare_file(
         abspath: PathBuf,
         mode: u32,
-    ) -> Result<PathBuf, Report> {
+    ) -> std::result::Result<PathBuf, Report> {
         if let Some(parent) = abspath.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -186,6 +186,36 @@ pub(crate) mod testing {
 
     pub fn get_current_username() -> Option<OsString> {
         Some("luke".into())
+    }
+
+    pub fn linux_os_release(
+    ) -> crate::error::Result<sys_info::LinuxOSReleaseInfo> {
+        let info = sys_info::LinuxOSReleaseInfo {
+            id: Some("dt".into()),
+            id_like: Some("DotfileTemplater".into()),
+            name: Some("dt".into()),
+            pretty_name: Some("DT".into()),
+            version: Some("latest".into()),
+            version_id: Some("0.99.99".into()),
+            version_codename: Some("dummy-version_codename".into()),
+            ansi_color: Some("dummy-ansi_color".into()),
+            logo: Some("Buzz Lightyear".into()),
+            cpe_name: Some("dummy-cpe_name".into()),
+            build_id: Some("#somethingsomething".into()),
+            variant: Some("dummy-variant".into()),
+            variant_id: Some("dummy-variant_id".into()),
+            home_url: Some("https://github.com/blurgyy/dt/".into()),
+            documentation_url: Some("https://dt.cli.rs/".into()),
+            support_url: Some("https://github.com/blurgyy/dt/issues".into()),
+            bug_report_url: Some(
+                "https://github.com/blurgyy/dt/issues".into(),
+            ),
+            privacy_policy_url: Some(
+                "https://github.com/blurgyy/dt/blob/main/CODE_OF_CONDUCT.md"
+                    .into(),
+            ),
+        };
+        Ok(info)
     }
 }
 

@@ -192,12 +192,13 @@ pub mod helpers {
     #[cfg(not(test))]
     use {
         gethostname::gethostname,
+        sys_info::linux_os_release,
         users::{get_current_uid, get_current_username},
     };
 
     #[cfg(test)]
     use crate::utils::testing::{
-        get_current_uid, get_current_username, gethostname,
+        get_current_uid, get_current_username, gethostname, linux_os_release,
     };
 
     use handlebars::{
@@ -241,7 +242,7 @@ Inline helper `{0}`:
         let map = match h.param(0) {
             Some(map) => map.value(),
             None => {
-                out.write(&gethostname().to_string_lossy())?;
+                out.write(&gethostname().to_string_lossy().to_string())?;
                 return Ok(());
             }
         };
@@ -753,9 +754,7 @@ Block helper `#{0}`:
             }
         };
 
-        let current_hostname = gethostname();
-        let current_hostname: String =
-            current_hostname.to_string_lossy().to_string();
+        let current_hostname = gethostname().to_string_lossy().to_string();
         if !allowed_hostnames.is_empty() {
             if allowed_hostnames.contains(&current_hostname) {
                 log::debug!(
@@ -857,9 +856,7 @@ Block helper `#{0}`:
             }
         };
 
-        let current_hostname = gethostname();
-        let current_hostname: String =
-            current_hostname.to_string_lossy().to_string();
+        let current_hostname = gethostname().to_string_lossy().to_string();
         if !disallowed_hostnames.is_empty() {
             if disallowed_hostnames.contains(&current_hostname) {
                 log::debug!(
@@ -920,7 +917,7 @@ Block helper `#{0}`:
         }
 
         if let Some(key) = h.param(0) {
-            let os_rel_info = match sys_info::linux_os_release() {
+            let os_rel_info = match linux_os_release() {
                 Ok(info) => info,
                 Err(msg) => return Err(RenderError::new(msg.to_string())),
             };
@@ -952,6 +949,7 @@ Block helper `#{0}`:
                     "/etc/os-release does not seem to provide '{}', see man:os-release(5) for more information",
                     query,
                 );
+                h.inverse().map(|t| t.render(r, ctx, rc, out));
                 return Ok(());
             }
             let value = value.unwrap();
@@ -1042,7 +1040,7 @@ Block helper `#{0}`:
         }
 
         if let Some(key) = h.param(0) {
-            let os_rel_info = match sys_info::linux_os_release() {
+            let os_rel_info = match linux_os_release() {
                 Ok(info) => info,
                 Err(msg) => return Err(RenderError::new(msg.to_string())),
             };
@@ -1074,6 +1072,7 @@ Block helper `#{0}`:
                     "/etc/os-release does not seem to provide '{}', see man:os-release(5) for more information",
                     query,
                 );
+                h.inverse().map(|t| t.render(r, ctx, rc, out));
                 return Ok(());
             }
             let value = value.unwrap();
