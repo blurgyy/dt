@@ -222,6 +222,20 @@ pub mod helpers {
         _rc: &mut RenderContext,
         out: &mut dyn Output,
     ) -> HelperResult {
+        let docmsg = format!(
+            r#"
+Inline helper `{0}`:
+    expected 0 or 2 arguments, 1 found
+
+    Usage:
+        1. {{{{ {0} }}}}
+           Renders current machine's hostname
+
+        2. {{{{ {0} <map> <default-value> }}}}
+           Gets value of <map>.$CURRENT_HOSTNAME, falls back to <default-value>"#,
+            h.name(),
+        );
+
         let map = match h.param(0) {
             Some(map) => map.value(),
             None => {
@@ -232,19 +246,7 @@ pub mod helpers {
         let default_content = match h.param(1) {
             Some(content) => content.value(),
             None => {
-                return Err(RenderError::new(&format!(
-                    r#"
-Inline helper `{0}`:
-    expected 0 or 2 arguments, 1 found
-
-    Usage:
-        1. {{{{ {0} }}}}
-           Renders current machine's hostname
-
-        2. {{{{ {0} <map> <default-value> }}}}
-           Gets value of <map>.$CURRENT_HOSTNAME, falls back to <default-value>"#,
-                    h.name(),
-                )))
+                return Err(RenderError::new(docmsg));
             }
         };
 
@@ -287,9 +289,8 @@ Inline helper `{0}`:
         rc: &mut RenderContext<'reg, 'rc>,
         out: &mut dyn Output,
     ) -> HelperResult {
-        if h.params().len() > 1 {
-            return Err(RenderError::new(&format!(
-                r#"
+        let docmsg = format!(
+            r#"
 Block helper `#{0}`:
     expected exactly 1 argument, {1} found
 
@@ -306,9 +307,12 @@ Block helper `#{0}`:
            Renders `..foo..` only if current user's username is exactly one of
            the values from the templating variable `some.array` (defined in
            the config file's `[context]` section)"#,
-                h.name(),
-                h.params().len(),
-            )));
+            h.name(),
+            h.params().len(),
+        );
+
+        if h.params().len() > 1 {
+            return Err(RenderError::new(docmsg));
         }
 
         let allowed_usernames: Vec<String> = match h.param(0) {
@@ -329,26 +333,7 @@ Block helper `#{0}`:
                 }
             }
             None => {
-                return Err(RenderError::new(&format!(
-                    r#"
-Block helper `#{0}`:
-    expected exactly 1 argument, 0 found
-
-    Usage:
-        1. {{{{#{0} "foo,bar"}}}}..baz..{{{{/{0}}}}}
-           Renders `..baz..` only if current user's username is either "foo"
-           or "bar"
-
-        2. {{{{#{0} "foo"}}}}..baz..{{{{else}}}}..qux..{{{{/{0}}}}}
-           Renders `..baz..` only if current user's username is "foo", renders
-           `..qux..` only if current user's username is NOT "foo"
-
-        3. {{{{#{0} some.array}}}}..foo..{{{{/{0}}}}}
-           Renders `..foo..` only if current user's username is exactly one of
-           the values from the templating variable `some.array` (defined in
-           the config file's `[context]` section)"#,
-                    h.name(),
-                )));
+                return Err(RenderError::new(docmsg));
             }
         };
 
@@ -411,9 +396,8 @@ Block helper `#{0}`:
         rc: &mut RenderContext<'reg, 'rc>,
         out: &mut dyn Output,
     ) -> HelperResult {
-        if h.params().len() > 1 {
-            return Err(RenderError::new(&format!(
-                r#"
+        let docmsg = format!(
+            r#"
 Block helper `#{0}`:
     expected exactly 1 argument, {1} found
 
@@ -430,9 +414,12 @@ Block helper `#{0}`:
            Renders `..foo..` only if current user's username is none of the
            values from the templating variable `some.array` (defined in the
            config file's `[context]` section)"#,
-                h.name(),
-                h.params().len(),
-            )));
+            h.name(),
+            h.params().len(),
+        );
+
+        if h.params().len() > 1 {
+            return Err(RenderError::new(docmsg));
         }
 
         let disallowed_usernames: Vec<String> = match h.param(0) {
@@ -453,26 +440,7 @@ Block helper `#{0}`:
                 }
             }
             None => {
-                return Err(RenderError::new(&format!(
-                    r#"
-Block helper `#{0}`:
-    expected exactly 1 argument, 0 found
-
-    Usage:
-        1. {{{{#{0} "foo,bar"}}}}..baz..{{{{/{0}}}}}
-           Renders `..baz..` only if current user's username is neither "foo"
-           nor "bar"
-
-        2. {{{{#{0} "foo"}}}}..baz..{{{{else}}}}..qux..{{{{/{0}}}}}
-           Renders `..baz..` only if current user's username is NOT "foo",
-           renders `..qux..` only if current user's username is "foo"
-
-        3. {{{{#{0} some.array}}}}..foo..{{{{/{0}}}}}
-           Renders `..foo..` only if current user's username is none of the
-           values from the templating variable `some.array` (defined in the
-           config file's `[context]` section)"#,
-                    h.name(),
-                )));
+                return Err(RenderError::new(docmsg));
             }
         };
 
@@ -532,9 +500,8 @@ Block helper `#{0}`:
         rc: &mut RenderContext<'reg, 'rc>,
         out: &mut dyn Output,
     ) -> HelperResult {
-        if h.params().len() > 1 {
-            return Err(RenderError::new(&format!(
-                r#"
+        let docmsg = format!(
+            r#"
 Block helper `#{0}`:
     expected exactly 1 argument, {1} found
 
@@ -551,9 +518,12 @@ Block helper `#{0}`:
            Renders `..foo..` only if current user's effective uid is exactly
            one of the values from the templating variable `some.array`
            (defined in the config file's `[context]` section)"#,
-                h.name(),
-                h.params().len(),
-            )));
+            h.name(),
+            h.params().len(),
+        );
+
+        if h.params().len() > 1 {
+            return Err(RenderError::new(docmsg));
         }
 
         let allowed_uids: Vec<u32> = match h.param(0) {
@@ -574,26 +544,7 @@ Block helper `#{0}`:
                 }
             }
             None => {
-                return Err(RenderError::new(&format!(
-                    r#"
-Block helper `#{0}`:
-    expected exactly 1 argument, 0 found
-
-    Usage:
-        1. {{{{#{0} "1000,1001"}}}}..foo..{{{{/{0}}}}}
-           Renders `..foo..` only if current user's effective uid is either
-           `1000` or `1001`"
-
-        2. {{{{#{0} 0}}}}..foo..{{{{else}}}}..bar..{{{{/{0}}}}}
-           Renders `..foo..` only if current user's effective uid is `0`,
-           renders `..bar..` if current user's effective uid is not `0`
-
-        3. {{{{#{0} some.array}}}}..foo..{{{{/{0}}}}}
-           Renders `..foo..` only if current user's effective uid is exactly
-           one of the values from the templating variable `some.array`
-           (defined in the config file's `[context]` section)"#,
-                    h.name(),
-                )));
+                return Err(RenderError::new(docmsg));
             }
         };
 
@@ -651,9 +602,8 @@ Block helper `#{0}`:
         rc: &mut RenderContext<'reg, 'rc>,
         out: &mut dyn Output,
     ) -> HelperResult {
-        if h.params().len() > 1 {
-            return Err(RenderError::new(&format!(
-                r#"
+        let docmsg = format!(
+            r#"
 Block helper `#{0}`:
     expected exactly 1 argument, {1} found
 
@@ -670,9 +620,12 @@ Block helper `#{0}`:
            Renders `..foo..` only if current user's effective uid is none of
            the values from the templating variable `some.array` (defined in
            the config file's `[context]` section)"#,
-                h.name(),
-                h.params().len(),
-            )));
+            h.name(),
+            h.params().len(),
+        );
+
+        if h.params().len() > 1 {
+            return Err(RenderError::new(docmsg));
         }
 
         let disallowed_uids: Vec<u32> = match h.param(0) {
@@ -693,26 +646,7 @@ Block helper `#{0}`:
                 }
             }
             None => {
-                return Err(RenderError::new(&format!(
-                    r#"
-Block helper `#{0}`:
-    expected exactly 1 argument, 0 found
-
-    Usage:
-        1. {{{{#{0} "1000,1001"}}}}..foo..{{{{/{0}}}}}
-           Renders `..foo..` only if current user's effective uid is neither
-           `1000` nor `1001`"
-
-        2. {{{{#{0} 0}}}}..foo..{{{{else}}}}..bar..{{{{/{0}}}}}
-           Renders `..foo..` only if current user's effective uid is NOT `0`,
-           renders `..bar..` if current user's effective uid is `0`
-
-        3. `{{{{#{0} some.array}}}}..foo..{{{{/{0}}}}}`
-           Renders `..foo..` only if current user's effective uid is none of
-           the values from the templating variable `some.array` (defined in
-           the config file's `[context]` section)"#,
-                    h.name(),
-                )));
+                return Err(RenderError::new(docmsg));
             }
         };
 
@@ -769,9 +703,8 @@ Block helper `#{0}`:
         rc: &mut RenderContext<'reg, 'rc>,
         out: &mut dyn Output,
     ) -> HelperResult {
-        if h.params().len() > 1 {
-            return Err(RenderError::new(&format!(
-                r#"
+        let docmsg = format!(
+            r#"
 Block helper `#{0}`:
     expected exactly 1 argument, {1} found
 
@@ -788,9 +721,12 @@ Block helper `#{0}`:
            Renders `..foo..` only if current machine's hostname is exactly one
            of the values from the templating variable `some.array` (defined in
            the config file's `[context]` section)"#,
-                h.name(),
-                h.params().len(),
-            )));
+            h.name(),
+            h.params().len(),
+        );
+
+        if h.params().len() > 1 {
+            return Err(RenderError::new(docmsg));
         }
 
         let allowed_hostnames: Vec<String> = match h.param(0) {
@@ -811,26 +747,7 @@ Block helper `#{0}`:
                 }
             }
             None => {
-                return Err(RenderError::new(&format!(
-                    r#"
-Block helper `#{0}`:
-    expected exactly 1 argument, 0 found
-
-    Usage:
-        1. {{{{#{0} "foo,bar"}}}}..bar..{{{{/{0}}}}}
-           Renders `..bar..` only if current machine's hostname is either
-           "foo" or "bar"
-
-        2. {{{{#{0} "foo"}}}}..baz..{{{{else}}}}..qux..{{{{/{0}}}}}
-           Renders `..baz..` only if current machine's hostname is "foo",
-           renders `..qux..` only if current user's username is NOT "foo"
-
-        3. `{{{{#{0} some.array}}}}..foo..{{{{/{0}}}}}`
-           Renders `..foo..` only if current machine's hostname is exactly one
-           of the values from the templating variable `some.array` (defined in
-           the config file's `[context]` section)"#,
-                    h.name(),
-                )));
+                return Err(RenderError::new(docmsg));
             }
         };
 
@@ -890,9 +807,8 @@ Block helper `#{0}`:
         rc: &mut RenderContext<'reg, 'rc>,
         out: &mut dyn Output,
     ) -> HelperResult {
-        if h.params().len() > 1 {
-            return Err(RenderError::new(&format!(
-                r#"
+        let docmsg = format!(
+            r#"
 Block helper `#{0}`:
     expected exactly 1 argument, {1} found
 
@@ -909,9 +825,12 @@ Block helper `#{0}`:
            Renders `..foo..` only if current machine's hostname is none of the
            values from the templating variable `some.array` (defined in the
            config file's `[context]` section)"#,
-                h.name(),
-                h.params().len(),
-            )));
+            h.name(),
+            h.params().len(),
+        );
+
+        if h.params().len() != 1 {
+            return Err(RenderError::new(docmsg));
         }
 
         let disallowed_hostnames: Vec<String> = match h.param(0) {
@@ -932,26 +851,7 @@ Block helper `#{0}`:
                 }
             }
             None => {
-                return Err(RenderError::new(&format!(
-                    r#"
-Block helper `#{0}`:
-    expected exactly 1 argument, 0 found
-
-    Usage:
-        1. {{{{#{0} "foo,bar"}}}}..bar..{{{{/{0}}}}}
-           Renders `..bar..` only if current machine's hostname is neither
-           "foo" nor "bar"
-
-        2. {{{{#{0} "foo"}}}}..baz..{{{{else}}}}..qux..{{{{/{0}}}}}
-           Renders `..baz..` only if current machine's hostname is NOT "foo",
-           renders `..qux..` only if current user's username is "foo"
-
-        3. `{{{{#{0} some.array}}}}..foo..{{{{/{0}}}}}`
-           Renders `..foo..` only if current machine's hostname is none of the
-           values from the templating variable `some.array` (defined in the
-           config file's `[context]` section)"#,
-                    h.name(),
-                )));
+                return Err(RenderError::new(docmsg));
             }
         };
 
