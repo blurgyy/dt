@@ -1,7 +1,6 @@
 use std::{
     collections::HashMap,
     io::{Read, Seek},
-    rc::Rc,
 };
 
 use content_inspector::inspect;
@@ -34,8 +33,8 @@ where
     fn load(self, config: &DTConfig) -> Result<Self> {
         unimplemented!()
     }
-    /// Returns the content of an item rendered with given rendering context.
-    /// This does not modify the stored content.
+    /// Renders the template addressed by `name` and store the rendered
+    /// content into cache.
     ///
     /// Rendering only happens if this item is considered as a plain text
     /// file.  If this item is considered as a binary file, it's original
@@ -48,23 +47,15 @@ where
     ///
     /// [`content_inspector`]: https://crates.io/crates/content_inspector
     /// [the crate's home page]: https://github.com/sharkdp/content_inspector
-    fn render<S: Serialize>(
-        &self,
-        name: &str,
-        ctx: &Rc<S>,
-    ) -> Result<Vec<u8>> {
+    fn update<S: Serialize>(&mut self, name: &str, ctx: &S) -> Result<()> {
         unimplemented!()
     }
-    /// Updates the stored content of an item with the new content rendered
-    /// with given rendering context.
-    fn update<S: Serialize>(
-        &mut self,
-        name: &str,
-        ctx: &Rc<S>,
-    ) -> Result<()> {
-        unimplemented!()
-    }
-    /// Looks up the rendered content of an item with given name.
+    /// Looks up the rendered content of an item with given name.  This should
+    /// differ from the [`render()`] method: it should be a table look-up
+    /// procedure, while [`render()`] will actually read from disk when
+    /// looking up failed.
+    ///
+    /// [`render()`]: render
     fn get(&self, name: &str) -> Result<Vec<u8>> {
         unimplemented!()
     }
@@ -108,35 +99,8 @@ impl Register for Registry<'_> {
             for s in &group.sources {
                 let name = s.to_string_lossy();
 
-                let mut f = std::fs::File::open(s)?;
-                f.seek(std::io::SeekFrom::Start(0))?;
-                let mut indicator =
-                    vec![
-                        0;
-                        std::cmp::min(1024, f.metadata()?.len() as usize)
-                    ];
-                f.read_exact(&mut indicator)?;
-
                 if group.is_renderable() {
-                    if inspect(&indicator).is_text() {
-                        let content = std::fs::read(s)?;
-                        registry.env.register_template_string(
-                            &name,
-                            std::str::from_utf8(&content)?,
-                        )?;
-                        registry.content.insert(
-                            name.to_string(),
-                            registry
-                                .env
-                                .render(&name, &config.context)?
-                                .into(),
-                        );
-                    } else {
-                        log::trace!(
-                            "'{}' has binary contents, skipping rendering",
-                            s.display(),
-                        );
-                    }
+                    registry.update(&name, &config.context)?;
                 } else {
                     log::trace!(
                         "'{}' is from an unrenderable group '{}'",
@@ -149,28 +113,23 @@ impl Register for Registry<'_> {
         Ok(registry)
     }
 
-    fn render<S: Serialize>(
-        &self,
-        name: &str,
-        ctx: &Rc<S>,
-    ) -> Result<Vec<u8>> {
-        if self.env.get_template(name).is_some() {
-            Ok(self.env.render(name, &**ctx)?.into())
+    fn update<S: Serialize>(&mut self, name: &str, ctx: &S) -> Result<()> {
+        let mut f = std::fs::File::open(name)?;
+        f.seek(std::io::SeekFrom::Start(0))?;
+        let mut indicator =
+            vec![0; std::cmp::min(1024, f.metadata()?.len() as usize)];
+        f.read_exact(&mut indicator)?;
+        if inspect(&indicator).is_text() {
+            self.env.register_template_string(
+                name,
+                std::fs::read_to_string(name)?,
+            )?;
+            self.content
+                .insert(name.to_owned(), self.env.render(name, ctx)?.into());
         } else {
-            match self.content.get(name) {
-                Some(content) => Ok(content.to_owned()),
-                None => Ok(std::fs::read(name)?),
-            }
+            log::trace!("'{}' has binary contents, skipping rendering", name);
+            self.content.insert(name.to_owned(), std::fs::read(name)?);
         }
-    }
-
-    fn update<S: Serialize>(
-        &mut self,
-        name: &str,
-        ctx: &Rc<S>,
-    ) -> Result<()> {
-        self.content
-            .insert(name.to_owned(), self.render(name, ctx)?);
         Ok(())
     }
 
