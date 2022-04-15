@@ -93,6 +93,8 @@ impl Register for Registry<'_> {
             .register_helper("unless_uid", Box::new(helpers::unless_uid));
         render_env
             .register_helper("unless_host", Box::new(helpers::unless_host));
+        render_env.register_helper("if_os", Box::new(helpers::if_os));
+        render_env.register_helper("unless_os", Box::new(helpers::unless_os));
 
         Ok(Self {
             env: render_env,
@@ -880,6 +882,250 @@ Block helper `#{0}`:
                 h.name(),
             )));
         }
+        Ok(())
+    }
+
+    /// Condition on values parsed from target machine's /etc/os-release
+    pub fn if_os<'reg, 'rc>(
+        h: &Helper<'reg, 'rc>,
+        r: &'reg Handlebars<'reg>,
+        ctx: &'rc Context,
+        rc: &mut RenderContext<'reg, 'rc>,
+        out: &mut dyn Output,
+    ) -> HelperResult {
+        let docmsg = format!(
+            r#"
+Block helper `#{0}`:
+    expected exactly 2 arguments, {1} found
+
+    Usage:
+        1. {{{{#{0} "PRETTY_NAME" "foo,bar"}}}}..baz..{{{{/{0}}}}}
+           Renders `..baz..` only if current machine's PRETTY_NAME is either
+           "foo" or "bar"
+
+        2. {{{{#{0} "id" "foo"}}}}..baz..{{{{else}}}}..qux..{{{{/{0}}}}}
+           Renders `..baz..` only if current machine's ID is "foo", renders
+           `..qux..` only if current user's ID is NOT "foo"
+
+        3. `{{{{#{0} "build_id" some.array}}}}..foo..{{{{/{0}}}}}`
+           Renders `..foo..` only if current machine's BUILD_ID is exactly one
+           of the values from the templating variable `some.array` (defined in
+           the config file's `[context]` section)"#,
+            h.name(),
+            h.params().len(),
+        );
+
+        if h.params().len() != 2 {
+            return Err(RenderError::new(docmsg));
+        }
+
+        if let Some(key) = h.param(0) {
+            let os_rel_info = match sys_info::linux_os_release() {
+                Ok(info) => info,
+                Err(msg) => return Err(RenderError::new(msg.to_string())),
+            };
+            let query: &str = &key.value().render().to_uppercase();
+            let value = match query {
+                // REF: https://docs.rs/sys-info/latest/sys_info/struct.LinuxOSReleaseInfo.html
+                "ID" => os_rel_info.id,
+                "ID_LIKE" => os_rel_info.id_like,
+                "NAME" => os_rel_info.name,
+                "PRETTY_NAME" => os_rel_info.pretty_name,
+                "VERSION" => os_rel_info.version,
+                "VERSION_ID" => os_rel_info.version_id,
+                "VERSION_CODENAME" => os_rel_info.version_codename,
+                "ANSI_COLOR" => os_rel_info.ansi_color,
+                "LOGO" => os_rel_info.logo,
+                "CPE_NAME" => os_rel_info.cpe_name,
+                "BUILD_ID" => os_rel_info.build_id,
+                "VARIANT" => os_rel_info.variant,
+                "VARIANT_ID" => os_rel_info.variant_id,
+                "HOME_URL" => os_rel_info.home_url,
+                "DOCUMENTATION_URL" => os_rel_info.documentation_url,
+                "SUPPORT_URL" => os_rel_info.support_url,
+                "BUG_REPORT_URL" => os_rel_info.bug_report_url,
+                "PRIVACY_POLICY_URL" => os_rel_info.privacy_policy_url,
+                _ => None,
+            };
+            if value == None {
+                log::warn!(
+                    "/etc/os-release does not seem to provide '{}', see man:os-release(5) for more information",
+                    query,
+                );
+                return Ok(());
+            }
+            let value = value.unwrap();
+
+            let allowed_values: Vec<String> = match h.param(1) {
+                Some(v) => {
+                    if v.value().is_array() {
+                        v.value()
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .map(|elem| elem.render())
+                            .collect::<Vec<_>>()
+                    } else {
+                        v.value()
+                            .render()
+                            .split(',')
+                            .map(|h| h.trim().to_owned())
+                            .collect()
+                    }
+                }
+                None => {
+                    return Err(RenderError::new(docmsg));
+                }
+            };
+
+            if !allowed_values.is_empty() {
+                if allowed_values.contains(&value) {
+                    log::debug!(
+                        "Query result '{}' matches allowed value '{:?}'",
+                        value,
+                        allowed_values,
+                    );
+                    h.template().map(|t| t.render(r, ctx, rc, out));
+                } else {
+                    log::debug!(
+                        "Query result '{}' does not match allowed value '{:?}'",
+                        value,
+                        allowed_values,
+                    );
+                    h.inverse().map(|t| t.render(r, ctx, rc, out));
+                }
+            } else {
+                return Err(RenderError::new(format!(
+                    "no value(s) supplied for matching in helper {}",
+                    h.name(),
+                )));
+            }
+        } else {
+            return Err(RenderError::new(docmsg));
+        }
+
+        Ok(())
+    }
+
+    /// Condition on values parsed from target machine's /etc/os-release
+    pub fn unless_os<'reg, 'rc>(
+        h: &Helper<'reg, 'rc>,
+        r: &'reg Handlebars<'reg>,
+        ctx: &'rc Context,
+        rc: &mut RenderContext<'reg, 'rc>,
+        out: &mut dyn Output,
+    ) -> HelperResult {
+        let docmsg = format!(
+            r#"
+Block helper `#{0}`:
+    expected exactly 2 arguments, {1} found
+
+    Usage:
+        1. {{{{#{0} "PRETTY_NAME" "foo,bar"}}}}..baz..{{{{/{0}}}}}
+           Renders `..baz..` only if current machine's PRETTY_NAME is neither
+           "foo" nor "bar"
+
+        2. {{{{#{0} "id" "foo"}}}}..baz..{{{{else}}}}..qux..{{{{/{0}}}}}
+           Renders `..baz..` only if current machine's ID is NOT "foo",
+           renders `..qux..` only if current user's ID is "foo"
+
+        3. `{{{{#{0} "build_id" some.array}}}}..foo..{{{{/{0}}}}}`
+           Renders `..foo..` only if current machine's BUILD_ID is none of the
+           values from the templating variable `some.array` (defined in the
+           config file's `[context]` section)"#,
+            h.name(),
+            h.params().len(),
+        );
+
+        if h.params().len() != 2 {
+            return Err(RenderError::new(docmsg));
+        }
+
+        if let Some(key) = h.param(0) {
+            let os_rel_info = match sys_info::linux_os_release() {
+                Ok(info) => info,
+                Err(msg) => return Err(RenderError::new(msg.to_string())),
+            };
+            let query: &str = &key.value().render().to_uppercase();
+            let value = match query {
+                // REF: https://docs.rs/sys-info/latest/sys_info/struct.LinuxOSReleaseInfo.html
+                "ID" => os_rel_info.id,
+                "ID_LIKE" => os_rel_info.id_like,
+                "NAME" => os_rel_info.name,
+                "PRETTY_NAME" => os_rel_info.pretty_name,
+                "VERSION" => os_rel_info.version,
+                "VERSION_ID" => os_rel_info.version_id,
+                "VERSION_CODENAME" => os_rel_info.version_codename,
+                "ANSI_COLOR" => os_rel_info.ansi_color,
+                "LOGO" => os_rel_info.logo,
+                "CPE_NAME" => os_rel_info.cpe_name,
+                "BUILD_ID" => os_rel_info.build_id,
+                "VARIANT" => os_rel_info.variant,
+                "VARIANT_ID" => os_rel_info.variant_id,
+                "HOME_URL" => os_rel_info.home_url,
+                "DOCUMENTATION_URL" => os_rel_info.documentation_url,
+                "SUPPORT_URL" => os_rel_info.support_url,
+                "BUG_REPORT_URL" => os_rel_info.bug_report_url,
+                "PRIVACY_POLICY_URL" => os_rel_info.privacy_policy_url,
+                _ => None,
+            };
+            if value == None {
+                log::warn!(
+                    "/etc/os-release does not seem to provide '{}', see man:os-release(5) for more information",
+                    query,
+                );
+                return Ok(());
+            }
+            let value = value.unwrap();
+
+            let disallowed_values: Vec<String> = match h.param(1) {
+                Some(v) => {
+                    if v.value().is_array() {
+                        v.value()
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .map(|elem| elem.render())
+                            .collect::<Vec<_>>()
+                    } else {
+                        v.value()
+                            .render()
+                            .split(',')
+                            .map(|h| h.trim().to_owned())
+                            .collect()
+                    }
+                }
+                None => {
+                    return Err(RenderError::new(docmsg));
+                }
+            };
+
+            if !disallowed_values.is_empty() {
+                if disallowed_values.contains(&value) {
+                    log::debug!(
+                        "Query result '{}' matches disallowed value '{:?}'",
+                        value,
+                        disallowed_values,
+                    );
+                    h.inverse().map(|t| t.render(r, ctx, rc, out));
+                } else {
+                    log::debug!(
+                        "Query result '{}' does not match disallowed value '{:?}'",
+                        value,
+                        disallowed_values,
+                    );
+                    h.template().map(|t| t.render(r, ctx, rc, out));
+                }
+            } else {
+                return Err(RenderError::new(format!(
+                    "no value(s) supplied for matching in helper {}",
+                    h.name(),
+                )));
+            }
+        } else {
+            return Err(RenderError::new(docmsg));
+        }
+
         Ok(())
     }
 }
