@@ -882,7 +882,26 @@ Block helper `#{0}`:
         Ok(())
     }
 
-    /// Condition on values parsed from target machine's /etc/os-release
+    /// A templating helper that conditions on values parsed from target
+    /// machine's /etc/os-release file.  The querying keys are case agnostic.
+    ///
+    /// Usage:
+    ///
+    /// 1. `{{#if_os "PRETTY_NAME" "foo,bar"}}..baz..{{/if_os}}`
+    ///
+    ///    Renders `..baz..` only if current machine's PRETTY_NAME is either
+    ///    "foo" or "bar"
+    /// 2. `{{#if_os "id" "foo"}}..baz..{{else}}..qux..{{/if_os}}`
+    ///
+    ///    Renders `..baz..` only if current machine's ID is "foo", renders
+    ///    `..qux..` only if current user's ID is NOT "foo"
+    /// 3. `{{#if_os "build_id" some.array}}..foo..{{/if_os}}`
+    ///
+    ///    Renders `..foo..` only if current machine's BUILD_ID is exactly one
+    ///    of the values from the templating variable `some.array` (defined in
+    ///    the config file's [`[context]`] section)"#,
+    ///
+    /// [`[context]`]: dt_core::config::ContextConfig
     pub fn if_os<'reg, 'rc>(
         h: &Helper<'reg, 'rc>,
         r: &'reg Handlebars<'reg>,
@@ -904,7 +923,7 @@ Block helper `#{0}`:
            Renders `..baz..` only if current machine's ID is "foo", renders
            `..qux..` only if current user's ID is NOT "foo"
 
-        3. `{{{{#{0} "build_id" some.array}}}}..foo..{{{{/{0}}}}}`
+        3. {{{{#{0} "build_id" some.array}}}}..foo..{{{{/{0}}}}}
            Renders `..foo..` only if current machine's BUILD_ID is exactly one
            of the values from the templating variable `some.array` (defined in
            the config file's `[context]` section)"#,
@@ -1005,7 +1024,27 @@ Block helper `#{0}`:
         Ok(())
     }
 
-    /// Condition on values parsed from target machine's /etc/os-release
+    /// A templating helper that conditions on values parsed from target
+    /// machine's /etc/os-release file.  It is the negated version of
+    /// [`if_os`].  The querying keys are case agnostic.
+    ///
+    /// Usage:
+    /// 1. `{{#unless_os "PRETTY_NAME" "foo,bar"}}..baz..{{/unless_os}}
+    ///
+    ///    Renders `..baz..` only if current machine's PRETTY_NAME is neither
+    ///    "foo" nor "bar"
+    /// 2. `{{#unless_os "id" "foo"}}..baz..{{else}}..qux..{{/unless_os}}`
+    ///
+    ///    Renders `..baz..` only if current machine's ID is NOT "foo",
+    ///    renders `..qux..` only if current user's ID is "foo"
+    /// 3. `{{#unless_os "build_id" some.array}}..foo..{{/unless_os}}`
+    ///
+    ///    Renders `..foo..` only if current machine's BUILD_ID is none of the
+    ///    values from the templating variable `some.array` (defined in the
+    ///    config file's [`[context]`] section)"#,
+    ///
+    /// [`if_os`]: if_os
+    /// [`[context]`]: dt_core::config::ContextConfig
     pub fn unless_os<'reg, 'rc>(
         h: &Helper<'reg, 'rc>,
         r: &'reg Handlebars<'reg>,
@@ -1027,7 +1066,7 @@ Block helper `#{0}`:
            Renders `..baz..` only if current machine's ID is NOT "foo",
            renders `..qux..` only if current user's ID is "foo"
 
-        3. `{{{{#{0} "build_id" some.array}}}}..foo..{{{{/{0}}}}}`
+        3. {{{{#{0} "build_id" some.array}}}}..foo..{{{{/{0}}}}}
            Renders `..foo..` only if current machine's BUILD_ID is none of the
            values from the templating variable `some.array` (defined in the
            config file's `[context]` section)"#,
