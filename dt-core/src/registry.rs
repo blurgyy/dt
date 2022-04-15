@@ -269,16 +269,16 @@ Inline helper `{0}`:
     ///
     /// Usage:
     ///
-    /// 1. {{#if_user "foo,bar"}}..baz..{{/if_user}}
+    /// 1. `{{#if_user "foo,bar"}}..baz..{{/if_user}}`
     ///
     ///    Renders `..baz..` only if current user's username is either "foo"
     ///    or "bar".
-    /// 2. {{#if_user "foo"}}..baz..{{else}}..qux..{{/if_user}}
+    /// 2. `{{#if_user "foo"}}..baz..{{else}}..qux..{{/if_user}}`
     ///
     ///    Renders `..baz..` only if current user's username is "foo", renders
     ///    `..qux..` only if current user's username is NOT "foo".
     ///
-    /// 3. {{#if_user some.array}}..foo..{{/if_user}}
+    /// 3. `{{#if_user some.array}}..foo..{{/if_user}}`
     ///
     ///    Renders `..foo..` only if current user's username is exactly one of
     ///    the values from the templating variable `some.array` (defined in
@@ -375,16 +375,16 @@ Block helper `#{0}`:
     ///
     /// Usage:
     ///
-    /// 1. {{#unless_user "foo,bar"}}..baz..{{/unless_user}}
+    /// 1. `{{#unless_user "foo,bar"}}..baz..{{/unless_user}}`
     ///
     ///    Renders `..baz..` only if current user's username is neither "foo"
     ///    nor "bar".
-    /// 2. {{#unless_user "foo"}}..baz..{{else}}..qux..{{/unless_user}}
+    /// 2. `{{#unless_user "foo"}}..baz..{{else}}..qux..{{/unless_user}}`
     ///
     ///    Renders `..baz..` only if current user's username is NOT "foo",
     ///    renders `..qux..` only if current user's username is "foo".
     ///
-    /// 3. {{#unless_user some.array}}..foo..{{/unless_user}}
+    /// 3. `{{#unless_user some.array}}..foo..{{/unless_user}}`
     ///
     ///    Renders `..foo..` only if current user's username is none of the
     ///    values from the templating variable `some.array` (defined in the
@@ -489,7 +489,7 @@ Block helper `#{0}`:
     ///
     ///    Renders `..foo..` only if current user's effective uid is `0`,
     ///    renders `..bar..` only if current user's effective uid is not `0`.
-    /// 3. {{#if_uid some.array}}..foo..{{/if_uid}}
+    /// 3. `{{#if_uid some.array}}..foo..{{/if_uid}}`
     ///
     ///    Renders `..foo..` only if current user's effective uid is exactly
     ///    one of the values from the templating variable `some.array`
@@ -684,11 +684,11 @@ Block helper `#{0}`:
     ///
     /// Usage:
     ///
-    /// 1. {{#if_host "foo,bar"}}..baz..{{/if_host}}
+    /// 1. `{{#if_host "foo,bar"}}..baz..{{/if_host}}`
     ///
     ///    Renders `..baz..` only if current machine's hostname is either
     ///    "foo" or "bar".
-    /// 2. {{#if_host "foo"}}..baz..{{else}}..qux..{{/if_host}}
+    /// 2. `{{#if_host "foo"}}..baz..{{else}}..qux..{{/if_host}}`
     ///
     ///    Renders `..baz..` only if current machine's hostname is "foo",
     ///    renders `..qux..` only if current user's username is NOT "foo".
@@ -720,7 +720,7 @@ Block helper `#{0}`:
            Renders `..baz..` only if current machine's hostname is "foo",
            renders `..qux..` only if current user's username is NOT "foo"
 
-        3. `{{{{#{0} some.array}}}}..foo..{{{{/{0}}}}}`
+        3. {{{{#{0} some.array}}}}..foo..{{{{/{0}}}}}
            Renders `..foo..` only if current machine's hostname is exactly one
            of the values from the templating variable `some.array` (defined in
            the config file's `[context]` section)"#,
@@ -781,15 +781,15 @@ Block helper `#{0}`:
     }
 
     /// A templating helper that tests if current machine's hostname matches a
-    /// set of given string(s).  It it the negated version of [`if_host`]
+    /// set of given string(s).  It is the negated version of [`if_host`]
     ///
     /// Usage:
     ///
-    /// 1. {{#unless_host "foo,bar"}}..baz..{{/unless_host}}
+    /// 1. `{{#unless_host "foo,bar"}}..baz..{{/unless_host}}`
     ///
     ///    Renders `..baz..` only if current machine's hostname is neither
     ///    "foo" nor "bar".
-    /// 2. {{#unless_host "foo"}}..baz..{{else}}..qux..{{/unless_host}}
+    /// 2. `{{#unless_host "foo"}}..baz..{{else}}..qux..{{/unless_host}}`
     ///
     ///    Renders `..baz..` only if current machine's hostname is NOT "foo",
     ///    renders `..qux..` only if current user's username is "foo".
@@ -822,7 +822,7 @@ Block helper `#{0}`:
            Renders `..baz..` only if current machine's hostname is NOT "foo",
            renders `..qux..` only if current user's username is "foo"
 
-        3. `{{{{#{0} some.array}}}}..foo..{{{{/{0}}}}}`
+        3. {{{{#{0} some.array}}}}..foo..{{{{/{0}}}}}
            Renders `..foo..` only if current machine's hostname is none of the
            values from the templating variable `some.array` (defined in the
            config file's `[context]` section)"#,
