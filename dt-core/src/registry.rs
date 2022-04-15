@@ -427,7 +427,6 @@ Block helper `#{0}`:
            renders `..qux..` only if current user's username is "foo"
 
         3. {{{{#{0} some.array}}}}..foo..{{{{/{0}}}}}
-
            Renders `..foo..` only if current user's username is none of the
            values from the templating variable `some.array` (defined in the
            config file's `[context]` section)"#,
@@ -469,7 +468,6 @@ Block helper `#{0}`:
            renders `..qux..` only if current user's username is "foo"
 
         3. {{{{#{0} some.array}}}}..foo..{{{{/{0}}}}}
-
            Renders `..foo..` only if current user's username is none of the
            values from the templating variable `some.array` (defined in the
            config file's `[context]` section)"#,
@@ -550,7 +548,6 @@ Block helper `#{0}`:
            renders `..bar..` if current user's effective uid is not `0`
 
         3. {{{{#{0} some.array}}}}..foo..{{{{/{0}}}}}
-
            Renders `..foo..` only if current user's effective uid is exactly
            one of the values from the templating variable `some.array`
            (defined in the config file's `[context]` section)"#,
@@ -592,7 +589,6 @@ Block helper `#{0}`:
            renders `..bar..` if current user's effective uid is not `0`
 
         3. {{{{#{0} some.array}}}}..foo..{{{{/{0}}}}}
-
            Renders `..foo..` only if current user's effective uid is exactly
            one of the values from the templating variable `some.array`
            (defined in the config file's `[context]` section)"#,
@@ -671,7 +667,6 @@ Block helper `#{0}`:
            renders `..bar..` if current user's effective uid is `0`
 
         3. {{{{#{0} some.array}}}}..foo..{{{{/{0}}}}}`
-
            Renders `..foo..` only if current user's effective uid is none of
            the values from the templating variable `some.array` (defined in
            the config file's `[context]` section)"#,
@@ -713,7 +708,6 @@ Block helper `#{0}`:
            renders `..bar..` if current user's effective uid is `0`
 
         3. `{{{{#{0} some.array}}}}..foo..{{{{/{0}}}}}`
-
            Renders `..foo..` only if current user's effective uid is none of
            the values from the templating variable `some.array` (defined in
            the config file's `[context]` section)"#,
@@ -791,7 +785,6 @@ Block helper `#{0}`:
            renders `..qux..` only if current user's username is NOT "foo"
 
         3. `{{{{#{0} some.array}}}}..foo..{{{{/{0}}}}}`
-
            Renders `..foo..` only if current machine's hostname is exactly one
            of the values from the templating variable `some.array` (defined in
            the config file's `[context]` section)"#,
@@ -833,7 +826,6 @@ Block helper `#{0}`:
            renders `..qux..` only if current user's username is NOT "foo"
 
         3. `{{{{#{0} some.array}}}}..foo..{{{{/{0}}}}}`
-
            Renders `..foo..` only if current machine's hostname is exactly one
            of the values from the templating variable `some.array` (defined in
            the config file's `[context]` section)"#,
@@ -914,10 +906,9 @@ Block helper `#{0}`:
            renders `..qux..` only if current user's username is "foo"
 
         3. `{{{{#{0} some.array}}}}..foo..{{{{/{0}}}}}`
-
-           Renders `..foo..` only if current machine's hostname is exactly one
-           of the values from the templating variable `some.array` (defined in
-           the config file's `[context]` section)"#,
+           Renders `..foo..` only if current machine's hostname is none of the
+           values from the templating variable `some.array` (defined in the
+           config file's `[context]` section)"#,
                 h.name(),
                 h.params().len(),
             )));
@@ -956,10 +947,9 @@ Block helper `#{0}`:
            renders `..qux..` only if current user's username is "foo"
 
         3. `{{{{#{0} some.array}}}}..foo..{{{{/{0}}}}}`
-
-           Renders `..foo..` only if current machine's hostname is exactly one
-           of the values from the templating variable `some.array` (defined in
-           the config file's `[context]` section)"#,
+           Renders `..foo..` only if current machine's hostname is none of the
+           values from the templating variable `some.array` (defined in the
+           config file's `[context]` section)"#,
                     h.name(),
                 )));
             }
