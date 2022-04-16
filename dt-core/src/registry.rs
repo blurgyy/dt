@@ -50,12 +50,7 @@ where
     fn update<S: Serialize>(&mut self, name: &str, ctx: &S) -> Result<()> {
         unimplemented!()
     }
-    /// Looks up the rendered content of an item with given name.  This should
-    /// differ from the [`render()`] method: it should be a table look-up
-    /// procedure, while [`render()`] will actually read from disk when
-    /// looking up failed.
-    ///
-    /// [`render()`]: render
+    /// Looks up the rendered content of an item with given name.
     fn get(&self, name: &str) -> Result<Vec<u8>> {
         unimplemented!()
     }
