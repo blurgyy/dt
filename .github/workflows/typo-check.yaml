@@ -1,0 +1,17 @@
+on:
+  push:
+    branches:
+      - "**" # All branches
+
+jobs:
+  run:
+    name: Check typos in source code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Actions Repository
+        uses: actions/checkout@v2
+
+      - name: Check typos
+        uses: crate-ci/typos@master
+        with:
+          config: ./.github/workflows/_typos.toml
