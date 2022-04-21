@@ -14,7 +14,7 @@ pub mod error;
 #[deny(missing_docs)]
 pub mod item;
 
-/// Helper utilites used internally (the [`Register`] trait and the register
+/// Helper utilities used internally (the [`Register`] trait and the register
 /// type [`Registry`] with cache for templates and rendered contents) and
 /// exposed for templating uses (additional [built-in helpers]).
 ///

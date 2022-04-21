@@ -52,7 +52,7 @@ where
     fn has_file_as_parent(&self) -> bool {
         unimplemented!()
     }
-    /// Checks whether any of the component refernces its parent.
+    /// Checks whether any of the component references its parent.
     fn is_twisted(&self) -> bool {
         unimplemented!()
     }
@@ -127,23 +127,23 @@ impl Operate for PathBuf {
                     self.display(),
                 )
             });
-        let splitted: Vec<_> = filename.split(hostname_sep).collect();
+        let split: Vec<_> = filename.split(hostname_sep).collect();
 
         assert!(
-        splitted.len() <= 2,
+        split.len() <= 2,
         "There appears to be more than 1 occurrences of hostname_sep ({}) in this path: {}",
         hostname_sep,
         self.display(),
     );
         assert!(
-            !splitted.first().unwrap().is_empty(),
+            !split.first().unwrap().is_empty(),
             "hostname_sep ({}) appears to be a prefix of this path: {}",
             hostname_sep,
             self.display(),
         );
 
-        splitted.len() > 1
-            && *splitted.last().unwrap()
+        split.len() > 1
+            && *split.last().unwrap()
                 != gethostname::gethostname().to_string_lossy()
     }
 
@@ -266,7 +266,7 @@ impl Operate for PathBuf {
         self.nearest_existing_parent().metadata().unwrap().is_file()
     }
 
-    /// Checks whether any of the component refernces its parent.
+    /// Checks whether any of the component references its parent.
     fn is_twisted(&self) -> bool {
         self.iter().any(|comp| comp == "..")
     }

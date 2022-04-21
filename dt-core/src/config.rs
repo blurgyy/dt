@@ -511,7 +511,7 @@ pub struct GlobalConfig {
 
     /// Whether to treat errors omitted during syncing as warnings.  It has a
     /// [per-group counterpart] to set per-group behaviours.  Note that errors
-    /// occured before or after syncing are NOT affected.
+    /// occurred before or after syncing are NOT affected.
     ///
     /// [per-group counterpart]: Group::ignore_failure
     #[serde(default)]
@@ -720,7 +720,7 @@ where
     pub allow_overwrite: Option<AllowOverwrite>,
 
     /// (Optional) Whether to treat errors omitted during syncing of this
-    /// group as warnings.  Note that errors occured before or after syncing
+    /// group as warnings.  Note that errors occurred before or after syncing
     /// are NOT affected.
     pub ignore_failure: Option<IgnoreFailure>,
 

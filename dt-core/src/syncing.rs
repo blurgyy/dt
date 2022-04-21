@@ -93,7 +93,7 @@ pub(crate) fn expand(config: DTConfig) -> Result<DTConfig> {
 
 /// Recursively expands glob from a given path.
 ///
-/// - If `do_glob` is `true`, trys to expand glob;
+/// - If `do_glob` is `true`, tries to expand glob;
 /// - If `do_glob` is `false`, `path` must be a directory, then children of
 ///   `path` are recursively expanded.
 ///

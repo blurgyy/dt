@@ -7,7 +7,7 @@ pub enum Error {
     ConfigError(String),
     /// Errors that occur during I/O operations.
     IoError(String),
-    /// Errors that occur while parsing of structures failes.
+    /// Errors that occur while parsing of structures fails.
     ParseError(String),
     /// Errors that occur while manipulating paths.
     PathError(String),
