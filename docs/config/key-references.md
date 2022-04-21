@@ -171,7 +171,7 @@ Whether to allow overwriting existing files, overrides the [global
 `allow_overwrite`](#allow-overwrite) key.
 
 :::warning Dead symlinks
-Dead symlinks are treated as non-existant, and are always overwrited
+Dead symlinks are treated as non-existent, and are always overwrited
 (regardless of this option).
 :::
 
@@ -179,7 +179,7 @@ Dead symlinks are treated as non-existant, and are always overwrited
 
 > [optional] string
 
-Separator for per-host settings, overries the [global
+Separator for per-host settings, overrides the [global
 `hostname_sep`](#hostname-sep) key.
 
 An additional item with `${hostname_sep}$(hostname)` appended to the original

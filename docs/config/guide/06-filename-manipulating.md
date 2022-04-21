@@ -10,7 +10,7 @@ good way to have them tracked by `dt-cli`.
 
 ## Basics
 
-To manupulate filename of items, `dt-cli` provides a configurable `rename`
+To manipulate filename of items, `dt-cli` provides a configurable `rename`
 option in the config file.  It is an array of renaming rules, each of them
 constitutes of a _pattern_ and a _substitution rule_.  A simple renaming rule
 to rename all items with a "dot-" prefix (like `dot-config`) to a "dotfile"

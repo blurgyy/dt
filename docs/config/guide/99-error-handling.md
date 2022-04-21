@@ -57,7 +57,7 @@ and warned during expanding.  These items will not cause errors.
 :::
 
 :::tip
-Expanding operations in thsi step do not create or modify anything, but only
+Expanding operations in this step do not create or modify anything, but only
 query the filesystem to check for existences and permissions.
 :::
 

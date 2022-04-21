@@ -39,9 +39,9 @@ A **hostname suffix** comprises of a **hostname separator** and a
   [per-group](/config/key-references#hostname-sep-1).
 - Hostname: Current machine's hostname.
 
-:::warning Multiple Occurences of <code>hostname_sep</code>
+:::warning Multiple Occurrences of <code>hostname_sep</code>
 To eliminate ambiguity, the hostname separator should appear at most once
-in any of the source items.  Multiple occurences of the hostname separator
+in any of the source items.  Multiple occurrences of the hostname separator
 will cause `dt-cli` to panic.
 :::
 

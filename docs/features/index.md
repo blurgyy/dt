@@ -2,7 +2,7 @@
 
 :::info
 This chapter and its subsequent sections illustrates why these features are
-desireable and how `dt-cli` solves them in an elegant way.  For explicit
+desirable and how `dt-cli` solves them in an elegant way.  For explicit
 configuration examples, please refer to the <sub>[[**Examples**](#)]</sub>
 links after each feature below.
 :::
