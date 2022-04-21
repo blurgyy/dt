@@ -1,2 +1,2 @@
 [files]
-extend-exclude = ["docs"]
+extend-exclude = ["docs", "pnpm-lock.yaml"]
