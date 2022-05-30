@@ -171,7 +171,7 @@ fn expand_recursive(
         let initial: Vec<PathBuf> = std::fs::read_dir(path)?
             .map(|x| {
                 x.unwrap_or_else(|_| {
-                    panic!("Cannot read dir properly '{}'", path.display())
+                    panic!("Cannot read dir '{}' properly", path.display())
                 })
                 .path()
             })
