@@ -7,7 +7,7 @@ module.exports = {
       "link",
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Rubik:wght@300..900",
+        href: "https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Rubik:wght@300..900&display=swap",
       },
     ],
     [
