@@ -41,6 +41,28 @@ no errors/warnings will be omitted when the target file exists; otherwise
 reports error and skips the existing item.  Using dry run to spot the existing
 files before syncing is recommended.
 
+:::warning Dead symlinks
+Dead symlinks are treated as non-existent, and are always overwrited
+(regardless of this option).
+:::
+
+### `ignore_failure`
+
+> [optional] bool
+
+Whether to treat errors omitted during syncing as warnings.  If omitted, uses
+`false`.
+
+:::warn Note
+errors occurred before or after syncing are NOT affected.
+:::
+
+### `renderable`
+
+> [optional] bool
+
+Whether to enable templating globally.  If omitted, uses `true`.
+
 ### `hostname_sep`
 
 > [optional] string
@@ -170,10 +192,19 @@ Syncing method, overrides the [global `method`](#method) key.
 Whether to allow overwriting existing files, overrides the [global
 `allow_overwrite`](#allow-overwrite) key.
 
-:::warning Dead symlinks
-Dead symlinks are treated as non-existent, and are always overwrited
-(regardless of this option).
-:::
+### `ignore_failure`
+
+> [optional] bool
+
+Whether to treat errors omitted during syncing as warnings, overrides the
+[global `ignore_failure`](#ignore_failure) key.
+
+### `renderable`
+
+> [optional] bool
+
+Whether to enable templating for this group, overrides the [global
+`renderable`](#renderable) key.
 
 ### `hostname_sep`
 
@@ -193,21 +224,24 @@ after `hostname_sep` matches current machine's hostname.
 
 When the following directory structure exists:
 
-```plain
-~/.ssh/
-├── authorized_keys
-├── authorized_keys@@sherlock
-├── authorized_keys@@watson
-├── config
-├── config@sherlock
-└── config@watson
+```bash
+$ ls -1 ~/.ssh/
+authorized_keys
+authorized_keys@@sherlock
+authorized_keys@@watson
+config
+config@sherlock
+config@watson
 ```
 
 On a machine with hostname set to `watson`, the below configuration
 (extraneous keys are omitted here)
 
-```toml [[local]]
+```toml
+[[local]]
 ...
+name = "network/ssh"
+method = "Symlink"
 hostname_sep = "@@"
 
 basedir = "~/.ssh"
@@ -218,9 +252,10 @@ target = "/tmp/sshconfig"
 
 will result in the below target (`/tmp/sshconfig`):
 
-```plain
-/tmp/sshconfig/
-└── config
+```bash
+$ ls -l /tmp/sshconfig
+total ...
+lrwxrwxrwx 1 <user> <user>  <size> <date> config -> /home/<user>/.local/share/dt/staging/network/#ssh/config
 ```
 
 Where `/tmp/sshconfig/config` mirrors the content of `~/.ssh/config@watson`.

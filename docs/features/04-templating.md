@@ -34,8 +34,10 @@ See the [configuration guide] for detailed usages.
 `dt-cli` uses Rust's [Handlebars crate] to render templates.  Handlebars is
 tested and widely used, according to its descriptions:
 
-> Handlebars-rust is the template engine that renders the official Rust
-> website rust-lang.org, its book.
+:::info
+Handlebars-rust is the template engine that renders the official Rust
+website rust-lang.org.
+:::
 
 For example, to apply a property named `cursor-size` to all source files under
 the `gui` group:
@@ -56,6 +58,12 @@ gtk-cursor-theme-size=24
 ...
 ```
 
+:::warning INFO
+The time consumed while rendering can be quite noticeable if the template
+being rendered is huge.  To skip rendering for a group, use the [`renderable =
+false`] option in the config file.
+:::
+
 The [Handlebars crate] also allows syntaxes like looping and conditioning, the
 [built-in helpers] are understood in `dt-cli`'s templates.  Please refer to
 the [Handlebars crate]'s page for syntax guides.
@@ -70,3 +78,4 @@ the [Handlebars crate]'s page for syntax guides.
 [Handlebars crate]: https://docs.rs/handlebars/latest/handlebars/
 [previous section]: #configuring
 [built-in helpers]: https://docs.rs/handlebars/latest/handlebars/#built-in-helpers
+[`renderable = false`]: /config/key-references#renderable-1
