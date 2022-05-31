@@ -1,0 +1,1 @@
+import{_ as n,y as a,x as s,W as t}from"./plugin-vue_export-helper.f07d1dea.js";const f='{"title":"Defining Default Behaviours","description":"","frontmatter":{},"relativePath":"config/guide/01-default-behaviours.md","lastUpdated":1653960932350}',e={},o=t("",4),i=[o];function c(p,r,l,u,d,h){return s(),a("div",null,i)}var k=n(e,[["render",c]]);export{f as __pageData,k as default};
