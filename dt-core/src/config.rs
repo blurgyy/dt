@@ -1631,7 +1631,7 @@ target = "{}""#,
         if let Err(err) = DTConfig::from_str(&format!(
             r#"
 [global]
-staging = "{}"
+staging = "{}/actual_staging_dir"
 
 [[local]]
 name = "staging is readonly"
@@ -1714,7 +1714,7 @@ target = "{}""#,
 name = "target is readonly"
 base = "{}"
 sources = []
-target = "{}""#,
+target = "{}/actual_target_dir""#,
             base.display(),
             target_path.display(),
         )) {
