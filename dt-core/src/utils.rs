@@ -101,10 +101,7 @@ pub fn default_config_path<P: AsRef<Path>>(
             }
             _ => {
                 if let Some(dir_path) = dirs::config_dir() {
-                    log::debug!(
-                        "Using config directory '{}' (inferred)",
-                        dir_path.display(),
-                    );
+                    log::debug!("Using config directory '{}' (inferred)", dir_path.display(),);
                     dir_path.join("dt")
                 } else {
                     return Err(AppError::ConfigError(
@@ -140,8 +137,8 @@ pub fn host_specific_suffix(hostname_sep: &str) -> String {
 #[cfg(test)]
 pub(crate) mod testing {
     use std::{
-        ffi::OsString, fs::Permissions, os::unix::prelude::PermissionsExt,
-        path::PathBuf, str::FromStr,
+        ffi::OsString, fs::Permissions, os::unix::prelude::PermissionsExt, path::PathBuf,
+        str::FromStr,
     };
 
     use color_eyre::Report;
@@ -152,19 +149,13 @@ pub(crate) mod testing {
         PathBuf::from_str(TESTROOT).unwrap().join(top_level)
     }
 
-    pub fn prepare_directory(
-        abspath: PathBuf,
-        mode: u32,
-    ) -> std::result::Result<PathBuf, Report> {
+    pub fn prepare_directory(abspath: PathBuf, mode: u32) -> std::result::Result<PathBuf, Report> {
         std::fs::create_dir_all(&abspath)?;
         std::fs::set_permissions(&abspath, Permissions::from_mode(mode))?;
         Ok(abspath)
     }
 
-    pub fn prepare_file(
-        abspath: PathBuf,
-        mode: u32,
-    ) -> std::result::Result<PathBuf, Report> {
+    pub fn prepare_file(abspath: PathBuf, mode: u32) -> std::result::Result<PathBuf, Report> {
         if let Some(parent) = abspath.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -188,8 +179,7 @@ pub(crate) mod testing {
         Some("luke".into())
     }
 
-    pub fn linux_os_release(
-    ) -> crate::error::Result<sys_info::LinuxOSReleaseInfo> {
+    pub fn linux_os_release() -> crate::error::Result<sys_info::LinuxOSReleaseInfo> {
         let info = sys_info::LinuxOSReleaseInfo {
             id: Some("dt".into()),
             id_like: Some("DotfileTemplater".into()),
@@ -207,12 +197,9 @@ pub(crate) mod testing {
             home_url: Some("https://github.com/blurgyy/dt/".into()),
             documentation_url: Some("https://dt.cli.rs/".into()),
             support_url: Some("https://github.com/blurgyy/dt/issues".into()),
-            bug_report_url: Some(
-                "https://github.com/blurgyy/dt/issues".into(),
-            ),
+            bug_report_url: Some("https://github.com/blurgyy/dt/issues".into()),
             privacy_policy_url: Some(
-                "https://github.com/blurgyy/dt/blob/main/CODE_OF_CONDUCT.md"
-                    .into(),
+                "https://github.com/blurgyy/dt/blob/main/CODE_OF_CONDUCT.md".into(),
             ),
         };
         Ok(info)

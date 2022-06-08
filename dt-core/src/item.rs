@@ -82,11 +82,7 @@ where
     }
     /// Populate this item with given group config.  The given group config is
     /// expected to be the group where this item belongs to.
-    fn populate<T: Register>(
-        &self,
-        group: Rc<Group<Self>>,
-        registry: Rc<T>,
-    ) -> Result<()> {
+    fn populate<T: Register>(&self, group: Rc<Group<Self>>, registry: Rc<T>) -> Result<()> {
         unimplemented!()
     }
     /// Show what is to be done if this item is to be populated with given
@@ -114,12 +110,9 @@ impl Operate for PathBuf {
     fn is_for_other_host(&self, hostname_sep: &str) -> bool {
         let filename = self
             .file_name()
-            .unwrap_or_else(|| {
-                panic!(
-                    "Failed extracting file name from path '{}'",
-                    self.display(),
-                )
-            })
+            .unwrap_or_else(
+                || panic!("Failed extracting file name from path '{}'", self.display(),),
+            )
             .to_str()
             .unwrap_or_else(|| {
                 panic!(
@@ -130,11 +123,11 @@ impl Operate for PathBuf {
         let split: Vec<_> = filename.split(hostname_sep).collect();
 
         assert!(
-        split.len() <= 2,
-        "There appears to be more than 1 occurrences of hostname_sep ({}) in this path: {}",
-        hostname_sep,
-        self.display(),
-    );
+            split.len() <= 2,
+            "There appears to be more than 1 occurrences of hostname_sep ({}) in this path: {}",
+            hostname_sep,
+            self.display(),
+        );
         assert!(
             !split.first().unwrap().is_empty(),
             "hostname_sep ({}) appears to be a prefix of this path: {}",
@@ -142,9 +135,7 @@ impl Operate for PathBuf {
             self.display(),
         );
 
-        split.len() > 1
-            && *split.last().unwrap()
-                != gethostname::gethostname().to_string_lossy()
+        split.len() > 1 && *split.last().unwrap() != gethostname::gethostname().to_string_lossy()
     }
 
     /// Gets the absolute path of `self`, **without** traversing symlinks.
@@ -170,10 +161,7 @@ impl Operate for PathBuf {
             let hs_filename = self
                 .file_name()
                 .unwrap_or_else(|| {
-                    panic!(
-                        "Failed extracting file name from path '{}'",
-                        self.display(),
-                    )
+                    panic!("Failed extracting file name from path '{}'", self.display(),)
                 })
                 .to_str()
                 .unwrap_or_else(|| {
@@ -213,8 +201,7 @@ impl Operate for PathBuf {
     /// );
     /// ```
     fn non_host_specific(self, hostname_sep: &str) -> Self {
-        self
-            .iter()
+        self.iter()
             .map(std::ffi::OsStr::to_str)
             .map(|s| {
                 s.unwrap_or_else(|| {
@@ -466,11 +453,7 @@ impl Operate for PathBuf {
 
     /// Populate this item with given group config.  The given group config is
     /// expected to be the group where this item belongs to.
-    fn populate<T: Register>(
-        &self,
-        group: Rc<LocalGroup>,
-        registry: Rc<T>,
-    ) -> Result<()> {
+    fn populate<T: Register>(&self, group: Rc<LocalGroup>, registry: Rc<T>) -> Result<()> {
         // Create possibly missing parent directories along target's path.
         let tpath = self.to_owned().make_target(
             &group.get_hostname_sep(),
@@ -498,13 +481,11 @@ impl Operate for PathBuf {
                 // `self` is _always_ a file.  If its target path `tpath` is a
                 // directory, we should return an error.
                 if tpath.is_dir() {
-                    return Err(
-                        AppError::SyncingError(format!(
-                            "a directory '{}' exists at the target path of a source file '{}'",
-                            tpath.display(),
-                            self.display(),
-                        ))
-                    );
+                    return Err(AppError::SyncingError(format!(
+                        "a directory '{}' exists at the target path of a source file '{}'",
+                        tpath.display(),
+                        self.display(),
+                    )));
                 }
                 if tpath.is_symlink() {
                     log::debug!(
@@ -516,8 +497,7 @@ impl Operate for PathBuf {
                 }
 
                 // Get content of this item
-                let src_content: Vec<u8> =
-                    self.get_content(&registry, &group)?;
+                let src_content: Vec<u8> = self.get_content(&registry, &group)?;
 
                 if let Ok(dest_content) = std::fs::read(&tpath) {
                     // Check target file's contents, if it has identical
@@ -588,13 +568,8 @@ impl Operate for PathBuf {
                         src_perm.mode(),
                         dest_perm.mode()
                     );
-                    if let Err(e) = std::fs::set_permissions(tpath, src_perm)
-                    {
-                        log::warn!(
-                            "'{}': Could not set permission: {}",
-                            self.display(),
-                            e,
-                        );
+                    if let Err(e) = std::fs::set_permissions(tpath, src_perm) {
+                        log::warn!("'{}': Could not set permission: {}", self.display(), e,);
                     }
                 }
             }
@@ -613,17 +588,13 @@ impl Operate for PathBuf {
                     )));
                 }
                 std::fs::create_dir_all(sparent)?;
-                if group.global.staging.0.canonicalize()?
-                    == group.base.canonicalize()?
-                {
+                if group.global.staging.0.canonicalize()? == group.base.canonicalize()? {
                     return Err(AppError::PathError(format!(
                         "base directory and its target point to the same path in group '{}'",
                         group.name,
                     )));
                 }
-                if group.global.staging.0.canonicalize()?
-                    == group.target.canonicalize()?
-                {
+                if group.global.staging.0.canonicalize()? == group.target.canonicalize()? {
                     return Err(AppError::PathError(format!(
                         "target directory and staging directory point to the same path in group '{}'",
                         group.name,
@@ -633,13 +604,11 @@ impl Operate for PathBuf {
                 // `self` is _always_ a file.  If its target path `tpath` is a
                 // directory, we should return an error.
                 if tpath.is_dir() {
-                    return Err(
-                        AppError::SyncingError(format!(
-                            "a directory '{}' exists at the target path of a source file '{}'",
-                            tpath.display(),
-                            self.display(),
-                        ))
-                    );
+                    return Err(AppError::SyncingError(format!(
+                        "a directory '{}' exists at the target path of a source file '{}'",
+                        tpath.display(),
+                        self.display(),
+                    )));
                 }
 
                 if tpath.exists() && !group.is_overwrite_allowed() {
@@ -664,8 +633,7 @@ impl Operate for PathBuf {
                     // existing target file.
 
                     // Get content of this item
-                    let src_content: Vec<u8> =
-                        self.get_content(&registry, &group)?;
+                    let src_content: Vec<u8> = self.get_content(&registry, &group)?;
 
                     if let Ok(dest_content) = std::fs::read(&staging_path) {
                         // Check staging file's contents, if it has identical
@@ -677,9 +645,7 @@ impl Operate for PathBuf {
                                 staging_path.display(),
                                 self.display(),
                             );
-                        } else if std::fs::write(&staging_path, &src_content)
-                            .is_err()
-                        {
+                        } else if std::fs::write(&staging_path, &src_content).is_err() {
                             // Contents of staging file differs from content
                             // of self, but writing to it failed.  It might be
                             // due to staging file being readonly. Attempt to
@@ -741,14 +707,8 @@ impl Operate for PathBuf {
                             src_perm.mode(),
                             dest_perm.mode()
                         );
-                        if let Err(e) =
-                            std::fs::set_permissions(&staging_path, src_perm)
-                        {
-                            log::warn!(
-                                "'{}': Could not set permission: {}",
-                                self.display(),
-                                e,
-                            );
+                        if let Err(e) = std::fs::set_permissions(&staging_path, src_perm) {
+                            log::warn!("'{}': Could not set permission: {}", self.display(), e,);
                         }
                     }
 
@@ -772,10 +732,7 @@ impl Operate for PathBuf {
                                 tpath.display(),
                             );
                             std::fs::remove_file(&tpath)?;
-                            std::os::unix::fs::symlink(
-                                &staging_path,
-                                &tpath,
-                            )?;
+                            std::os::unix::fs::symlink(&staging_path, &tpath)?;
                         }
                     }
                     // If target file exists but is not a symlink, try to

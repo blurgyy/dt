@@ -1,6 +1,6 @@
 edition = "2021"
 hard_tabs = false
-max_width = 78
+max_width = 100
 newline_style = "Unix"
 reorder_imports = true
 tab_spaces = 4
@@ -8,7 +8,7 @@ use_field_init_shorthand = true
 
 # Unstable features
 unstable_features = true
-comment_width = 78
+comment_width = 100
 wrap_comments = true
 
 # Author: Blurgy <gy@blurgy.xyz>

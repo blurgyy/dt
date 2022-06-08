@@ -73,12 +73,9 @@ impl Register for Registry<'_> {
         render_env.register_helper("if_user", Box::new(helpers::if_user));
         render_env.register_helper("if_uid", Box::new(helpers::if_uid));
         render_env.register_helper("if_host", Box::new(helpers::if_host));
-        render_env
-            .register_helper("unless_user", Box::new(helpers::unless_user));
-        render_env
-            .register_helper("unless_uid", Box::new(helpers::unless_uid));
-        render_env
-            .register_helper("unless_host", Box::new(helpers::unless_host));
+        render_env.register_helper("unless_user", Box::new(helpers::unless_user));
+        render_env.register_helper("unless_uid", Box::new(helpers::unless_uid));
+        render_env.register_helper("unless_host", Box::new(helpers::unless_host));
         render_env.register_helper("if_os", Box::new(helpers::if_os));
         render_env.register_helper("unless_os", Box::new(helpers::unless_os));
 
@@ -111,14 +108,11 @@ impl Register for Registry<'_> {
     fn update<S: Serialize>(&mut self, name: &str, ctx: &S) -> Result<()> {
         let mut f = std::fs::File::open(name)?;
         f.seek(std::io::SeekFrom::Start(0))?;
-        let mut indicator =
-            vec![0; std::cmp::min(1024, f.metadata()?.len() as usize)];
+        let mut indicator = vec![0; std::cmp::min(1024, f.metadata()?.len() as usize)];
         f.read_exact(&mut indicator)?;
         if inspect(&indicator).is_text() {
-            self.env.register_template_string(
-                name,
-                std::fs::read_to_string(name)?,
-            )?;
+            self.env
+                .register_template_string(name, std::fs::read_to_string(name)?)?;
             self.content
                 .insert(name.to_owned(), self.env.render(name, ctx)?.into());
         } else {
@@ -156,8 +150,8 @@ pub mod helpers {
     };
 
     use handlebars::{
-        Context, Handlebars, Helper, HelperResult, JsonRender, Output,
-        RenderContext, RenderError, Renderable,
+        Context, Handlebars, Helper, HelperResult, JsonRender, Output, RenderContext, RenderError,
+        Renderable,
     };
 
     /// A templating helper that retrieves the value for current host from a
@@ -207,11 +201,10 @@ Inline helper `{0}`:
             }
         };
 
-        let content =
-            match map.get(gethostname().to_string_lossy().to_string()) {
-                Some(content) => content.render(),
-                None => default_content.render(),
-            };
+        let content = match map.get(gethostname().to_string_lossy().to_string()) {
+            Some(content) => content.render(),
+            None => default_content.render(),
+        };
 
         out.write(&content)?;
 

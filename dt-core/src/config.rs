@@ -88,9 +88,7 @@ impl GroupName {
             self.0
                 .iter()
                 .skip(1)
-                .map(|comp| {
-                    subgroup_prefix.to_owned() + &comp.to_string_lossy()
-                })
+                .map(|comp| subgroup_prefix.to_owned() + &comp.to_string_lossy())
                 .collect::<PathBuf>(),
         )
     }
@@ -340,17 +338,13 @@ impl DTConfig {
             local: self
                 .local
                 .iter()
-                .filter(|l| {
-                    group_names.iter().any(|n| l.name.0.starts_with(n))
-                })
+                .filter(|l| group_names.iter().any(|n| l.name.0.starts_with(n)))
                 .map(|l| l.to_owned())
                 .collect(),
             remote: self
                 .remote
                 .iter()
-                .filter(|l| {
-                    group_names.iter().any(|n| l.name.0.starts_with(n))
-                })
+                .filter(|l| group_names.iter().any(|n| l.name.0.starts_with(n)))
                 .map(|l| l.to_owned())
                 .collect(),
         }
@@ -397,10 +391,7 @@ impl DTConfig {
             StagingPath(".".into())
         } else {
             StagingPath(
-                PathBuf::from_str(&shellexpand::tilde(
-                    &staging.0.to_string_lossy(),
-                ))
-                .unwrap(),
+                PathBuf::from_str(&shellexpand::tilde(&staging.0.to_string_lossy())).unwrap(),
             )
         };
 
@@ -411,24 +402,15 @@ impl DTConfig {
                 log::warn!("[{}]: Empty base is replaced to '.'", group.name);
                 ".".into()
             } else {
-                PathBuf::from_str(&shellexpand::tilde(
-                    &group.base.to_string_lossy(),
-                ))
-                .unwrap()
+                PathBuf::from_str(&shellexpand::tilde(&group.base.to_string_lossy())).unwrap()
             };
 
             // `local.target`
             group.target = if group.target == PathBuf::from_str("").unwrap() {
-                log::warn!(
-                    "[{}]: Empty target is replaced to '.'",
-                    group.name,
-                );
+                log::warn!("[{}]: Empty target is replaced to '.'", group.name,);
                 ".".into()
             } else {
-                PathBuf::from_str(&shellexpand::tilde(
-                    &group.target.to_string_lossy(),
-                ))
-                .unwrap()
+                PathBuf::from_str(&shellexpand::tilde(&group.target.to_string_lossy())).unwrap()
             };
         }
 
@@ -902,8 +884,7 @@ where
             // 1. Wrong type of existing staging path
             if staging_path.exists() && !staging_path.is_dir() {
                 return Err(AppError::ConfigError(
-                    "staging root path exists but is not a valid directory"
-                        .to_owned(),
+                    "staging root path exists but is not a valid directory".to_owned(),
                 ));
             }
 
@@ -1024,9 +1005,7 @@ impl LocalGroup {
             log::error!(
                     "If you want to match all items that starts with a dot, use ['.[!.]*', '..?*'] as sources.",
                 );
-            return Err(AppError::ConfigError(
-                "bad globbing pattern".to_owned(),
-            ));
+            return Err(AppError::ConfigError("bad globbing pattern".to_owned()));
         }
 
         // 9. Source item contains hostname_sep
@@ -1330,8 +1309,7 @@ target = ".""#,
             assert_eq!(
                 err,
                 AppError::ConfigError(
-                    "Group name should not contain relative component"
-                        .to_owned(),
+                    "Group name should not contain relative component".to_owned(),
                 ),
                 "{}",
                 err,
@@ -1354,15 +1332,15 @@ target = ".""#,
         ) {
             assert_eq!(
                 err,
-                AppError::ConfigError(
-                    "Group name should not start with slash".to_owned(),
-                ),
+                AppError::ConfigError("Group name should not start with slash".to_owned(),),
                 "{}",
                 err,
             );
             Ok(())
         } else {
-            Err(eyre!("This config should not be loaded because a group's name starts with a slash"))
+            Err(eyre!(
+                "This config should not be loaded because a group's name starts with a slash"
+            ))
         }
     }
 
@@ -1378,15 +1356,15 @@ target = ".""#,
         ) {
             assert_eq!(
                 err,
-                AppError::ConfigError(
-                    "Group name should not be empty".to_owned(),
-                ),
+                AppError::ConfigError("Group name should not be empty".to_owned(),),
                 "{}",
                 err,
             );
             Ok(())
         } else {
-            Err(eyre!("This config should not be loaded because a group's name is empty"))
+            Err(eyre!(
+                "This config should not be loaded because a group's name is empty"
+            ))
         }
     }
 
@@ -1411,7 +1389,9 @@ target = "~""#,
             );
             Ok(())
         } else {
-            Err(eyre!("This config should not be loaded because base and target are the same"))
+            Err(eyre!(
+                "This config should not be loaded because base and target are the same"
+            ))
         }
     }
 
@@ -1437,7 +1417,9 @@ target = ".""#,
             );
             Ok(())
         } else {
-            Err(eyre!("This config should not be loaded because a base contains hostname_sep"))
+            Err(eyre!(
+                "This config should not be loaded because a base contains hostname_sep"
+            ))
         }
     }
 
@@ -1487,7 +1469,9 @@ target = "/tmp""#,
             );
             Ok(())
         } else {
-            Err(eyre!("This config should not be loaded because a source item is an absolute path"))
+            Err(eyre!(
+                "This config should not be loaded because a source item is an absolute path"
+            ))
         }
     }
 
@@ -1509,7 +1493,9 @@ target = ".""#,
             );
             Ok(())
         } else {
-            Err(eyre!("This config should not be loaded because it contains bad globs (.* and /.*)"))
+            Err(eyre!(
+                "This config should not be loaded because it contains bad globs (.* and /.*)"
+            ))
         }
     }
 
@@ -1534,7 +1520,9 @@ target = ".""#,
             );
             Ok(())
         } else {
-            Err(eyre!("This config should not be loaded because a source item contains hostname_sep"))
+            Err(eyre!(
+                "This config should not be loaded because a source item contains hostname_sep"
+            ))
         }
     }
 }
@@ -1547,9 +1535,7 @@ mod validation_physical {
 
     use super::DTConfig;
     use crate::error::Error as AppError;
-    use crate::utils::testing::{
-        get_testroot, prepare_directory, prepare_file,
-    };
+    use crate::utils::testing::{get_testroot, prepare_directory, prepare_file};
 
     #[test]
     fn non_existent_relative_staging_and_target() -> Result<(), Report> {
@@ -1608,8 +1594,7 @@ target = "{}""#,
             assert_eq!(
                 err,
                 AppError::ConfigError(
-                    "staging root path exists but is not a valid directory"
-                        .to_owned(),
+                    "staging root path exists but is not a valid directory".to_owned(),
                 ),
                 "{}",
                 err,
@@ -1835,9 +1820,7 @@ target = ".""#,
         )) {
             assert_eq!(
                 err,
-                AppError::IoError(
-                    "Permission denied (os error 13)".to_owned(),
-                ),
+                AppError::IoError("Permission denied (os error 13)".to_owned(),),
                 "{}",
                 err,
             );

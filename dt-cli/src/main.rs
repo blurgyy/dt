@@ -27,21 +27,11 @@ struct Opt {
     dry_run: bool,
 
     /// Increases logging verbosity
-    #[structopt(
-        short,
-        long,
-        parse(from_occurrences),
-        conflicts_with = "quiet"
-    )]
+    #[structopt(short, long, parse(from_occurrences), conflicts_with = "quiet")]
     verbose: i8,
 
     /// Decreases logging verbosity
-    #[structopt(
-        short,
-        long,
-        parse(from_occurrences),
-        conflicts_with = "verbose"
-    )]
+    #[structopt(short, long, parse(from_occurrences), conflicts_with = "verbose")]
     quiet: i8,
 }
 
@@ -53,17 +43,10 @@ fn run() -> Result<()> {
 
     let config_path = match opt.config_path {
         Some(p) => {
-            log::debug!(
-                "Using config file '{}' (from command line)",
-                p.display(),
-            );
+            log::debug!("Using config file '{}' (from command line)", p.display(),);
             p
         }
-        None => default_config_path(
-            "DT_CLI_CONFIG_PATH",
-            "DT_CONFIG_DIR",
-            &["cli.toml"],
-        )?,
+        None => default_config_path("DT_CLI_CONFIG_PATH", "DT_CONFIG_DIR", &["cli.toml"])?,
     };
 
     let config = DTConfig::from_path(config_path)?;

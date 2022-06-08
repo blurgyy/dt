@@ -48,8 +48,7 @@ pub(crate) fn expand(config: DTConfig) -> Result<DTConfig> {
         let group_hostname_sep = original.get_hostname_sep();
 
         // Check for host-specific `base`
-        let host_specific_base =
-            next.base.to_owned().host_specific(&group_hostname_sep);
+        let host_specific_base = next.base.to_owned().host_specific(&group_hostname_sep);
         if host_specific_base.exists() {
             next.base = host_specific_base;
         }
@@ -94,17 +93,13 @@ pub(crate) fn expand(config: DTConfig) -> Result<DTConfig> {
 /// Recursively expands glob from a given path.
 ///
 /// - If `do_glob` is `true`, tries to expand glob;
-/// - If `do_glob` is `false`, `path` must be a directory, then children of
-///   `path` are recursively expanded.
+/// - If `do_glob` is `false`, `path` must be a directory, then children of `path` are recursively
+///   expanded.
 ///
 /// Returns a [`Vec`] of the expanded paths.
 ///
 /// [`Vec`]: Vec
-fn expand_recursive(
-    path: &Path,
-    hostname_sep: &str,
-    do_glob: bool,
-) -> Result<Vec<PathBuf>> {
+fn expand_recursive(path: &Path, hostname_sep: &str, do_glob: bool) -> Result<Vec<PathBuf>> {
     if do_glob {
         let globbing_options = glob::MatchOptions {
             case_sensitive: true,
@@ -112,41 +107,31 @@ fn expand_recursive(
             require_literal_leading_dot: true,
         };
 
-        let initial: Vec<PathBuf> =
-            glob::glob_with(&path.to_string_lossy(), globbing_options)?
-                // Extract value from Result<PathBuf>
-                .map(|x| {
-                    x.unwrap_or_else(|_| {
-                        panic!(
-                            "Failed globbing source path '{}'",
-                            path.display(),
-                        )
-                    })
+        let initial: Vec<PathBuf> = glob::glob_with(&path.to_string_lossy(), globbing_options)?
+            // Extract value from Result<PathBuf>
+            .map(|x| {
+                x.unwrap_or_else(|_| panic!("Failed globbing source path '{}'", path.display(),))
+            })
+            // Filter out paths that are meant for other hosts
+            .filter(|x| !x.is_for_other_host(hostname_sep))
+            // **After** filtering out paths that are meant for other
+            // hosts, replace current path to its host-specific
+            // counterpart if it exists.
+            .map(|x| {
+                let host_specific_x = x.to_owned().host_specific(hostname_sep);
+                if host_specific_x.exists() {
+                    host_specific_x
+                } else {
+                    x
+                }
+            })
+            // Convert to absolute paths
+            .map(|x| {
+                x.to_owned().absolute().unwrap_or_else(|_| {
+                    panic!("Failed converting to absolute path '{}'", x.display(),)
                 })
-                // Filter out paths that are meant for other hosts
-                .filter(|x| !x.is_for_other_host(hostname_sep))
-                // **After** filtering out paths that are meant for other
-                // hosts, replace current path to its host-specific
-                // counterpart if it exists.
-                .map(|x| {
-                    let host_specific_x =
-                        x.to_owned().host_specific(hostname_sep);
-                    if host_specific_x.exists() {
-                        host_specific_x
-                    } else {
-                        x
-                    }
-                })
-                // Convert to absolute paths
-                .map(|x| {
-                    x.to_owned().absolute().unwrap_or_else(|_| {
-                        panic!(
-                            "Failed converting to absolute path '{}'",
-                            x.display(),
-                        )
-                    })
-                })
-                .collect();
+            })
+            .collect();
         if initial.is_empty() {
             log::warn!("'{}' did not match anything", path.display());
         }
@@ -158,10 +143,7 @@ fn expand_recursive(
             } else if p.is_dir() {
                 ret.append(&mut expand_recursive(&p, hostname_sep, false)?);
             } else {
-                log::warn!(
-                    "Skipping unimplemented file type at '{}'",
-                    p.display(),
-                );
+                log::warn!("Skipping unimplemented file type at '{}'", p.display(),);
                 log::trace!("{:#?}", p.symlink_metadata()?);
             }
         }
@@ -170,10 +152,8 @@ fn expand_recursive(
     } else {
         let initial: Vec<PathBuf> = std::fs::read_dir(path)?
             .map(|x| {
-                x.unwrap_or_else(|_| {
-                    panic!("Cannot read dir '{}' properly", path.display())
-                })
-                .path()
+                x.unwrap_or_else(|_| panic!("Cannot read dir '{}' properly", path.display()))
+                    .path()
             })
             // Filter out paths that are meant for other hosts
             .filter(|x| !x.is_for_other_host(hostname_sep))
@@ -181,8 +161,7 @@ fn expand_recursive(
             // hosts, replace current path to its host-specific
             // counterpart if it exists.
             .map(|x| {
-                let host_specific_x =
-                    x.to_owned().host_specific(hostname_sep);
+                let host_specific_x = x.to_owned().host_specific(hostname_sep);
                 if host_specific_x.exists() {
                     host_specific_x
                 } else {
@@ -198,10 +177,7 @@ fn expand_recursive(
             } else if p.is_dir() {
                 ret.append(&mut expand_recursive(&p, hostname_sep, false)?);
             } else {
-                log::warn!(
-                    "Skipping unimplemented file type at '{}'",
-                    p.display(),
-                );
+                log::warn!("Skipping unimplemented file type at '{}'", p.display(),);
                 log::trace!("{:#?}", p.symlink_metadata()?);
             }
         }
@@ -308,16 +284,12 @@ pub fn sync(config: DTConfig, dry_run: bool) -> Result<()> {
     log::trace!("Local groups to process: {:#?}", config.local);
 
     let config = expand(config)?;
-    let registry =
-        Rc::new(Registry::default().register_helpers()?.load(&config)?);
+    let registry = Rc::new(Registry::default().register_helpers()?.load(&config)?);
 
     for group in &config.local {
         log::info!("Local group: [{}]", group.name);
         if group.sources.is_empty() {
-            log::debug!(
-                "Group [{}]: skipping due to empty group",
-                group.name,
-            );
+            log::debug!("Group [{}]: skipping due to empty group", group.name,);
             continue;
         } else {
             log::debug!(
@@ -344,9 +316,7 @@ pub fn sync(config: DTConfig, dry_run: bool) -> Result<()> {
                 }
             } else {
                 #[allow(clippy::collapsible_else_if)]
-                if let Err(e) = spath
-                    .populate(Rc::clone(&group_ref), Rc::clone(&registry))
-                {
+                if let Err(e) = spath.populate(Rc::clone(&group_ref), Rc::clone(&registry)) {
                     if group.is_failure_ignored() {
                         log::warn!("Error ignored: {}", e);
                     } else {
@@ -371,9 +341,7 @@ mod tests {
         use crate::error::Error as AppError;
 
         use super::super::expand;
-        use crate::utils::testing::{
-            get_testroot, prepare_directory, prepare_file,
-        };
+        use crate::utils::testing::{get_testroot, prepare_directory, prepare_file};
 
         #[test]
         fn unreadable_source() -> Result<(), Report> {
@@ -385,8 +353,7 @@ mod tests {
                     .join("base"),
                 0o755,
             )?;
-            let _source_path =
-                prepare_file(base.join(source_basename), 0o200)?;
+            let _source_path = prepare_file(base.join(source_basename), 0o200)?;
             let target_path = prepare_directory(
                 get_testroot("syncing")
                     .join("unreadable_source")
@@ -419,7 +386,9 @@ target = "{}""#,
             );
                 Ok(())
             } else {
-                Err(eyre!("This config should not be loaded because source item is not readable"))
+                Err(eyre!(
+                    "This config should not be loaded because source item is not readable"
+                ))
             }
         }
     }
@@ -433,16 +402,12 @@ target = "{}""#,
         use crate::{config::*, item::Operate};
 
         use super::super::expand;
-        use crate::utils::testing::{
-            get_testroot, prepare_directory, prepare_file,
-        };
+        use crate::utils::testing::{get_testroot, prepare_directory, prepare_file};
 
         #[test]
         fn glob() -> Result<(), Report> {
-            let target_path = prepare_directory(
-                get_testroot("syncing").join("glob").join("target"),
-                0o755,
-            )?;
+            let target_path =
+                prepare_directory(get_testroot("syncing").join("glob").join("target"), 0o755)?;
 
             let config = expand(
                 DTConfig::from_str(&format!(
@@ -572,8 +537,7 @@ target = "{}""#,
         }
 
         #[test]
-        fn former_group_has_higher_priority_within_same_scope() -> Result<()>
-        {
+        fn former_group_has_higher_priority_within_same_scope() -> Result<()> {
             let config = expand(DTConfig::from_str(
                 r#"
                 [[local]]

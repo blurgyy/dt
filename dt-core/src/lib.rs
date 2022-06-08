@@ -71,13 +71,10 @@ sources = ["{}"]
                 src_name,
             ))?)?;
             std::fs::write(&template_path, r#"Hi, {{get_mine}}!"#)?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "Hi, r2d2!",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
             Ok(())
         }
@@ -114,13 +111,10 @@ sources = ["{}"]
                 &template_path,
                 r#"The name r2d2 comes from _{{get_mine testing_group.origin "None"}}_"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "The name r2d2 comes from _Star Wars_",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
             Ok(())
         }
@@ -169,13 +163,10 @@ sources = ["{}"]
                 &template_path,
                 r#"Hi, {{#if_user "luke"}}Luke Skywalker{{else}}random person{{/if_user}}!"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "Hi, Luke Skywalker!",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
 
             let config = expand(DTConfig::from_str(&format!(
@@ -197,13 +188,10 @@ sources = ["{}"]
                 &template_path,
                 r#"Welcome back, {{#if_user user.name}}Luke Skywalker{{else}}random person{{/if_user}}!"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "Welcome back, Luke Skywalker!",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
             Ok(())
         }
@@ -236,13 +224,10 @@ sources = ["{}"]
                 &template_path,
                 r#"Hi, {{#if_user "luke,skywalker"}}Luke Skywalker{{else}}random person{{/if_user}}!"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "Hi, Luke Skywalker!",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
 
             let config = expand(DTConfig::from_str(&format!(
@@ -267,13 +252,10 @@ sources = ["{}"]
                 &template_path,
                 "Welcome back, {{#if_user user.allowed_names}}Luke Skywalker{{else}}random person{{/if_user}}!",
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "Welcome back, Luke Skywalker!",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
             Ok(())
         }
@@ -305,13 +287,10 @@ sources = ["{}"]
                 &template_path,
                 r#"Hi, {{#unless_user "luke"}}random person{{else}}Luke Skywalker{{/unless_user}}!"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "Hi, Luke Skywalker!",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
 
             let config = expand(DTConfig::from_str(&format!(
@@ -333,13 +312,10 @@ sources = ["{}"]
                 &template_path,
                 "Welcome back, {{#unless_user user.name}}random person{{else}}Luke Skywalker{{/unless_user}}!",
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "Welcome back, Luke Skywalker!",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
             Ok(())
         }
@@ -372,13 +348,10 @@ sources = ["{}"]
                 &template_path,
                 r#"Hi, {{#unless_user "luke,skywalker"}}random person{{else}}Luke Skywalker{{/unless_user}}!"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "Hi, Luke Skywalker!",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
 
             let config = expand(DTConfig::from_str(&format!(
@@ -403,13 +376,10 @@ sources = ["{}"]
                 &template_path,
                 r#"Welcome back, {{#unless_user user.allowed_names}}random person{{else}}Luke Skywalker{{/unless_user}}!"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "Welcome back, Luke Skywalker!",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
             Ok(())
         }
@@ -456,13 +426,10 @@ sources = ["{}"]
                 &template_path,
                 "Hi, {{#if_uid 418}}teapot{{else}}random user{{/if_uid}}",
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "Hi, teapot",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
 
             let config = expand(DTConfig::from_str(&format!(
@@ -484,13 +451,10 @@ sources = ["{}"]
                 &template_path,
                 r#"Hello {{#if_uid uid.number}}teapot{{else}}there{{/if_uid}}"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "Hello teapot",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
             Ok(())
         }
@@ -524,13 +488,10 @@ sources = ["{}"]
                 &template_path,
                 r#"Hi, {{#if_uid "410,412,418"}}user#410/412/418{{else}}random person{{/if_uid}}!"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "Hi, user#410/412/418!",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
 
             // Match inverse block
@@ -553,13 +514,10 @@ sources = ["{}"]
                 &template_path,
                 r#"You are {{#if_uid uid.allowed_numbers}}{{else}}not {{/if_uid}}user#1000/1001"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "You are not user#1000/1001",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
             Ok(())
         }
@@ -592,13 +550,10 @@ sources = ["{}"]
                 &template_path,
                 "Hi, {{#unless_uid 418}}random user{{else}}teapot{{/unless_uid}}",
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "Hi, teapot",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
 
             let config = expand(DTConfig::from_str(&format!(
@@ -620,13 +575,10 @@ sources = ["{}"]
                 &template_path,
                 r#"Hello {{#if_uid uid.number}}teapot{{else}}there{{/if_uid}}"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "Hello teapot",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
             Ok(())
         }
@@ -659,13 +611,10 @@ sources = ["{}"]
                 &template_path,
                 r#"You {{#unless_uid "410,412,418"}}can't{{else}}might{{/unless_uid}} be a teapot"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "You might be a teapot",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
 
             let config = expand(DTConfig::from_str(&format!(
@@ -687,13 +636,10 @@ sources = ["{}"]
                 &template_path,
                 r#"You {{#unless_uid uid.allowed_numbers}}can't{{else}}might{{/unless_uid}} be a teapot"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "You might be a teapot",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
             Ok(())
         }
@@ -740,13 +686,10 @@ sources = ["{}"]
                 &template_path,
                 r#"I have {{#if_host "c-3po"}}a bad{{else}}beep boop bop{{/if_host}} feeling about this"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "I have beep boop bop feeling about this",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
 
             let config = expand(DTConfig::from_str(&format!(
@@ -768,13 +711,10 @@ sources = ["{}"]
                 &template_path,
                 r#"This is a {{#if_host host.name}}blue-white{{else}}golden{{/if_host}} one"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "This is a blue-white one",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
             Ok(())
         }
@@ -807,13 +747,10 @@ sources = ["{}"]
                 &template_path,
                 r#"I {{#if_host "c-3po,r2d2"}}{{else}}don't {{/if_host}}know Luke"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "I know Luke",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
 
             let config = expand(DTConfig::from_str(&format!(
@@ -838,13 +775,10 @@ sources = ["{}"]
                 &template_path,
                 r#"I have {{#if_host host.allowed_names}}beep boop bop{{else}}a bad{{/if_host}} feeling about this"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "I have beep boop bop feeling about this",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
             Ok(())
         }
@@ -877,13 +811,10 @@ sources = ["{}"]
                 &template_path,
                 r#"I have {{#unless_host "c-3po"}}beep boop bop{{else}}a bad{{/unless_host}} feeling about this"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "I have beep boop bop feeling about this",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
 
             let config = expand(DTConfig::from_str(&format!(
@@ -905,13 +836,10 @@ sources = ["{}"]
                 &template_path,
                 r#"This is a {{#unless_host host.name}}golden{{else}}blue-white{{/unless_host}} one"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "This is a blue-white one",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
             Ok(())
         }
@@ -944,13 +872,10 @@ sources = ["{}"]
                 &template_path,
                 r#"I {{#unless_host "c-3po,r2d2"}}don't {{/unless_host}}know Luke"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "I know Luke",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
 
             let config = expand(DTConfig::from_str(&format!(
@@ -975,14 +900,11 @@ sources = ["{}"]
                 &template_path,
                 r#"I have {{#unless_host host.allowed_names}}a bad{{else}}beep boop bop{{/unless_host}} feeling about this"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             println!("{:?}", crate::utils::testing::gethostname());
             assert_eq!(
                 "I have beep boop bop feeling about this",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
             Ok(())
         }
@@ -1027,13 +949,10 @@ sources = ["{}"]
                 &template_path,
                 r#"{{#if_os "id" "dt"}}It works{{else}}Nope it's not working{{/if_os}}"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "It works",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
 
             let config = expand(DTConfig::from_str(&format!(
@@ -1055,13 +974,10 @@ sources = ["{}"]
                 &template_path,
                 r#"{{#if_os "version" os.version}}It works{{else}}Not working{{/if_os}}"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "It works",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
             Ok(())
         }
@@ -1092,13 +1008,10 @@ sources = ["{}"]
                 &template_path,
                 r#"{{#if_os "id" "dummy-version,dt"}}It works{{else}}Nope it's not working{{/if_os}}"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "It works",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
 
             let config = expand(DTConfig::from_str(&format!(
@@ -1120,13 +1033,10 @@ sources = ["{}"]
                 &template_path,
                 r#"{{#if_os "version_id" os.version}}It works{{else}}Not working{{/if_os}}"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "It works",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
             Ok(())
         }
@@ -1159,13 +1069,10 @@ sources = ["{}"]
                 &template_path,
                 r##"{{#unless_os "build_id" "#somethingsomething"}}Nope it's not working properly{{else}}It's working{{/unless_os}}"##,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "It's working",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
 
             let config = expand(DTConfig::from_str(&format!(
@@ -1187,13 +1094,10 @@ sources = ["{}"]
                 &template_path,
                 r#"{{#unless_os "logo" os.logo}}Broken{{else}}Up and running{{/unless_os}}"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "Up and running",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
             Ok(())
         }
@@ -1226,13 +1130,10 @@ sources = ["{}"]
                 &template_path,
                 r##"{{#unless_os "home_url" "https://example.com/,https://github.com/blurgyy/dt/"}}Nope it's not working properly{{else}}It's working{{/unless_os}}"##,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "It's working",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
 
             let config = expand(DTConfig::from_str(&format!(
@@ -1254,13 +1155,10 @@ sources = ["{}"]
                 &template_path,
                 r#"{{#unless_os "documentation_url" os.documentation.url}}xxxBroken{{else}}Up and running{{/unless_os}}"#,
             )?;
-            let reg =
-                Registry::default().register_helpers()?.load(&config)?;
+            let reg = Registry::default().register_helpers()?.load(&config)?;
             assert_eq!(
                 "Up and running",
-                std::str::from_utf8(
-                    &reg.get(&template_path.to_string_lossy())?
-                )?,
+                std::str::from_utf8(&reg.get(&template_path.to_string_lossy())?)?,
             );
             Ok(())
         }
