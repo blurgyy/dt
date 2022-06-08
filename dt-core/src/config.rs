@@ -890,7 +890,7 @@ where
 
             // 2. Path to staging root contains readonly parent directory
             // NOTE: Must convert to an absolute path before checking readonly
-            if staging_path.absolute()?.is_parent_readonly() {
+            if !staging_path.exists() && staging_path.absolute()?.is_parent_readonly() {
                 return Err(AppError::ConfigError(
                     "staging root path cannot be created due to insufficient permissions"
                         .to_owned(),
@@ -908,7 +908,7 @@ where
 
         // 4. Path to target contains readonly parent directory
         // NOTE: Must convert to an absolute path before checking readonly
-        if self.target.to_owned().absolute()?.is_parent_readonly() {
+        if !self.target.exists() && self.target.to_owned().absolute()?.is_parent_readonly() {
             return Err(AppError::ConfigError(format!(
                 "target path cannot be created due to insufficient permissions in group '{}'",
                 self.name,
