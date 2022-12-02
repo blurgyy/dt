@@ -23,7 +23,7 @@ regex = "1.6.0"
 serde = { version = "1.0.145", features = ["derive"] }
 serde_regex = "1.1.0"
 serde_tuple = "0.5.0"
-shellexpand = "2.1.2"
+shellexpand = "3.0.0"
 sys-info = "0.9.1"
 toml = "0.5.9"
 url = { version = "2.3.1", features = ["serde"] }
