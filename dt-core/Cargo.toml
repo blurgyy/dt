@@ -13,7 +13,7 @@ keywords = ["syncing", "config"]
 
 [dependencies]
 content_inspector = "0.2.4"
-dirs = "4.0.0"
+dirs = "5.0.0"
 gethostname = "0.4.1"
 glob = "0.3.1"
 handlebars = "4.3.6"
