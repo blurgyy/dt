@@ -298,7 +298,7 @@ dependencies = [
 name = "dt-server"
 version = "0.1.0"
 dependencies = [
- "dirs 4.0.0",
+ "dirs 5.0.1",
  "dt-core",
  "log",
  "pretty_env_logger",
