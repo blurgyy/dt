@@ -16,7 +16,7 @@ keywords = ["dotfiles", "manager", "syncing", "config"]
 dirs = "5.0.1"
 dt-core = { path = "../dt-core", version = "0.7.10" }
 log = "0.4.17"
-pretty_env_logger = "0.4.0"
+pretty_env_logger = "0.5.0"
 structopt = "0.3.26"
 tokio = { version = "1.25.0", features = ["full"] }
 warp = "0.3.3"
