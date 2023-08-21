@@ -33,7 +33,7 @@ thus you **should not** contain a [hostname
 suffix](/features/01-host-specific#hostname-suffix) when specifying your
 sources.
 
-### `basedir`
+### `base`
 
 For example, you want to sync some user-scope systemd services on your
 machines:
@@ -41,7 +41,7 @@ machines:
 ```toml
 [[local]]
 name = "SystemD-services"
-basedir = "~/dt/systemd/user"
+base = "~/dt/systemd/user"
 sources = ["*.service"]
 target = "~/.config/systemd/user"
 
@@ -49,10 +49,10 @@ hostname_sep = "@@"
 ```
 
 Then, on one of your machines, whose hostname is `elbert`, for example, the
-above `basedir` will be automatically expanded to
-`~/dt/systemd/user@@elbert` first, if the expanded `basedir` exists, `dt-cli`
-will uses the expanded version; If the expanded `basedir` does not exist,
-`dt-cli` will sync the original `basedir` when it exists.
+above `base` will be automatically expanded to
+`~/dt/systemd/user@@elbert` first, if the expanded `base` exists, `dt-cli`
+will uses the expanded version; If the expanded `base` does not exist,
+`dt-cli` will sync the original `base` when it exists.
 
 ### `sources`
 
@@ -82,7 +82,7 @@ populate your config files safely with:
 ```toml
 [[local]]
 name = "All-my-configs-including-for-terminal-emulator"
-basedir = "~/dt"
+base = "~/dt"
 sources = [
   "*",
   ".[!.]*",
@@ -97,7 +97,7 @@ target = "~/.config"
 which is almost never what you want.
 
 The globbing patterns in the above `sources` array is the recommended way to
-glob all items under a given `basedir`.
+glob all items under a given `base`.
 :::
 
 Note that we did not specifically reference the `alacritty` directory anywhere
@@ -108,7 +108,7 @@ can also specify a source only, like below:
 ```toml
 [[local]]
 name = "Alacritty"
-basedir = "~/.dt/alacritty"
+base = "~/.dt/alacritty"
 sources = ["alacritty.yml"]
 target = "~/.config/alacritty"
 ```

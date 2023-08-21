@@ -11,7 +11,7 @@ configured as:
 ```toml
 [[local]]
 name = "Neovim"
-basedir = "~/dt/nvim"
+base = "~/dt/nvim"
 sources = ["*init.vim"]
 target = "~/.config/nvim"
 ```

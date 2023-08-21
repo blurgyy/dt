@@ -28,7 +28,7 @@ drop-in group can be defined as:
 [[local]]
 scope = "Dropin"
 name = "fontconfig-system"
-basedir = "/usr/share/fontconfig/conf.avail/"
+base = "/usr/share/fontconfig/conf.avail/"
 sources = [
   # Pixel Alignment.  Test monitor's subpixel layout at
   # <http://www.lagom.nl/lcd-test/subpixel.php>, reference:
@@ -50,7 +50,7 @@ protocol](https://wayland.freedesktop.org) could be defined as:
 [[local]]
 scope = "General"
 name = "gui"
-basedir = "/path/to/your/dotfiles/library/root"
+base = "/path/to/your/dotfiles/library/root"
 sources = [
   ".gtkrc-2.0",
   ".local/share/icons",
@@ -72,7 +72,7 @@ This scope is mostly used in the fallback groups, for example:
 [[local]]
 scope = "General"
 name = "xdg_config_home"
-basedir = "/path/to/your/dotfiles/library/root/.config"
+base = "/path/to/your/dotfiles/library/root/.config"
 sources = [
   "*",
 ]
@@ -80,7 +80,7 @@ target = "~/.config"
 [[local]]
 scope = "General"
 name = "misc"
-basedir = "/path/to/your/dotfiles/library/root"
+base = "/path/to/your/dotfiles/library/root"
 sources = [
   ".[!.]*",
   "..?*",

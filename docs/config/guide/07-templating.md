@@ -28,7 +28,7 @@ gui.cursor-size = 24
 
 [[local]]
 name = "gui"
-basedir = "~/dt/gui"
+base = "~/dt/gui"
 sources = [
   "gtk-3.0/settings.ini",
 ]

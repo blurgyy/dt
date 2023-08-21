@@ -8,7 +8,7 @@ Assuming your configuration files for `VSCode` lies at
 ```toml
 [[local]]
 name = "VSCode"
-basedir = "~/dt/VSCode"
+base = "~/dt/VSCode"
 sources = ["User/settings.json"]
 target = "~/.config/Code - OSS/"
 ```
@@ -22,12 +22,12 @@ allow_overwrite = true
 
 [[local]]
 name = "Neovim"
-basedir = "~/dt/nvim"
+base = "~/dt/nvim"
 sources = ["*init.vim"]
 target = "~/.config/nvim"
 [[local]]
 name = "VSCode"
-basedir = "~/dt/VSCode"
+base = "~/dt/VSCode"
 sources = ["User/settings.json"]
 target = "~/.config/Code - OSS/"
 ```
@@ -47,7 +47,7 @@ overriding a default behaviour for the `VSCode` group:
 ```toml{6-7}
 [[local]]
 name = "VSCode"
-basedir = "~/dt/VSCode"
+base = "~/dt/VSCode"
 sources = ["User/settings.json"]
 target = "~/.config/Code - OSS/"
 

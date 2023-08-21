@@ -12,11 +12,11 @@ Firstly, after a config file has been successfully loaded into memory,
 `dt-cli` validates each field of the config object.  Specifically, the
 following cases are considered invalid:
 
-- Any group that has empty `name`/`basedir`/`target`
+- Any group that has empty `name`/`base`/`target`
 - Any group name that contains `/` (group names are used for subdirectory
   names under `staging` directory, so slashes are not allowed)
-- Any group that has the same `basedir` and `target`
-- Any group whose `basedir` contains any occurrences of `hostname_sep`
+- Any group that has the same `base` and `target`
+- Any group whose `base` contains any occurrences of `hostname_sep`
 - Any group whose `sources` contains any item that contains any occurrences of
   `hostname_sep`
 - Any source item that:
@@ -34,11 +34,11 @@ string patterns.  This is for spotting obvious errors as fast as possible.
 
 If the above validating step passed successfully, `dt-cli` begins to iterate
 through every group, recursively expand all sources according to their file
-hierarchy, the `basedir`s are also expanded to
+hierarchy, the `base`s are also expanded to
 [host-specific](/features/01-host-specific) ones wherever possible.  The
-following cases are considered invalid while expanding `sources` and `basedir`:
+following cases are considered invalid while expanding `sources` and `base`:
 
-- The group's `basedir` exists but is not a directory
+- The group's `base` exists but is not a directory
 - The group's `target` exists and is not a directory
 - The group's `target` is non-existent but cannot be created
 - When any group uses the `Symlink` [syncing
@@ -47,7 +47,7 @@ following cases are considered invalid while expanding `sources` and `basedir`:
   - `staging` is non-existent but cannot be created
 
 :::info
-Non-existent `basedir` will not trigger an error but only a warning that
+Non-existent `base` will not trigger an error but only a warning that
 complains about not matching anything.
 :::
 

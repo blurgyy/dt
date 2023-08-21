@@ -104,7 +104,7 @@ The syncing priority order is `Dropin` > `App` > `General`.  The first group
 in the config file has the highest priority when multiple groups with a same
 `scope` contain a same item.  If omitted, uses `General`.
 
-### `basedir`
+### `base`
 
 > [required] string
 
@@ -130,7 +130,7 @@ Consider the following config file:
 
 ```toml
 [[local]]
-basedir = "dt/dt-cli"
+base = "dt/dt-cli"
 sources = ["*"]
 target = "."
 ```
@@ -142,7 +142,7 @@ case, the target directory is where `dt` is being executed).
 
 > [required] array of strings
 
-Paths (relative to `basedir`) to the items to be synced.  Allow globbing
+Paths (relative to `base`) to the items to be synced.  Allow globbing
 patterns
 
 ### `target`
@@ -244,7 +244,7 @@ name = "network/ssh"
 method = "Symlink"
 hostname_sep = "@@"
 
-basedir = "~/.ssh"
+base = "~/.ssh"
 sources = ["config"]
 target = "/tmp/sshconfig"
 ...
