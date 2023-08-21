@@ -42,7 +42,7 @@ reports error and skips the existing item.  Using dry run to spot the existing
 files before syncing is recommended.
 
 :::warning Dead symlinks
-Dead symlinks are treated as non-existent, and are always overwrited
+Dead symlinks are treated as non-existent, and are always overwritten
 (regardless of this option).
 :::
 
