@@ -64,9 +64,9 @@ being rendered is huge.  To skip rendering for a group, use the [`renderable =
 false`] option in the config file.
 :::
 
-The [Handlebars crate] also allows syntaxes like looping and conditioning, the
-[built-in helpers] are understood in `dt-cli`'s templates.  Please refer to
-the [Handlebars crate]'s page for syntax guides.
+`dt-cli` also supports basic control flow syntaxes like looping and
+conditioning, and other helper directives that boosts the productiveness of
+the templating system.  Check out the [hands-on guide] if interested!
 
 <!-- TITLE -->
 [**Examples**]: /config/guide/07-templating
@@ -79,3 +79,4 @@ the [Handlebars crate]'s page for syntax guides.
 [previous section]: #configuring
 [built-in helpers]: https://docs.rs/handlebars/latest/handlebars/#built-in-helpers
 [`renderable = false`]: /config/key-references#renderable-1
+[hands-on guide]: /config/guide/07-templating.html#advanced-syntaxes
