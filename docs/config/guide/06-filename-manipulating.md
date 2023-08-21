@@ -36,7 +36,7 @@ will have all its items populated to the exact path `/some/path/dot-target`,
 instead of `/some/path/.target`.
 :::
 
-## Per-group rules
+## Per-group Rules
 
 You might have guessed it: `rename` rules can also be specified on a per-group
 basis.  The way this works is that `dt-cli` processes renaming rules in the
@@ -71,7 +71,7 @@ capability it provides is defining [capturing groups].  Capturing groups can
 either be [named] or [numbered], which allows arbitrary manipulation to be
 applied to any synced items.
 
-### Repeating extension of an item
+### Example: <sub>Repeating the Extension of an Item</sub>
 
 To illustrate how capturing groups work, we try to have the destination items
 to repeat the extension name of their corresponding source items, via

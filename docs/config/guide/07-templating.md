@@ -37,7 +37,7 @@ target = "~/.config"
 
 In this config example, we have two values under the `context.gui` section.
 
-## Writing templates
+## Writing Templates
 
 Templates are understood by `dt-cli` with the [Handlebars] syntax.  We can
 template the gtk settings file in the `gui` group (se above) as:
@@ -59,7 +59,7 @@ gtk-cursor-theme-size=24
 gtk-font-name=system-ui 15
 ```
 
-## Skipping rendering
+## Skipping Rendering
 
 By default, `dt-cli` treats all source files as templates to be rendered.
 Sometimes we want to skip rendering, for example when a source file is huge,
