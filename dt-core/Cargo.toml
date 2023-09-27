@@ -16,17 +16,17 @@ content_inspector = "0.2.4"
 dirs = "5.0.1"
 gethostname = "0.4.3"
 glob = "0.3.1"
-handlebars = "4.3.7"
+handlebars = "4.4.0"
 log = "0.4.20"
 path-clean = "1.0.1"
-regex = "1.9.3"
-serde = { version = "1.0.185", features = ["derive"] }
+regex = "1.9.5"
+serde = { version = "1.0.188", features = ["derive"] }
 serde_regex = "1.1.0"
 serde_tuple = "0.5.0"
 shellexpand = "3.1.0"
 sys-info = "0.9.1"
 toml = "0.8.1"
-url = { version = "2.4.0", features = ["serde"] }
+url = { version = "2.4.1", features = ["serde"] }
 users = "0.11.0"
 
 [dev-dependencies]
