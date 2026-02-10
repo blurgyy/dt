@@ -50,7 +50,7 @@ pub enum ChangeType {
     Deleted,
 }
 
-/// A detected change
+/// A detected change with potential conflict info
 #[derive(Clone, Debug)]
 pub struct Change {
     /// Type of change
@@ -61,6 +61,109 @@ pub struct Change {
     pub target_path: PathBuf,
     /// Absolute path to the source file
     pub source_path: PathBuf,
+    /// Group name this change belongs to
+    pub group_name: String,
+}
+
+/// Information about a source file conflict
+#[derive(Clone, Debug)]
+pub struct Conflict {
+    /// The change that would be applied
+    pub change: Change,
+    /// Path to the git repository root
+    pub repo_path: PathBuf,
+    /// Git status output (if available)
+    pub git_status: Option<String>,
+}
+
+impl std::fmt::Display for Conflict {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "  [CONFLICT] {}\n    Source: {} (uncommitted changes)\n    Target: {} ({:?})",
+            self.change.relative_path.display(),
+            self.change.source_path.display(),
+            self.change.target_path.display(),
+            self.change.change_type
+        )
+    }
+}
+
+/// Collection result with detailed status
+#[derive(Clone, Debug)]
+pub struct CollectionResult {
+    /// Changes that were successfully applied
+    pub changes: Vec<Change>,
+    /// Conflicts that prevented collection
+    pub conflicts: Vec<Conflict>,
+    /// Number of files skipped due to --skip-dirty
+    pub skipped: usize,
+}
+
+impl CollectionResult {
+    /// Returns true if there were no conflicts
+    pub fn is_success(&self) -> bool {
+        self.conflicts.is_empty()
+    }
+    
+    /// Returns true if any changes were applied
+    pub fn has_changes(&self) -> bool {
+        !self.changes.is_empty()
+    }
+}
+
+/// Check if source file has uncommitted changes in git
+/// Returns Ok(true) if clean (no uncommitted changes)
+/// Returns Ok(false) if dirty
+/// Returns Err if git check fails
+fn check_source_clean(source_path: &Path) -> Result<(bool, Option<PathBuf>, Option<String>)> {
+    // Find git repository root
+    let mut current = source_path.parent();
+    let repo_root = loop {
+        match current {
+            Some(dir) => {
+                let git_dir = dir.join(".git");
+                if git_dir.exists() {
+                    break Some(dir.to_path_buf());
+                }
+                current = dir.parent();
+            }
+            None => break None,
+        }
+    };
+    
+    let repo_root = match repo_root {
+        Some(r) => r,
+        None => {
+            // Not in a git repo, treat as clean
+            return Ok((true, None, None));
+        }
+    };
+    
+    // Run git diff --quiet to check for uncommitted changes
+    let output = std::process::Command::new("git")
+        .args(&["diff", "--quiet", source_path.to_string_lossy().as_ref()])
+        .current_dir(&repo_root)
+        .output()
+        .map_err(|e| AppError::ProcessError(format!("Failed to run git diff: {}", e)))?;
+    
+    if output.status.code() == Some(1) {
+        // Exit code 1 means there are uncommitted changes
+        // Get git status for better error message
+        let status_output = std::process::Command::new("git")
+            .args(&["status", "--short", source_path.to_string_lossy().as_ref()])
+            .current_dir(&repo_root)
+            .output();
+        
+        let git_status = status_output.ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .filter(|s| !s.is_empty());
+        
+        return Ok((false, Some(repo_root), git_status));
+    }
+    
+    // Exit code 0 means no uncommitted changes (clean)
+    Ok((true, Some(repo_root), None))
 }
 
 /// Calculate SHA-256 checksum of a file
@@ -118,6 +221,7 @@ pub fn detect_group_changes(
     state: &mut CollectionState,
 ) -> Result<Vec<Change>> {
     let mut changes = Vec::new();
+    let group_name = group.name.to_string();
     
     // Get the current timestamp
     let now = chrono::Utc::now().to_rfc3339();
@@ -171,6 +275,7 @@ pub fn detect_group_changes(
                     relative_path: relative_path.clone(),
                     target_path: target_path.clone(),
                     source_path: source_path.clone(),
+                    group_name: group_name.clone(),
                 });
                 state.files.remove(&path_key);
             }
@@ -189,6 +294,7 @@ pub fn detect_group_changes(
                     relative_path: relative_path.clone(),
                     target_path: target_path.clone(),
                     source_path: source_path.clone(),
+                    group_name: group_name.clone(),
                 });
                 state.files.insert(
                     path_key,
@@ -206,6 +312,7 @@ pub fn detect_group_changes(
                     relative_path: relative_path.clone(),
                     target_path: target_path.clone(),
                     source_path: source_path.clone(),
+                    group_name: group_name.clone(),
                 });
                 state.files.insert(
                     path_key,
@@ -234,63 +341,118 @@ pub fn detect_group_changes(
     Ok(changes)
 }
 
-/// Collect changes from all enabled groups
+/// Collect changes from all enabled groups with pre-check for conflicts
 pub fn collect(
     config: &DTConfig,
     state_path: &Path,
     dry_run: bool,
-) -> Result<Vec<Change>> {
+    skip_dirty: bool,
+) -> Result<CollectionResult> {
     let mut state = load_state(state_path)?;
     let mut all_changes = Vec::new();
-    
+    let mut conflicts = Vec::new();
+    let mut skipped = 0;
+
     log::debug!("Total groups in config: {}", config.local.len());
-    
+
+    // Phase 1: Detect all changes and check for conflicts
     for group in &config.local {
         log::debug!("Processing group: '{}' (collect={:?})", group.name, group.collect);
-        
+
         // Skip groups without collect enabled
         if !group.is_collect_enabled() {
             log::debug!("Skipping group '{}' (collect not enabled)", group.name);
             continue;
         }
-        
+
         log::info!("Checking group '{}' for changes...", group.name);
         let changes = detect_group_changes(group, &mut state)?;
-        
-        if !changes.is_empty() {
-            log::info!("Found {} changes in group '{}'", changes.len(), group.name);
-        }
-        
-        if !dry_run {
-            // Apply changes: copy target files back to source
-            for change in &changes {
-                match change.change_type {
-                    ChangeType::Deleted => {
-                        log::info!("Deleting source file: {}", change.source_path.display());
-                        if change.source_path.exists() {
-                            fs::remove_file(&change.source_path)?;
-                        }
-                    }
-                    _ => {
-                        log::info!("Collecting: {} -> {}", change.target_path.display(), change.source_path.display());
-                        // Copy target to source
-                        if let Some(parent) = change.source_path.parent() {
-                            fs::create_dir_all(parent)?;
-                        }
-                        fs::copy(&change.target_path, &change.source_path)?;
+
+        // Check each change for source conflicts
+        for change in changes {
+            if !change.source_path.exists() {
+                // Source doesn't exist (e.g., new file in target), no conflict
+                all_changes.push(change);
+                continue;
+            }
+
+            match check_source_clean(&change.source_path)? {
+                (true, _, _) => {
+                    // Source is clean, can collect
+                    all_changes.push(change);
+                }
+                (false, repo_path, git_status) => {
+                    // Source has uncommitted changes
+                    if skip_dirty {
+                        log::warn!(
+                            "Skipping dirty file ({:?}): {}",
+                            change.change_type,
+                            change.relative_path.display()
+                        );
+                        skipped += 1;
+                    } else {
+                        conflicts.push(Conflict {
+                            change: change.clone(),
+                            repo_path: repo_path.unwrap_or_else(|| change.source_path.clone()),
+                            git_status,
+                        });
                     }
                 }
             }
         }
-        
-        all_changes.extend(changes);
     }
-    
+
+    // If there are conflicts and we're not skipping, return early with conflicts
+    if !conflicts.is_empty() && !skip_dirty {
+        return Ok(CollectionResult {
+            changes: Vec::new(),
+            conflicts,
+            skipped,
+        });
+    }
+
+    // Phase 2: Apply changes (if not dry-run)
     if !dry_run {
+        for change in &all_changes {
+            match change.change_type {
+                ChangeType::Deleted => {
+                    log::info!("Deleting source file: {}", change.source_path.display());
+                    if change.source_path.exists() {
+                        fs::remove_file(&change.source_path)?;
+                    }
+                }
+                _ => {
+                    log::info!(
+                        "Collecting: {} -> {}",
+                        change.target_path.display(),
+                        change.source_path.display()
+                    );
+                    // Copy target to source
+                    if let Some(parent) = change.source_path.parent() {
+                        fs::create_dir_all(parent)?;
+                    }
+                    fs::copy(&change.target_path, &change.source_path)?;
+                }
+            }
+        }
         save_state(state_path, &state)?;
     }
-    
-    Ok(all_changes)
+
+    Ok(CollectionResult {
+        changes: all_changes,
+        conflicts,
+        skipped,
+    })
+}
+
+/// Legacy collect function for backward compatibility (no skip_dirty, no conflict checking)
+pub fn collect_legacy(
+    config: &DTConfig,
+    state_path: &Path,
+    dry_run: bool,
+) -> Result<Vec<Change>> {
+    let result = collect(config, state_path, dry_run, false)?;
+    Ok(result.changes)
 }
 
 /// Get the default state file path

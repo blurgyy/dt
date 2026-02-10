@@ -17,6 +17,8 @@ pub enum Error {
     SyncingError(String),
     /// Errors that occur while registering templates
     TemplatingError(String),
+    /// Errors that occur during external process execution.
+    ProcessError(String),
 }
 
 /// `Result` type to use across the library.
@@ -47,6 +49,9 @@ impl fmt::Display for Error {
             }
             Error::TemplatingError(ref msg) => {
                 write!(f, "Templating Error: {}", msg)
+            }
+            Error::ProcessError(ref msg) => {
+                write!(f, "Process Error: {}", msg)
             }
         }
     }

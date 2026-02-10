@@ -67,6 +67,10 @@ struct CollectArgs {
     #[structopt(short, long)]
     state_path: Option<PathBuf>,
 
+    /// Skip files with uncommitted changes instead of aborting
+    #[structopt(long)]
+    skip_dirty: bool,
+
     /// Increases logging verbosity
     #[structopt(short, long, parse(from_occurrences), conflicts_with = "quiet")]
     verbose: i8,
@@ -136,24 +140,52 @@ fn run_collect(args: CollectArgs) -> Result<()> {
     // Expand glob patterns in sources before collecting
     let config = syncing::expand(config)?;
     
-    let changes = collecting::collect(&config, &state_path, args.dry_run)?;
+    let result = collecting::collect(&config, &state_path, args.dry_run, args.skip_dirty
+    )?;
     
-    if changes.is_empty() {
+    // Handle conflicts
+    if !result.conflicts.is_empty() {
+        eprintln!("\nERROR: Cannot collect {} file(s) - source has uncommitted changes:\n", 
+            result.conflicts.len());
+        for conflict in &result.conflicts {
+            eprintln!("{}", conflict);
+            if let Some(status) = &conflict.git_status {
+                eprintln!("    Git status: {}", status.trim());
+            }
+        }
+        eprintln!("\nTo fix:");
+        eprintln!("  1. Commit source changes first: cd <repo> && git add -A && git commit");
+        eprintln!("  2. Or run with --skip-dirty to skip dirty files");
+        eprintln!();
+        
+        return Err(AppError::SyncingError(
+            format!("Collection aborted due to {} conflict(s)", result.conflicts.len())
+        ));
+    }
+    
+    // Output results
+    if result.changes.is_empty() && result.skipped == 0 {
         log::info!("No changes detected.");
     } else {
-        log::info!("Detected {} change(s):", changes.len());
-        for change in &changes {
-            let change_type_str = match change.change_type {
-                collecting::ChangeType::New => "NEW",
-                collecting::ChangeType::Modified => "MODIFIED",
-                collecting::ChangeType::Deleted => "DELETED",
-            };
-            log::info!("  [{}] {}", change_type_str, change.relative_path.display());
+        if !result.changes.is_empty() {
+            log::info!("Detected {} change(s):", result.changes.len());
+            for change in &result.changes {
+                let change_type_str = match change.change_type {
+                    collecting::ChangeType::New => "NEW",
+                    collecting::ChangeType::Modified => "MODIFIED",
+                    collecting::ChangeType::Deleted => "DELETED",
+                };
+                log::info!("  [{}] {}", change_type_str, change.relative_path.display());
+            }
+        }
+        
+        if result.skipped > 0 {
+            log::warn!("Skipped {} file(s) with uncommitted changes", result.skipped);
         }
         
         if args.dry_run {
             log::info!("(Dry run - no changes were applied)");
-        } else {
+        } else if !result.changes.is_empty() {
             log::info!("Changes have been collected to source.");
         }
     }
@@ -186,6 +218,7 @@ fn main() {
             AppError::RenderingError(_) => std::process::exit(5),
             AppError::SyncingError(_) => std::process::exit(6),
             AppError::TemplatingError(_) => std::process::exit(7),
+            AppError::ProcessError(_) => std::process::exit(8),
 
             #[allow(unreachable_patterns)]
             _ => std::process::exit(255),
