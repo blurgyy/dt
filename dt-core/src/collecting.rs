@@ -4,7 +4,7 @@
 //! and sync them back to the source repository.
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs,
     io::{Read},
     path::{Path, PathBuf},
@@ -112,7 +112,146 @@ impl CollectionResult {
     }
 }
 
-/// Check if source file has uncommitted changes in git
+/// Validate that collect_sources patterns are a subset of sources patterns.
+/// Returns Ok(()) if valid, Err if collect_sources would match files outside sources.
+pub fn validate_collect_sources(group: &LocalGroup) -> Result<()> {
+    let sources_patterns: Vec<&str> = group.sources.iter()
+        .map(|p| p.to_str().unwrap_or("*"))
+        .collect();
+    let collect_patterns = group.get_collect_sources();
+    
+    // For each collect pattern, check if it's covered by any source pattern
+    for collect_pat in &collect_patterns {
+        // Simple subset check: if collect pattern is more specific than a source pattern, it's ok
+        // e.g., sources=["*.md"], collect=["20*.md"] -> ok
+        // e.g., sources=["config-*.toml"], collect=["*.toml"] -> not ok (wider)
+        
+        // Check if collect pattern is potentially wider than any source pattern
+        let is_covered = sources_patterns.iter().any(|src_pat| {
+            pattern_covers(src_pat, collect_pat)
+        });
+        
+        if !is_covered {
+            // Check if collect pattern could match files that sources wouldn't match
+            // This is a heuristic - we check if collect is a "superset" pattern
+            if could_be_wider_pattern(collect_pat, &sources_patterns) {
+                return Err(AppError::ConfigError(format!(
+                    "collect_sources pattern '{}' in group '{}' may match files outside of sources. \
+                    collect_sources must be a subset of sources.",
+                    collect_pat, group.name
+                )));
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+/// Check if source pattern covers collect pattern.
+/// e.g., "*.md" covers "20*.md", "*" covers everything
+fn pattern_covers(source: &str, collect: &str) -> bool {
+    // Exact match
+    if source == collect {
+        return true;
+    }
+    
+    // If source is "*", it covers everything
+    if source == "*" {
+        return true;
+    }
+    
+    // If source ends with wildcard and collect starts with the same prefix
+    if source.ends_with('*') {
+        let src_prefix = &source[..source.len()-1];
+        if collect.starts_with(src_prefix) || src_prefix.is_empty() {
+            // "*.md" covers "20*.md" because both end with .md
+            // Check if collect also ends with the same suffix pattern
+            if source.contains('.') && collect.contains('.') {
+                let src_ext = source.rsplit('.').next().unwrap_or("");
+                let collect_ext = collect.rsplit('.').next().unwrap_or("");
+                if src_ext == "*" || src_ext == collect_ext {
+                    return true;
+                }
+            }
+        }
+    }
+    
+    false
+}
+
+/// Heuristic to check if collect pattern could be wider than source patterns.
+fn could_be_wider_pattern(collect: &str, sources: &[&str]) -> bool {
+    // If collect is "*" and no source is "*", it's wider
+    if collect == "*" && !sources.contains(&"*") {
+        return true;
+    }
+    
+    // If collect has fewer restrictions (e.g., "*.toml" vs "config-*.toml")
+    if collect.starts_with("*.") {
+        let collect_ext = &collect[2..];
+        // Check if all sources are more specific
+        let all_more_specific = sources.iter().all(|s| {
+            !s.ends_with(&format!("*.{}", collect_ext)) || s.len() > collect.len()
+        });
+        if all_more_specific && !sources.is_empty() {
+            return true;
+        }
+    }
+    
+    false
+}
+
+/// Expand glob patterns in a directory to a set of relative paths.
+fn expand_globs_in_dir(base_dir: &Path, patterns: &[String]) -> Result<HashSet<PathBuf>> {
+    let mut files = HashSet::new();
+    
+    if !base_dir.exists() {
+        return Ok(files);
+    }
+    
+    for pattern in patterns {
+        let full_pattern = base_dir.join(pattern);
+        let pattern_str = full_pattern.to_string_lossy();
+        
+        match glob::glob(&pattern_str) {
+            Ok(paths) => {
+                for entry in paths.flatten() {
+                    if entry.is_file() {
+                        // Get relative path from base_dir
+                        if let Ok(rel_path) = entry.strip_prefix(base_dir) {
+                            files.insert(rel_path.to_path_buf());
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                log::warn!("Invalid glob pattern '{}': {}", pattern_str, e);
+            }
+        }
+    }
+    
+    Ok(files)
+}
+
+/// Compute source path from target path by reversing the target computation.
+/// This is an approximation - it reverses the hostname stripping but not renaming rules.
+fn compute_source_path(
+    target_path: &Path,
+    target_base: &Path,
+    source_base: &Path,
+    _hostname_sep: &str,
+) -> Result<PathBuf> {
+    // Get relative path from target base
+    let rel_path = target_path.strip_prefix(target_base)
+        .map_err(|_| AppError::PathError(format!(
+            "Target path '{}' is not under target base '{}'",
+            target_path.display(), target_base.display()
+        )))?;
+    
+    // Compute source path - note: this doesn't reverse renaming rules
+    // For now, we assume 1:1 mapping for new file discovery
+    Ok(source_base.join(rel_path))
+}
 /// Returns Ok(true) if clean (no uncommitted changes)
 /// Returns Ok(false) if dirty
 /// Returns Err if git check fails
@@ -335,8 +474,62 @@ pub fn detect_group_changes(
         }
     }
     
+    // Phase 2: Discover new files in target that don't exist in source (orphan files)
+    // This uses collect_sources patterns to scan target directory
+    let collect_patterns = group.get_collect_sources();
+    let target_files = expand_globs_in_dir(target, &collect_patterns)?;
+    
+    // Build a set of relative paths that already have source files
+    let existing_source_rels: HashSet<PathBuf> = changes.iter()
+        .map(|c| c.relative_path.clone())
+        .collect();
+    
+    // Find orphan files: exist in target but not tracked by any source
+    for rel_path in target_files {
+        // Skip if already tracked
+        if existing_source_rels.contains(&rel_path) {
+            continue;
+        }
+        
+        let target_path = target.join(&rel_path);
+        
+        // Check if file is excluded from collection
+        let filename = rel_path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("");
+        if group.is_excluded(filename) {
+            log::debug!("Skipping excluded orphan file: {}", rel_path.display());
+            continue;
+        }
+        
+        // Compute corresponding source path
+        let source_path = compute_source_path(&target_path, target, base, hostname_sep)?;
+        
+        // If source doesn't exist, this is a new orphan file
+        if !source_path.exists() {
+            let path_key = rel_path.to_string_lossy().to_string();
+            let current_checksum = calculate_checksum(&target_path)?;
+            
+            log::info!("New orphan file detected: {}", rel_path.display());
+            changes.push(Change {
+                change_type: ChangeType::New,
+                relative_path: rel_path.clone(),
+                target_path: target_path.clone(),
+                source_path: source_path.clone(),
+                group_name: group_name.clone(),
+            });
+            state.files.insert(
+                path_key,
+                FileState {
+                    checksum: current_checksum,
+                    last_seen: now.clone(),
+                },
+            );
+        }
+    }
+    
     // Update last_collection timestamp
-    state.last_collection = Some(now);
+    state.last_collection = Some(now.clone());
     
     Ok(changes)
 }
@@ -348,6 +541,18 @@ pub fn collect(
     dry_run: bool,
     skip_dirty: bool,
 ) -> Result<CollectionResult> {
+    // Pre-run validation: check collect_sources patterns
+    for group in &config.local {
+        if group.is_collect_enabled() {
+            if let Err(e) = validate_collect_sources(group) {
+                return Err(AppError::ConfigError(format!(
+                    "Pre-run check failed for group '{}': {}",
+                    group.name, e
+                )));
+            }
+        }
+    }
+    
     let mut state = load_state(state_path)?;
     let mut all_changes = Vec::new();
     let mut conflicts = Vec::new();

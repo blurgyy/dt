@@ -741,6 +741,13 @@ where
     /// during `dt collect`, preventing unnecessary syncs for dynamic files.
     #[serde(default)]
     pub exclude: Option<Vec<String>>,
+
+    /// (Optional) Glob patterns for discovering new files in target during collect.
+    /// If not specified, defaults to the value of `sources`.
+    /// These patterns are used to scan the target directory for files that exist
+    /// in target but not in source (orphan files), allowing them to be collected.
+    #[serde(default)]
+    pub collect_sources: Option<Vec<String>>,
 }
 
 impl<T> Group<T>
@@ -1064,6 +1071,17 @@ impl LocalGroup {
         }
 
         Ok(())
+    }
+
+    /// Get the collect_sources patterns for this group.
+    /// Returns collect_sources if set, otherwise falls back to sources.
+    pub fn get_collect_sources(&self) -> Vec<String> {
+        match &self.collect_sources {
+            Some(patterns) => patterns.clone(),
+            None => self.sources.iter()
+                .map(|p| p.to_string_lossy().to_string())
+                .collect(),
+        }
     }
 }
 
