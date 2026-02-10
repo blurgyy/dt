@@ -6,6 +6,10 @@
 #[deny(missing_docs)]
 pub mod config;
 
+/// Reverse collection functionality.
+#[deny(missing_docs)]
+pub mod collecting;
+
 /// Definitions for errors
 #[deny(missing_docs)]
 pub mod error;

@@ -729,6 +729,12 @@ where
     /// [`global.rename`]: GlobalConfig::rename
     #[serde(default)]
     pub rename: RenamingRules,
+
+    /// (Optional) Whether to enable reverse collection for this group.
+    /// When enabled, `dt collect` will detect changes in the target directory
+    /// and sync them back to the source.
+    #[serde(default)]
+    pub collect: Option<bool>,
 }
 
 impl<T> Group<T>
@@ -829,6 +835,12 @@ where
             Some(Renderable(renderable)) => renderable,
             _ => self.global.renderable.0,
         }
+    }
+
+    /// Check if reverse collection is enabled for this group.
+    /// Returns true only if collect is explicitly set to true.
+    pub fn is_collect_enabled(&self) -> bool {
+        self.collect.unwrap_or(false)
     }
 
     /// Validates this group with readonly access to the filesystem.  The

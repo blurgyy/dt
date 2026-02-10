@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 
 use dt_core::{
+    collecting::{self, default_state_path},
     config::DTConfig,
     error::{Error as AppError, Result},
     syncing,
@@ -11,14 +12,27 @@ use dt_core::{
 
 #[derive(StructOpt, Debug)]
 #[structopt(
-    global_settings(&[structopt::clap::AppSettings::ColoredHelp])
+    global_settings(&[structopt::clap::AppSettings::ColoredHelp]),
+    name = "dt",
+    about = "Dotfiles manager with reverse collection support"
 )]
-struct Opt {
+enum Opt {
+    /// Sync files from source to target (default)
+    #[structopt(name = "sync", alias = "s")]
+    Sync(SyncArgs),
+    
+    /// Collect changes from target back to source
+    #[structopt(name = "collect", alias = "c")]
+    Collect(CollectArgs),
+}
+
+#[derive(StructOpt, Debug)]
+struct SyncArgs {
     /// Specifies path to config file
     #[structopt(short, long)]
     config_path: Option<PathBuf>,
 
-    ///Specifies name(s) of the group(s) to be processed"
+    /// Specifies name(s) of the group(s) to be processed
     #[structopt(name = "group_name")]
     group_names: Vec<String>,
 
@@ -35,15 +49,49 @@ struct Opt {
     quiet: i8,
 }
 
+#[derive(StructOpt, Debug)]
+struct CollectArgs {
+    /// Specifies path to config file
+    #[structopt(short, long)]
+    config_path: Option<PathBuf>,
+
+    /// Specifies name(s) of the group(s) to be processed
+    #[structopt(name = "group_name")]
+    group_names: Vec<String>,
+
+    /// Shows changes to be made without actually collecting files
+    #[structopt(short, long)]
+    dry_run: bool,
+
+    /// Specifies path to state file
+    #[structopt(short, long)]
+    state_path: Option<PathBuf>,
+
+    /// Increases logging verbosity
+    #[structopt(short, long, parse(from_occurrences), conflicts_with = "quiet")]
+    verbose: i8,
+
+    /// Decreases logging verbosity
+    #[structopt(short, long, parse(from_occurrences), conflicts_with = "verbose")]
+    quiet: i8,
+}
+
 fn run() -> Result<()> {
     let opt = Opt::from_args();
-    setup(opt.verbose - opt.quiet + { opt.dry_run as i8 });
+    
+    match opt {
+        Opt::Sync(args) => run_sync(args),
+        Opt::Collect(args) => run_collect(args),
+    }
+}
 
-    log::trace!("Parsed command line: {:#?}", &opt);
+fn run_sync(args: SyncArgs) -> Result<()> {
+    setup(args.verbose - args.quiet + { args.dry_run as i8 });
+    log::trace!("Parsed command line: {:?}", &args);
 
-    let config_path = match opt.config_path {
+    let config_path = match args.config_path {
         Some(p) => {
-            log::debug!("Using config file '{}' (from command line)", p.display(),);
+            log::debug!("Using config file '{}' (from command line)", p.display());
             p
         }
         None => default_config_path("DT_CLI_CONFIG_PATH", "DT_CONFIG_DIR", &["cli.toml"])?,
@@ -51,12 +99,62 @@ fn run() -> Result<()> {
 
     let config = DTConfig::from_path(config_path)?;
     // Filter groups when appropriate
-    let config = if opt.group_names.is_empty() {
+    let config = if args.group_names.is_empty() {
         config
     } else {
-        config.filter_names(opt.group_names)
+        config.filter_names(args.group_names)
     };
-    syncing::sync(config, opt.dry_run)?;
+    syncing::sync(config, args.dry_run)?;
+    Ok(())
+}
+
+fn run_collect(args: CollectArgs) -> Result<()> {
+    setup(args.verbose - args.quiet + { args.dry_run as i8 });
+    log::trace!("Parsed command line: {:?}", &args);
+
+    let config_path = match args.config_path {
+        Some(p) => {
+            log::debug!("Using config file '{}' (from command line)", p.display());
+            p
+        }
+        None => default_config_path("DT_CLI_CONFIG_PATH", "DT_CONFIG_DIR", &["cli.toml"])?,
+    };
+
+    let state_path = match args.state_path {
+        Some(p) => p,
+        None => default_state_path(),
+    };
+
+    let config = DTConfig::from_path(config_path)?;
+    // Filter groups when appropriate
+    let config = if args.group_names.is_empty() {
+        config
+    } else {
+        config.filter_names(args.group_names)
+    };
+    
+    let changes = collecting::collect(&config, &state_path, args.dry_run)?;
+    
+    if changes.is_empty() {
+        log::info!("No changes detected.");
+    } else {
+        log::info!("Detected {} change(s):", changes.len());
+        for change in &changes {
+            let change_type_str = match change.change_type {
+                collecting::ChangeType::New => "NEW",
+                collecting::ChangeType::Modified => "MODIFIED",
+                collecting::ChangeType::Deleted => "DELETED",
+            };
+            log::info!("  [{}] {}", change_type_str, change.relative_path.display());
+        }
+        
+        if args.dry_run {
+            log::info!("(Dry run - no changes were applied)");
+        } else {
+            log::info!("Changes have been collected to source.");
+        }
+    }
+    
     Ok(())
 }
 
