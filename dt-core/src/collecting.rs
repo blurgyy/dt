@@ -143,6 +143,15 @@ pub fn detect_group_changes(
             }
         };
         
+        // Check if file is excluded from collection
+        let filename = relative_path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("");
+        if group.is_excluded(filename) {
+            log::debug!("Skipping excluded file: {}", relative_path.display());
+            continue;
+        }
+        
         // Compute target path using make_target (handles hostname suffixes and renaming)
         let target_path = source_path.clone().make_target(
             hostname_sep,

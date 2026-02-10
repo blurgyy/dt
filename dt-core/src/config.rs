@@ -735,6 +735,12 @@ where
     /// and sync them back to the source.
     #[serde(default)]
     pub collect: Option<bool>,
+
+    /// (Optional) Files to exclude from reverse collection.
+    /// Supports glob patterns. Excluded files will not be checked for changes
+    /// during `dt collect`, preventing unnecessary syncs for dynamic files.
+    #[serde(default)]
+    pub exclude: Option<Vec<String>>,
 }
 
 impl<T> Group<T>
@@ -841,6 +847,19 @@ where
     /// Returns true only if collect is explicitly set to true.
     pub fn is_collect_enabled(&self) -> bool {
         self.collect.unwrap_or(false)
+    }
+
+    /// Check if a file should be excluded from reverse collection.
+    /// Supports glob patterns like "auth-profiles.json" or "*.log".
+    pub fn is_excluded(&self, filename: &str) -> bool {
+        match &self.exclude {
+            None => false,
+            Some(patterns) => patterns.iter().any(|pattern| {
+                glob::Pattern::new(pattern)
+                    .map(|p| p.matches(filename))
+                    .unwrap_or(false)
+            }),
+        }
     }
 
     /// Validates this group with readonly access to the filesystem.  The
