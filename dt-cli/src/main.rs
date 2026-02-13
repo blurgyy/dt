@@ -138,7 +138,8 @@ fn run_collect(args: CollectArgs) -> Result<()> {
     };
     
     // Expand glob patterns in sources before collecting
-    let config = syncing::expand(config)?;
+    // Use expand_for_collect to avoid resolve() filtering out overlapping groups
+    let config = syncing::expand_for_collect(config)?;
     
     let result = collecting::collect(&config, &state_path, args.dry_run, args.skip_dirty
     )?;

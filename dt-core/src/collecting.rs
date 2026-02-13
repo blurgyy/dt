@@ -118,6 +118,14 @@ pub fn validate_collect_sources(group: &LocalGroup) -> Result<()> {
     let sources_patterns: Vec<&str> = group.sources.iter()
         .map(|p| p.to_str().unwrap_or("*"))
         .collect();
+    
+    // Skip validation if sources contain absolute paths (i.e., were expanded)
+    // In this case, collect_sources was explicitly set to the original glob patterns
+    // by expand_for_collect, so the subset check doesn't apply
+    if sources_patterns.iter().any(|p| p.starts_with('/')) {
+        return Ok(());
+    }
+    
     let collect_patterns = group.get_collect_sources();
     
     // For each collect pattern, check if it's covered by any source pattern

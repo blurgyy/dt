@@ -11,8 +11,83 @@ use crate::{
     registry::{Register, Registry},
 };
 
-/// Expands tildes and globs in [`sources`], returns the updated config
-/// object.
+/// Expands tildes and globs in [`sources`] for collect operation, returns the updated config
+/// object. Unlike [`expand`], this function does NOT call [`resolve`], allowing overlapping
+/// groups to each collect their own files independently.
+///
+/// This is necessary because `resolve()` is designed for sync operations where each target
+/// should only be managed by one group. For collect, we want each group to independently
+/// discover and collect files from its target directory, even if targets overlap.
+pub fn expand_for_collect(config: DTConfig) -> Result<DTConfig> {
+    let mut ret = DTConfig {
+        // Remove `global` and `context` in expanded configuration object.
+        global: config.global,
+        context: config.context,
+        local: Vec::new(),
+        remote: Vec::new(),
+    };
+
+    for original in config.local {
+        // Save original sources as collect_sources if collect_sources is not set
+        // This ensures get_collect_sources() returns glob patterns, not expanded paths
+        let original_collect_sources = original.collect_sources.clone().or_else(|| {
+            Some(original.sources.iter()
+                .map(|p| p.to_string_lossy().to_string())
+                .collect())
+        });
+
+        let mut next = LocalGroup {
+            global: Rc::clone(&original.global),
+            base: original.base.to_owned().absolute()?,
+            sources: Vec::new(),
+            target: original.target.to_owned().absolute()?,
+            collect_sources: original_collect_sources,
+            ..original.to_owned()
+        };
+
+        let group_hostname_sep = original.get_hostname_sep();
+
+        // Check for host-specific `base`
+        let host_specific_base = next.base.to_owned().host_specific(&group_hostname_sep);
+        if host_specific_base.exists() {
+            next.base = host_specific_base;
+        }
+
+        // Check for host-specific `sources`
+        let sources: Vec<PathBuf> = original
+            .sources
+            .iter()
+            .map(|s| {
+                let try_s = next
+                    .base
+                    .join(s)
+                    .absolute()
+                    .unwrap_or_else(|e| panic!("{}", e));
+                let try_s = try_s.host_specific(&group_hostname_sep);
+                if try_s.exists() {
+                    try_s
+                } else {
+                    s.to_owned()
+                }
+            })
+            .collect();
+
+        // Recursively expand source paths
+        for s in &sources {
+            let s = next.base.join(s);
+            let mut s = expand_recursive(&s, &next.get_hostname_sep(), true)?;
+            next.sources.append(&mut s);
+        }
+        next.sources.sort();
+        next.sources.dedup();
+        ret.local.push(next);
+    }
+
+    // Skip resolve() for collect - overlapping groups should each collect independently
+    check_readable(&ret)?;
+
+    Ok(ret)
+}
 ///
 /// It does the following operations on given config:
 ///
