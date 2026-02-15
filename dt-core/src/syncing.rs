@@ -515,6 +515,9 @@ target = "{}""#,
                         PathBuf::from_str("../dt-core/README.md")
                             .unwrap()
                             .absolute()?,
+                        PathBuf::from_str("../dt-core/src/collecting.rs")
+                            .unwrap()
+                            .absolute()?,
                         PathBuf::from_str("../dt-core/src/config.rs")
                             .unwrap()
                             .absolute()?,
