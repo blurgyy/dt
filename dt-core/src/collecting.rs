@@ -112,6 +112,99 @@ impl CollectionResult {
     }
 }
 
+/// Information about a source-target mapping conflict
+#[derive(Clone, Debug)]
+pub struct SourceTargetConflict {
+    /// The source file path
+    pub source_path: PathBuf,
+    /// List of (group_name, target_path) that map to this source
+    pub mappings: Vec<(String, PathBuf)>,
+}
+
+impl std::fmt::Display for SourceTargetConflict {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "  Source: {}", self.source_path.display())?;
+        for (group, target) in &self.mappings {
+            writeln!(f, "    -> {} maps to {}", group, target.display())?;
+        }
+        Ok(())
+    }
+}
+
+/// Validate that no source file is mapped to multiple different target paths
+/// across groups with collect enabled.
+/// Returns Ok(()) if no conflicts, Err with detailed conflict info otherwise.
+pub fn validate_no_source_target_conflicts(config: &DTConfig) -> Result<()> {
+    // Map: source_path -> Vec<(group_name, target_path)>
+    let mut source_to_targets: HashMap<PathBuf, Vec<(String, PathBuf)>> = HashMap::new();
+
+    for group in &config.local {
+        if !group.is_collect_enabled() {
+            continue;
+        }
+
+        let base = &group.base;
+        let target = &group.target;
+        let hostname_sep = &group.get_hostname_sep();
+        let renaming_rules = group.get_renaming_rules();
+
+        for source_path in &group.sources {
+            if !source_path.is_file() {
+                continue;
+            }
+
+            // Compute target path for this source
+            let computed_target = source_path.clone().make_target(
+                hostname_sep,
+                base,
+                target,
+                renaming_rules.clone(),
+            )?;
+
+            source_to_targets
+                .entry(source_path.clone())
+                .or_default()
+                .push((group.name.to_string(), computed_target));
+        }
+    }
+
+    // Find conflicts: same source mapped to multiple different targets
+    let conflicts: Vec<SourceTargetConflict> = source_to_targets
+        .into_iter()
+        .filter_map(|(source_path, mappings)| {
+            if mappings.len() < 2 {
+                return None;
+            }
+
+            // Check if all targets are the same (could be same file via different paths like symlinks)
+            let first_target = &mappings[0].1;
+            let all_same = mappings.iter().all(|(_, t)| t == first_target);
+
+            if all_same {
+                return None;
+            }
+
+            Some(SourceTargetConflict {
+                source_path,
+                mappings,
+            })
+        })
+        .collect();
+
+    if !conflicts.is_empty() {
+        let mut msg = String::from(
+            "Source-Target conflict detected: the following source files are mapped to multiple different targets:\n"
+        );
+        for conflict in &conflicts {
+            msg.push_str(&format!("\n{}", conflict));
+        }
+        msg.push_str("\nPlease resolve this conflict by ensuring each source maps to at most one target, or disable collect for conflicting groups.");
+        return Err(AppError::ConfigError(msg));
+    }
+
+    Ok(())
+}
+
 /// Validate that collect_sources patterns are a subset of sources patterns.
 /// Returns Ok(()) if valid, Err if collect_sources would match files outside sources.
 pub fn validate_collect_sources(group: &LocalGroup) -> Result<()> {
@@ -549,6 +642,11 @@ pub fn collect(
     dry_run: bool,
     skip_dirty: bool,
 ) -> Result<CollectionResult> {
+    // Pre-run validation: check for source-target conflicts across groups
+    if let Err(e) = validate_no_source_target_conflicts(config) {
+        return Err(e);
+    }
+    
     // Pre-run validation: check collect_sources patterns
     for group in &config.local {
         if group.is_collect_enabled() {
