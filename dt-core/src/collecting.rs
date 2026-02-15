@@ -261,11 +261,26 @@ fn pattern_covers(source: &str, collect: &str) -> bool {
         return true;
     }
     
+    // If source is "*.ext", check if collect also ends with ".ext"
+    if source.starts_with("*.") {
+        let src_ext = &source[2..]; // Get extension after "*."
+        if collect.ends_with(&format!(".{}", src_ext)) || collect.ends_with(src_ext) {
+            // Additional check: collect should be more specific (have some prefix)
+            // e.g., "2024*.md" starts with "2024"
+            if collect.contains('*') {
+                let collect_prefix = collect.split('*').next().unwrap_or("");
+                // If collect has a non-empty prefix before *, it's more specific
+                if !collect_prefix.is_empty() {
+                    return true;
+                }
+            }
+        }
+    }
+    
     // If source ends with wildcard and collect starts with the same prefix
     if source.ends_with('*') {
         let src_prefix = &source[..source.len()-1];
         if collect.starts_with(src_prefix) || src_prefix.is_empty() {
-            // "*.md" covers "20*.md" because both end with .md
             // Check if collect also ends with the same suffix pattern
             if source.contains('.') && collect.contains('.') {
                 let src_ext = source.rsplit('.').next().unwrap_or("");
@@ -777,7 +792,9 @@ pub fn default_state_path() -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::syncing::expand_for_collect;
     use std::io::Write;
+    use std::str::FromStr;
 
     #[test]
     fn test_calculate_checksum() {
@@ -836,6 +853,803 @@ mod tests {
         );
         
         // Cleanup
+        fs::remove_dir_all(&temp_dir).unwrap();
+    }
+
+    // =================================================================
+    // Tests for validate_no_source_target_conflicts
+    // =================================================================
+
+    #[test]
+    fn test_validate_no_source_target_conflicts_no_conflict_single_group() {
+        // Single group, no possible conflict
+        let temp_dir = std::env::temp_dir().join("dt_test_conflict_1");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+        
+        let base = temp_dir.join("base");
+        let target = temp_dir.join("target");
+        fs::create_dir_all(&base).unwrap();
+        fs::create_dir_all(&target).unwrap();
+        
+        let source_file = base.join("file.txt");
+        fs::write(&source_file, "content").unwrap();
+        
+        let config = DTConfig::from_str(&format!(
+            r#"
+[[local]]
+name = "group1"
+base = "{}"
+sources = ["file.txt"]
+target = "{}"
+collect = true
+"#,
+            base.display(),
+            target.display(),
+        )).unwrap();
+        
+        let expanded = expand_for_collect(config).unwrap();
+        assert!(validate_no_source_target_conflicts(&expanded).is_ok());
+        
+        fs::remove_dir_all(&temp_dir).unwrap();
+    }
+
+    #[test]
+    fn test_validate_no_source_target_conflicts_conflict_two_groups() {
+        // Two groups with same source but different targets → conflict
+        let temp_dir = std::env::temp_dir().join("dt_test_conflict_2");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+        
+        let base = temp_dir.join("base");
+        let target1 = temp_dir.join("target1");
+        let target2 = temp_dir.join("target2");
+        fs::create_dir_all(&base).unwrap();
+        fs::create_dir_all(&target1).unwrap();
+        fs::create_dir_all(&target2).unwrap();
+        
+        let source_file = base.join("file.txt");
+        fs::write(&source_file, "content").unwrap();
+        
+        let config = DTConfig::from_str(&format!(
+            r#"
+[[local]]
+name = "group1"
+base = "{}"
+sources = ["file.txt"]
+target = "{}"
+collect = true
+
+[[local]]
+name = "group2"
+base = "{}"
+sources = ["file.txt"]
+target = "{}"
+collect = true
+"#,
+            base.display(),
+            target1.display(),
+            base.display(),
+            target2.display(),
+        )).unwrap();
+        
+        let expanded = expand_for_collect(config).unwrap();
+        let result = validate_no_source_target_conflicts(&expanded);
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("Source-Target conflict detected"));
+        assert!(err_msg.contains("group1"));
+        assert!(err_msg.contains("group2"));
+        
+        fs::remove_dir_all(&temp_dir).unwrap();
+    }
+
+    #[test]
+    fn test_validate_no_source_target_conflicts_same_target_no_conflict() {
+        // Two groups with same source and same target → NOT a conflict
+        let temp_dir = std::env::temp_dir().join("dt_test_conflict_3");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+        
+        let base = temp_dir.join("base");
+        let target = temp_dir.join("target");
+        fs::create_dir_all(&base).unwrap();
+        fs::create_dir_all(&target).unwrap();
+        
+        let source_file = base.join("file.txt");
+        fs::write(&source_file, "content").unwrap();
+        
+        let config = DTConfig::from_str(&format!(
+            r#"
+[[local]]
+name = "group1"
+base = "{}"
+sources = ["file.txt"]
+target = "{}"
+collect = true
+
+[[local]]
+name = "group2"
+base = "{}"
+sources = ["file.txt"]
+target = "{}"
+collect = true
+"#,
+            base.display(),
+            target.display(),
+            base.display(),
+            target.display(),
+        )).unwrap();
+        
+        let expanded = expand_for_collect(config).unwrap();
+        // Same target path should not be a conflict
+        assert!(validate_no_source_target_conflicts(&expanded).is_ok());
+        
+        fs::remove_dir_all(&temp_dir).unwrap();
+    }
+
+    #[test]
+    fn test_validate_no_source_target_conflicts_one_disabled() {
+        // Two groups, but only one has collect enabled → NOT a conflict
+        let temp_dir = std::env::temp_dir().join("dt_test_conflict_4");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+        
+        let base = temp_dir.join("base");
+        let target1 = temp_dir.join("target1");
+        let target2 = temp_dir.join("target2");
+        fs::create_dir_all(&base).unwrap();
+        fs::create_dir_all(&target1).unwrap();
+        fs::create_dir_all(&target2).unwrap();
+        
+        let source_file = base.join("file.txt");
+        fs::write(&source_file, "content").unwrap();
+        
+        let config = DTConfig::from_str(&format!(
+            r#"
+[[local]]
+name = "group1"
+base = "{}"
+sources = ["file.txt"]
+target = "{}"
+collect = true
+
+[[local]]
+name = "group2"
+base = "{}"
+sources = ["file.txt"]
+target = "{}"
+collect = false
+"#,
+            base.display(),
+            target1.display(),
+            base.display(),
+            target2.display(),
+        )).unwrap();
+        
+        let expanded = expand_for_collect(config).unwrap();
+        // Only group1 has collect enabled, no conflict
+        assert!(validate_no_source_target_conflicts(&expanded).is_ok());
+        
+        fs::remove_dir_all(&temp_dir).unwrap();
+    }
+
+    #[test]
+    fn test_validate_no_source_target_conflicts_three_groups() {
+        // Three groups with same source but different targets → conflict listing all three
+        let temp_dir = std::env::temp_dir().join("dt_test_conflict_5");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+        
+        let base = temp_dir.join("base");
+        let target1 = temp_dir.join("target1");
+        let target2 = temp_dir.join("target2");
+        let target3 = temp_dir.join("target3");
+        fs::create_dir_all(&base).unwrap();
+        fs::create_dir_all(&target1).unwrap();
+        fs::create_dir_all(&target2).unwrap();
+        fs::create_dir_all(&target3).unwrap();
+        
+        let source_file = base.join("file.txt");
+        fs::write(&source_file, "content").unwrap();
+        
+        let config = DTConfig::from_str(&format!(
+            r#"
+[[local]]
+name = "group1"
+base = "{}"
+sources = ["file.txt"]
+target = "{}"
+collect = true
+
+[[local]]
+name = "group2"
+base = "{}"
+sources = ["file.txt"]
+target = "{}"
+collect = true
+
+[[local]]
+name = "group3"
+base = "{}"
+sources = ["file.txt"]
+target = "{}"
+collect = true
+"#,
+            base.display(), target1.display(),
+            base.display(), target2.display(),
+            base.display(), target3.display(),
+        )).unwrap();
+        
+        let expanded = expand_for_collect(config).unwrap();
+        let result = validate_no_source_target_conflicts(&expanded);
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("group1"));
+        assert!(err_msg.contains("group2"));
+        assert!(err_msg.contains("group3"));
+        
+        fs::remove_dir_all(&temp_dir).unwrap();
+    }
+
+    // =================================================================
+    // Tests for validate_collect_sources
+    // =================================================================
+
+    #[test]
+    fn test_validate_collect_sources_exact_match() {
+        let temp_dir = std::env::temp_dir().join("dt_test_collect_src_1");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+        
+        let base = temp_dir.join("base");
+        fs::create_dir_all(&base).unwrap();
+        fs::write(base.join("file.txt"), "content").unwrap();
+        
+        let config = DTConfig::from_str(&format!(
+            r#"
+[[local]]
+name = "test"
+base = "{}"
+sources = ["*.txt"]
+target = "{}"
+collect = true
+collect_sources = ["*.txt"]
+"#,
+            base.display(),
+            temp_dir.join("target").display(),
+        )).unwrap();
+        
+        let group = &config.local[0];
+        assert!(validate_collect_sources(group).is_ok());
+        
+        fs::remove_dir_all(&temp_dir).unwrap();
+    }
+
+    #[test]
+    fn test_validate_collect_sources_valid_subset() {
+        let temp_dir = std::env::temp_dir().join("dt_test_collect_src_2");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+        
+        let base = temp_dir.join("base");
+        fs::create_dir_all(&base).unwrap();
+        fs::write(base.join("2024-01-01.md"), "content").unwrap();
+        
+        let config = DTConfig::from_str(&format!(
+            r#"
+[[local]]
+name = "test"
+base = "{}"
+sources = ["*.md"]
+target = "{}"
+collect = true
+collect_sources = ["2024*.md"]
+"#,
+            base.display(),
+            temp_dir.join("target").display(),
+        )).unwrap();
+        
+        let group = &config.local[0];
+        assert!(validate_collect_sources(group).is_ok());
+        
+        fs::remove_dir_all(&temp_dir).unwrap();
+    }
+
+    #[test]
+    fn test_validate_collect_sources_invalid_wider_pattern() {
+        let temp_dir = std::env::temp_dir().join("dt_test_collect_src_3");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+        
+        let base = temp_dir.join("base");
+        fs::create_dir_all(&base).unwrap();
+        fs::write(base.join("config.toml"), "content").unwrap();
+        
+        let config = DTConfig::from_str(&format!(
+            r#"
+[[local]]
+name = "test"
+base = "{}"
+sources = ["config-*.toml"]
+target = "{}"
+collect = true
+collect_sources = ["*.toml"]
+"#,
+            base.display(),
+            temp_dir.join("target").display(),
+        )).unwrap();
+        
+        let group = &config.local[0];
+        let result = validate_collect_sources(group);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("may match files outside of sources"));
+        
+        fs::remove_dir_all(&temp_dir).unwrap();
+    }
+
+    // =================================================================
+    // Tests for pattern_covers helper
+    // =================================================================
+
+    #[test]
+    fn test_pattern_covers_exact_match() {
+        assert!(pattern_covers("*.md", "*.md"));
+    }
+
+    #[test]
+    fn test_pattern_covers_star_covers_all() {
+        assert!(pattern_covers("*", "*.md"));
+        assert!(pattern_covers("*", "any-pattern"));
+    }
+
+    #[test]
+    fn test_pattern_covers_extension_match() {
+        // Same extension patterns - should be covered
+        assert!(pattern_covers("*.md", "2024*.md"));
+        // Different extensions - not covered
+        assert!(!pattern_covers("*.txt", "2024*.md"));
+        // Source is generic star - covers all
+        assert!(pattern_covers("*", "2024*.md"));
+    }
+
+    #[test]
+    fn test_pattern_covers_not_covered() {
+        assert!(!pattern_covers("config-*.toml", "*.toml"));
+        assert!(!pattern_covers("*.rs", "*.md"));
+    }
+
+    // =================================================================
+    // Tests for detect_group_changes
+    // =================================================================
+
+    #[test]
+    fn test_detect_group_changes_new_file() {
+        let temp_dir = std::env::temp_dir().join("dt_test_detect_1");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+        
+        let base = temp_dir.join("base");
+        let target = temp_dir.join("target");
+        fs::create_dir_all(&base).unwrap();
+        fs::create_dir_all(&target).unwrap();
+        
+        // Create source and target files
+        fs::write(base.join("file.txt"), "source content").unwrap();
+        fs::write(target.join("file.txt"), "modified content").unwrap();
+        
+        let config = DTConfig::from_str(&format!(
+            r#"
+[[local]]
+name = "test"
+base = "{}"
+sources = ["file.txt"]
+target = "{}"
+collect = true
+"#,
+            base.display(),
+            target.display(),
+        )).unwrap();
+        
+        let expanded = expand_for_collect(config).unwrap();
+        let group = &expanded.local[0];
+        let mut state = CollectionState::default();
+        
+        let changes = detect_group_changes(group, &mut state).unwrap();
+        
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes[0].change_type, ChangeType::New);
+        assert_eq!(changes[0].relative_path, PathBuf::from("file.txt"));
+        
+        // State should be updated
+        assert!(state.files.contains_key("file.txt"));
+        
+        fs::remove_dir_all(&temp_dir).unwrap();
+    }
+
+    #[test]
+    fn test_detect_group_changes_modified_file() {
+        let temp_dir = std::env::temp_dir().join("dt_test_detect_2");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+        
+        let base = temp_dir.join("base");
+        let target = temp_dir.join("target");
+        fs::create_dir_all(&base).unwrap();
+        fs::create_dir_all(&target).unwrap();
+        
+        fs::write(base.join("file.txt"), "source content").unwrap();
+        fs::write(target.join("file.txt"), "modified content").unwrap();
+        
+        let config = DTConfig::from_str(&format!(
+            r#"
+[[local]]
+name = "test"
+base = "{}"
+sources = ["file.txt"]
+target = "{}"
+collect = true
+"#,
+            base.display(),
+            target.display(),
+        )).unwrap();
+        
+        let expanded = expand_for_collect(config).unwrap();
+        let group = &expanded.local[0];
+        let mut state = CollectionState {
+            version: 1,
+            last_collection: None,
+            files: {
+                let mut map = HashMap::new();
+                map.insert(
+                    "file.txt".to_string(),
+                    FileState {
+                        checksum: calculate_checksum(&base.join("file.txt")).unwrap(),
+                        last_seen: chrono::Utc::now().to_rfc3339(),
+                    },
+                );
+                map
+            },
+        };
+        
+        let changes = detect_group_changes(group, &mut state).unwrap();
+        
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes[0].change_type, ChangeType::Modified);
+        
+        fs::remove_dir_all(&temp_dir).unwrap();
+    }
+
+    #[test]
+    fn test_detect_group_changes_deleted_file() {
+        let temp_dir = std::env::temp_dir().join("dt_test_detect_3");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+        
+        let base = temp_dir.join("base");
+        let target = temp_dir.join("target");
+        fs::create_dir_all(&base).unwrap();
+        fs::create_dir_all(&target).unwrap();
+        
+        fs::write(base.join("file.txt"), "content").unwrap();
+        // target file does NOT exist
+        
+        let config = DTConfig::from_str(&format!(
+            r#"
+[[local]]
+name = "test"
+base = "{}"
+sources = ["file.txt"]
+target = "{}"
+collect = true
+"#,
+            base.display(),
+            target.display(),
+        )).unwrap();
+        
+        let expanded = expand_for_collect(config).unwrap();
+        let group = &expanded.local[0];
+        let mut state = CollectionState {
+            version: 1,
+            last_collection: None,
+            files: {
+                let mut map = HashMap::new();
+                map.insert(
+                    "file.txt".to_string(),
+                    FileState {
+                        checksum: "old_checksum".to_string(),
+                        last_seen: chrono::Utc::now().to_rfc3339(),
+                    },
+                );
+                map
+            },
+        };
+        
+        let changes = detect_group_changes(group, &mut state).unwrap();
+        
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes[0].change_type, ChangeType::Deleted);
+        
+        // Should be removed from state
+        assert!(!state.files.contains_key("file.txt"));
+        
+        fs::remove_dir_all(&temp_dir).unwrap();
+    }
+
+    #[test]
+    fn test_detect_group_changes_excluded_file() {
+        let temp_dir = std::env::temp_dir().join("dt_test_detect_4");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+        
+        let base = temp_dir.join("base");
+        let target = temp_dir.join("target");
+        fs::create_dir_all(&base).unwrap();
+        fs::create_dir_all(&target).unwrap();
+        
+        fs::write(base.join("file.txt"), "content").unwrap();
+        fs::write(target.join("file.txt"), "modified content").unwrap();
+        
+        let config = DTConfig::from_str(&format!(
+            r#"
+[[local]]
+name = "test"
+base = "{}"
+sources = ["file.txt"]
+target = "{}"
+collect = true
+exclude = ["file.txt"]
+"#,
+            base.display(),
+            target.display(),
+        )).unwrap();
+        
+        let expanded = expand_for_collect(config).unwrap();
+        let group = &expanded.local[0];
+        let mut state = CollectionState::default();
+        
+        let changes = detect_group_changes(group, &mut state).unwrap();
+        
+        // Excluded file should not be detected
+        assert_eq!(changes.len(), 0);
+        
+        fs::remove_dir_all(&temp_dir).unwrap();
+    }
+
+    #[test]
+    fn test_detect_group_changes_orphan_file() {
+        let temp_dir = std::env::temp_dir().join("dt_test_detect_5");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+        
+        let base = temp_dir.join("base");
+        let target = temp_dir.join("target");
+        fs::create_dir_all(&base).unwrap();
+        fs::create_dir_all(&target).unwrap();
+        
+        // Source does NOT exist, but target does (orphan file)
+        fs::write(target.join("orphan.txt"), "orphan content").unwrap();
+        
+        let config = DTConfig::from_str(&format!(
+            r#"
+[[local]]
+name = "test"
+base = "{}"
+sources = ["*.txt"]
+target = "{}"
+collect = true
+"#,
+            base.display(),
+            target.display(),
+        )).unwrap();
+        
+        let expanded = expand_for_collect(config).unwrap();
+        let group = &expanded.local[0];
+        let mut state = CollectionState::default();
+        
+        let changes = detect_group_changes(group, &mut state).unwrap();
+        
+        // Orphan file should be detected as New
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes[0].change_type, ChangeType::New);
+        assert_eq!(changes[0].relative_path, PathBuf::from("orphan.txt"));
+        
+        fs::remove_dir_all(&temp_dir).unwrap();
+    }
+
+    // =================================================================
+    // Integration tests for collect
+    // =================================================================
+
+    #[test]
+    fn test_collect_dry_run_no_changes() {
+        let temp_dir = std::env::temp_dir().join("dt_test_collect_1");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+        
+        let base = temp_dir.join("base");
+        let target = temp_dir.join("target");
+        fs::create_dir_all(&base).unwrap();
+        fs::create_dir_all(&target).unwrap();
+        
+        fs::write(base.join("file.txt"), "source").unwrap();
+        fs::write(target.join("file.txt"), "modified").unwrap();
+        
+        let config = DTConfig::from_str(&format!(
+            r#"
+[[local]]
+name = "test"
+base = "{}"
+sources = ["file.txt"]
+target = "{}"
+collect = true
+"#,
+            base.display(),
+            target.display(),
+        )).unwrap();
+        
+        let expanded = expand_for_collect(config).unwrap();
+        let state_path = temp_dir.join(".dt-state.json");
+        
+        // Dry run
+        let result = collect(&expanded, &state_path, true, false).unwrap();
+        
+        assert!(result.has_changes());
+        assert!(result.is_success());
+        
+        // Source should NOT be modified
+        let source_content = fs::read_to_string(base.join("file.txt")).unwrap();
+        assert_eq!(source_content, "source");
+        
+        // State should NOT be saved
+        assert!(!state_path.exists());
+        
+        fs::remove_dir_all(&temp_dir).unwrap();
+    }
+
+    #[test]
+    fn test_collect_actual_changes() {
+        let temp_dir = std::env::temp_dir().join("dt_test_collect_2");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+        
+        let base = temp_dir.join("base");
+        let target = temp_dir.join("target");
+        fs::create_dir_all(&base).unwrap();
+        fs::create_dir_all(&target).unwrap();
+        
+        fs::write(base.join("file.txt"), "source").unwrap();
+        fs::write(target.join("file.txt"), "modified").unwrap();
+        
+        let config = DTConfig::from_str(&format!(
+            r#"
+[[local]]
+name = "test"
+base = "{}"
+sources = ["file.txt"]
+target = "{}"
+collect = true
+"#,
+            base.display(),
+            target.display(),
+        )).unwrap();
+        
+        let expanded = expand_for_collect(config).unwrap();
+        let state_path = temp_dir.join(".dt-state.json");
+        
+        // Actual collect
+        let result = collect(&expanded, &state_path, false, false).unwrap();
+        
+        assert!(result.has_changes());
+        assert!(result.is_success());
+        
+        // Source should be updated
+        let source_content = fs::read_to_string(base.join("file.txt")).unwrap();
+        assert_eq!(source_content, "modified");
+        
+        // State should be saved
+        assert!(state_path.exists());
+        
+        fs::remove_dir_all(&temp_dir).unwrap();
+    }
+
+    #[test]
+    fn test_collect_conflict_aborts() {
+        let temp_dir = std::env::temp_dir().join("dt_test_collect_3");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+        
+        let base = temp_dir.join("base");
+        let target1 = temp_dir.join("target1");
+        let target2 = temp_dir.join("target2");
+        fs::create_dir_all(&base).unwrap();
+        fs::create_dir_all(&target1).unwrap();
+        fs::create_dir_all(&target2).unwrap();
+        
+        fs::write(base.join("file.txt"), "content").unwrap();
+        fs::write(target1.join("file.txt"), "target1").unwrap();
+        fs::write(target2.join("file.txt"), "target2").unwrap();
+        
+        let config = DTConfig::from_str(&format!(
+            r#"
+[[local]]
+name = "group1"
+base = "{}"
+sources = ["file.txt"]
+target = "{}"
+collect = true
+
+[[local]]
+name = "group2"
+base = "{}"
+sources = ["file.txt"]
+target = "{}"
+collect = true
+"#,
+            base.display(), target1.display(),
+            base.display(), target2.display(),
+        )).unwrap();
+        
+        let expanded = expand_for_collect(config).unwrap();
+        let state_path = temp_dir.join(".dt-state.json");
+        
+        // Should fail due to conflict
+        let result = collect(&expanded, &state_path, false, false);
+        
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Source-Target conflict"));
+        
+        fs::remove_dir_all(&temp_dir).unwrap();
+    }
+
+    #[test]
+    fn test_collect_no_changes_when_clean() {
+        let temp_dir = std::env::temp_dir().join("dt_test_collect_4");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+        
+        let base = temp_dir.join("base");
+        let target = temp_dir.join("target");
+        fs::create_dir_all(&base).unwrap();
+        fs::create_dir_all(&target).unwrap();
+        
+        // Same content in both
+        fs::write(base.join("file.txt"), "same content").unwrap();
+        fs::write(target.join("file.txt"), "same content").unwrap();
+        
+        let config = DTConfig::from_str(&format!(
+            r#"
+[[local]]
+name = "test"
+base = "{}"
+sources = ["file.txt"]
+target = "{}"
+collect = true
+"#,
+            base.display(),
+            target.display(),
+        )).unwrap();
+        
+        let expanded = expand_for_collect(config).unwrap();
+        let state_path = temp_dir.join(".dt-state.json");
+        
+        // Pre-populate state with correct checksum
+        let mut state = CollectionState::default();
+        state.files.insert(
+            "file.txt".to_string(),
+            FileState {
+                checksum: calculate_checksum(&target.join("file.txt")).unwrap(),
+                last_seen: chrono::Utc::now().to_rfc3339(),
+            },
+        );
+        save_state(&state_path, &state).unwrap();
+        
+        // Collect should find no changes
+        let result = collect(&expanded, &state_path, false, false).unwrap();
+        
+        assert!(!result.has_changes());
+        assert!(result.is_success());
+        
         fs::remove_dir_all(&temp_dir).unwrap();
     }
 }
