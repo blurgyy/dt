@@ -18,3 +18,5 @@ managing dotfiles.  To be specific, `dt-cli` supports:
   <sub>[[**Examples**](/config/guide/06-filename-manipulating)]</sub>
 - [Templating](04-templating)
   <sub>[[**Examples**](/config/guide/07-templating)]</sub>
+- [Reverse Collection](05-reverse-collection)
+  <sub>[[**Examples**](/config/guide/08-reverse-collection)]</sub>
