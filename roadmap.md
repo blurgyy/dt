@@ -69,6 +69,7 @@
       automatically load config file after overwriting
 - [ ] Add `global.include` array to allow including other config files
 - [x] Templating
+- [x] Reverse collection (`dt collect`) — see [design.md](design.md) for technical details
 
 ## CLI
 

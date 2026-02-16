@@ -139,7 +139,7 @@ dt collect
 dt collect --dry-run
 
 # Force collection (ignore state)
-dt collect --force
+dt collect --force  # ⚠️ Not implemented yet
 
 # Collection with verbose output
 dt collect -v
@@ -157,7 +157,7 @@ sources = [
 # New: Enable reverse collection for this group
 collect = true
 
-# New: Collection-specific options (optional)
+# New: Collection-specific options (optional)  # ⚠️ Not implemented yet
 [groups.collect_options]
 exclude_patterns = ["*.tmp", "*.bak"]  # Skip these
 include_hidden = false                  # Don't collect dotfiles unless listed
@@ -226,5 +226,6 @@ dt collect && cd ~/.local/share/dotfiles-configs && git commit -a && git push ra
 
 ---
 
-**Status**: Design Complete ✓  
-**Next**: Phase 3 - Implementation
+**Status**: Implemented ✓  
+**Note**: `--force` flag and `collect_options` are not yet implemented.  
+**Next**: Maintain and extend as needed
