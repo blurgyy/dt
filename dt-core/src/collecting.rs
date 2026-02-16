@@ -6,7 +6,7 @@
 use std::{
     collections::HashMap,
     fs,
-    io::{self, Read},
+    io::{Read},
     path::{Path, PathBuf},
 };
 
@@ -16,6 +16,7 @@ use sha2::{Digest, Sha256};
 use crate::{
     config::{DTConfig, LocalGroup},
     error::{Error as AppError, Result},
+    item::Operate,
 };
 
 /// State file format for tracking file checksums
@@ -121,37 +122,59 @@ pub fn detect_group_changes(
     // Get the current timestamp
     let now = chrono::Utc::now().to_rfc3339();
     
-    // Expand sources to get all files
     let base = &group.base;
     let target = &group.target;
+    let hostname_sep = &group.get_hostname_sep();
+    let renaming_rules = group.get_renaming_rules();
     
-    // Collect all files in the target directory that correspond to sources
-    for source in &group.sources {
-        let target_path = target.join(source);
-        let source_path = base.join(source);
-        let relative_path = source.clone();
+    // Iterate over expanded sources (these are absolute paths)
+    for source_path in &group.sources {
+        // Skip if source is not a file
+        if !source_path.is_file() {
+            continue;
+        }
         
+        // Compute relative path from base
+        let relative_path = match source_path.strip_prefix(base) {
+            Ok(rp) => rp.to_path_buf(),
+            Err(_) => {
+                log::warn!("Source '{}' is not under base '{}'", source_path.display(), base.display());
+                continue;
+            }
+        };
+        
+        // Compute target path using make_target (handles hostname suffixes and renaming)
+        let target_path = source_path.clone().make_target(
+            hostname_sep,
+            base,
+            target,
+            renaming_rules.clone(),
+        )?;
+        
+        let path_key = relative_path.to_string_lossy().to_string();
+        
+        // Check if target file exists
         if !target_path.exists() {
             // File might have been deleted
-            if state.files.contains_key(&relative_path.to_string_lossy().to_string()) {
+            if state.files.contains_key(&path_key) {
                 changes.push(Change {
                     change_type: ChangeType::Deleted,
                     relative_path: relative_path.clone(),
                     target_path: target_path.clone(),
                     source_path: source_path.clone(),
                 });
-                state.files.remove(&relative_path.to_string_lossy().to_string());
+                state.files.remove(&path_key);
             }
             continue;
         }
         
-        // Calculate current checksum
+        // Calculate current checksum of target file
         let current_checksum = calculate_checksum(&target_path)?;
-        let path_key = relative_path.to_string_lossy().to_string();
         
         match state.files.get(&path_key) {
             None => {
-                // New file
+                // New file detected in target
+                log::info!("New file detected: {}", relative_path.display());
                 changes.push(Change {
                     change_type: ChangeType::New,
                     relative_path: relative_path.clone(),
@@ -168,6 +191,7 @@ pub fn detect_group_changes(
             }
             Some(file_state) if file_state.checksum != current_checksum => {
                 // Modified file
+                log::info!("Modified file detected: {}", relative_path.display());
                 changes.push(Change {
                     change_type: ChangeType::Modified,
                     relative_path: relative_path.clone(),
@@ -210,28 +234,42 @@ pub fn collect(
     let mut state = load_state(state_path)?;
     let mut all_changes = Vec::new();
     
+    log::debug!("Total groups in config: {}", config.local.len());
+    
     for group in &config.local {
+        log::debug!("Processing group: '{}' (collect={:?})", group.name, group.collect);
+        
         // Skip groups without collect enabled
         if !group.is_collect_enabled() {
+            log::debug!("Skipping group '{}' (collect not enabled)", group.name);
             continue;
         }
         
+        log::info!("Checking group '{}' for changes...", group.name);
         let changes = detect_group_changes(group, &mut state)?;
+        
+        if !changes.is_empty() {
+            log::info!("Found {} changes in group '{}'", changes.len(), group.name);
+        }
         
         if !dry_run {
             // Apply changes: copy target files back to source
             for change in &changes {
-                if change.change_type == ChangeType::Deleted {
-                    // Optionally delete source file
-                    if change.source_path.exists() {
-                        fs::remove_file(&change.source_path)?;
+                match change.change_type {
+                    ChangeType::Deleted => {
+                        log::info!("Deleting source file: {}", change.source_path.display());
+                        if change.source_path.exists() {
+                            fs::remove_file(&change.source_path)?;
+                        }
                     }
-                } else {
-                    // Copy target to source
-                    if let Some(parent) = change.source_path.parent() {
-                        fs::create_dir_all(parent)?;
+                    _ => {
+                        log::info!("Collecting: {} -> {}", change.target_path.display(), change.source_path.display());
+                        // Copy target to source
+                        if let Some(parent) = change.source_path.parent() {
+                            fs::create_dir_all(parent)?;
+                        }
+                        fs::copy(&change.target_path, &change.source_path)?;
                     }
-                    fs::copy(&change.target_path, &change.source_path)?;
                 }
             }
         }

@@ -133,6 +133,9 @@ fn run_collect(args: CollectArgs) -> Result<()> {
         config.filter_names(args.group_names)
     };
     
+    // Expand glob patterns in sources before collecting
+    let config = syncing::expand(config)?;
+    
     let changes = collecting::collect(&config, &state_path, args.dry_run)?;
     
     if changes.is_empty() {
