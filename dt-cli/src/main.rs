@@ -196,14 +196,16 @@ fn run_collect(args: CollectArgs) -> Result<()> {
 
 fn setup(verbosity: i8) {
     match verbosity {
-        i8::MIN..=-2 => std::env::set_var("RUST_LOG", "error"),
-        -1 => std::env::set_var("RUST_LOG", "warn"),
-        0 => std::env::set_var(
-            "RUST_LOG",
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_owned()),
-        ),
-        1 => std::env::set_var("RUST_LOG", "debug"),
-        2..=i8::MAX => std::env::set_var("RUST_LOG", "trace"),
+        i8::MIN..=-2 => unsafe { std::env::set_var("RUST_LOG", "error") },
+        -1 => unsafe { std::env::set_var("RUST_LOG", "warn") },
+        0 => unsafe {
+            std::env::set_var(
+                "RUST_LOG",
+                std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_owned()),
+            )
+        },
+        1 => unsafe { std::env::set_var("RUST_LOG", "debug") },
+        2..=i8::MAX => unsafe { std::env::set_var("RUST_LOG", "trace") },
     }
     pretty_env_logger::init();
 }
