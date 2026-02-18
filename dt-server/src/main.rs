@@ -6,6 +6,7 @@ use dt_core::{
     utils::default_config_path,
 };
 use structopt::StructOpt;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 #[derive(StructOpt, Debug)]
 #[structopt(
@@ -39,21 +40,29 @@ async fn run() -> Result<()> {
 
     let config_path = match opt.config_path {
         Some(p) => {
-            log::debug!("Using config file '{}' (from command line)", p.display(),);
+            tracing::debug!("Using config file '{}' (from command line)", p.display());
             p
         }
         None => default_config_path("DT_SERVER_CONFIG_PATH", "DT_CONFIG_DIR", &["server.toml"])?,
     };
 
-    let config = DTConfig::from_path(config_path)?;
+    let _config = DTConfig::from_path(config_path)?;
     Ok(())
 }
 
 #[tokio::main]
 async fn main() {
     if let Err(e) = run().await {
-        log::error!("{}", e);
+        tracing::error!("{}", e);
         match e {
+            AppError::ConfigError(_) => std::process::exit(1),
+            AppError::IoError(_) => std::process::exit(2),
+            AppError::ParseError(_) => std::process::exit(3),
+            AppError::PathError(_) => std::process::exit(4),
+            AppError::RenderingError(_) => std::process::exit(5),
+            AppError::SyncingError(_) => std::process::exit(6),
+            AppError::TemplatingError(_) => std::process::exit(7),
+            AppError::ProcessError(_) => std::process::exit(8),
             #[allow(unreachable_patterns)]
             _ => std::process::exit(255),
         }
@@ -61,20 +70,29 @@ async fn main() {
 }
 
 fn setup(verbosity: i8) {
-    match verbosity {
-        i8::MIN..=-2 => unsafe { std::env::set_var("RUST_LOG", "error") },
-        -1 => unsafe { std::env::set_var("RUST_LOG", "warn") },
-        0 => unsafe {
-            std::env::set_var(
-                "RUST_LOG",
-                std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_owned()),
-            )
-        },
-        1 => unsafe { std::env::set_var("RUST_LOG", "debug") },
-        2..=i8::MAX => unsafe { std::env::set_var("RUST_LOG", "trace") },
-    }
+    // Map verbosity level to log level
+    let log_level = match verbosity {
+        i8::MIN..=-2 => "error",
+        -1 => "warn",
+        0 => "info",
+        1 => "debug",
+        2..=i8::MAX => "trace",
+    };
 
-    pretty_env_logger::init();
+    // Initialize tracing subscriber with env filter
+    // Use RUST_LOG if set, otherwise use the verbosity-based level
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new(log_level));
+
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_writer(std::io::stderr)
+                .without_time()
+                .with_target(false),
+        )
+        .with(filter)
+        .init();
 }
 
 // Author: Blurgy <gy@blurgy.xyz>

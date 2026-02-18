@@ -14,7 +14,7 @@ use crate::error::{Error as AppError, Result};
 /// # use dt_core::utils::default_config_path;
 /// # use std::path::PathBuf;
 /// # use std::str::FromStr;
-/// std::env::set_var("DT_CLI_CONFIG_PATH", "/tmp/dt/configuration.toml");
+/// unsafe { std::env::set_var("DT_CLI_CONFIG_PATH", "/tmp/dt/configuration.toml") };
 /// assert_eq!(
 ///     default_config_path::<&str>("DT_CLI_CONFIG_PATH", "", &[]),
 ///     Ok(PathBuf::from_str("/tmp/dt/configuration.toml").unwrap()),
@@ -34,7 +34,7 @@ use crate::error::{Error as AppError, Result};
 /// # use dt_core::utils::default_config_path;
 /// # use std::path::PathBuf;
 /// # use std::str::FromStr;
-/// std::env::set_var("DT_CONFIG_DIR", "/tmp/d/t");
+/// unsafe { std::env::set_var("DT_CONFIG_DIR", "/tmp/d/t") };
 /// assert_eq!(
 ///     default_config_path::<&str>(
 ///         "some_non_existing_var",
@@ -56,7 +56,7 @@ use crate::error::{Error as AppError, Result};
 /// # use dt_core::utils::default_config_path;
 /// # use std::path::PathBuf;
 /// # use std::str::FromStr;
-/// std::env::set_var("XDG_CONFIG_HOME", "/tmp/confighome");
+/// unsafe { std::env::set_var("XDG_CONFIG_HOME", "/tmp/confighome") };
 /// assert_eq!(
 ///     default_config_path::<&str>(
 ///         "some_non_existing_var",
@@ -66,8 +66,8 @@ use crate::error::{Error as AppError, Result};
 ///     Ok(PathBuf::from_str("/tmp/confighome/dt/config.toml").unwrap()),
 /// );
 ///
-/// std::env::remove_var("XDG_CONFIG_HOME");
-/// std::env::set_var("HOME", "/tmp/home");
+/// unsafe { std::env::remove_var("XDG_CONFIG_HOME") };
+/// unsafe { std::env::set_var("HOME", "/tmp/home") };
 /// assert_eq!(
 ///     default_config_path::<&str>(
 ///         "some_non_existing_var",

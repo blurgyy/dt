@@ -16,9 +16,10 @@ keywords = ["dotfiles", "manager", "syncing", "config"]
 dirs = "5.0.1"
 dt-core = { path = "../dt-core" }
 log = "0.4.20"
-pretty_env_logger = "0.5.0"
 structopt = "0.3.26"
 tokio = { version = "1.32.0", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 warp = "0.3.5"
 
 [target.armv7-unknown-linux-gnueabihf]

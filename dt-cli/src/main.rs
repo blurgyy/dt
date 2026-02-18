@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use structopt::StructOpt;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 use dt_core::{
     collecting::{self, default_state_path},
@@ -91,11 +92,11 @@ fn run() -> Result<()> {
 
 fn run_sync(args: SyncArgs) -> Result<()> {
     setup(args.verbose - args.quiet + { args.dry_run as i8 });
-    log::trace!("Parsed command line: {:?}", &args);
+    tracing::trace!("Parsed command line: {:?}", &args);
 
     let config_path = match args.config_path {
         Some(p) => {
-            log::debug!("Using config file '{}' (from command line)", p.display());
+            tracing::debug!("Using config file '{}' (from command line)", p.display());
             p
         }
         None => default_config_path("DT_CLI_CONFIG_PATH", "DT_CONFIG_DIR", &["cli.toml"])?,
@@ -114,11 +115,11 @@ fn run_sync(args: SyncArgs) -> Result<()> {
 
 fn run_collect(args: CollectArgs) -> Result<()> {
     setup(args.verbose - args.quiet + { args.dry_run as i8 });
-    log::trace!("Parsed command line: {:?}", &args);
+    tracing::trace!("Parsed command line: {:?}", &args);
 
     let config_path = match args.config_path {
         Some(p) => {
-            log::debug!("Using config file '{}' (from command line)", p.display());
+            tracing::debug!("Using config file '{}' (from command line)", p.display());
             p
         }
         None => default_config_path("DT_CLI_CONFIG_PATH", "DT_CONFIG_DIR", &["cli.toml"])?,
@@ -141,8 +142,7 @@ fn run_collect(args: CollectArgs) -> Result<()> {
     // Use expand_for_collect to avoid resolve() filtering out overlapping groups
     let config = syncing::expand_for_collect(config)?;
     
-    let result = collecting::collect(&config, &state_path, args.dry_run, args.skip_dirty
-    )?;
+    let result = collecting::collect(&config, &state_path, args.dry_run, args.skip_dirty)?;
     
     // Handle conflicts
     if !result.conflicts.is_empty() {
@@ -166,28 +166,28 @@ fn run_collect(args: CollectArgs) -> Result<()> {
     
     // Output results
     if result.changes.is_empty() && result.skipped == 0 {
-        log::info!("No changes detected.");
+        tracing::info!("No changes detected.");
     } else {
         if !result.changes.is_empty() {
-            log::info!("Detected {} change(s):", result.changes.len());
+            tracing::info!("Detected {} change(s):", result.changes.len());
             for change in &result.changes {
                 let change_type_str = match change.change_type {
                     collecting::ChangeType::New => "NEW",
                     collecting::ChangeType::Modified => "MODIFIED",
                     collecting::ChangeType::Deleted => "DELETED",
                 };
-                log::info!("  [{}] {}", change_type_str, change.relative_path.display());
+                tracing::info!("  [{}] {}", change_type_str, change.relative_path.display());
             }
         }
         
         if result.skipped > 0 {
-            log::warn!("Skipped {} file(s) with uncommitted changes", result.skipped);
+            tracing::warn!("Skipped {} file(s) with uncommitted changes", result.skipped);
         }
         
         if args.dry_run {
-            log::info!("(Dry run - no changes were applied)");
+            tracing::info!("(Dry run - no changes were applied)");
         } else if !result.changes.is_empty() {
-            log::info!("Changes have been collected to source.");
+            tracing::info!("Changes have been collected to source.");
         }
     }
     
@@ -195,24 +195,34 @@ fn run_collect(args: CollectArgs) -> Result<()> {
 }
 
 fn setup(verbosity: i8) {
-    match verbosity {
-        i8::MIN..=-2 => unsafe { std::env::set_var("RUST_LOG", "error") },
-        -1 => unsafe { std::env::set_var("RUST_LOG", "warn") },
-        0 => unsafe {
-            std::env::set_var(
-                "RUST_LOG",
-                std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_owned()),
-            )
-        },
-        1 => unsafe { std::env::set_var("RUST_LOG", "debug") },
-        2..=i8::MAX => unsafe { std::env::set_var("RUST_LOG", "trace") },
-    }
-    pretty_env_logger::init();
+    // Map verbosity level to log level
+    let log_level = match verbosity {
+        i8::MIN..=-2 => "error",
+        -1 => "warn",
+        0 => "info",
+        1 => "debug",
+        2..=i8::MAX => "trace",
+    };
+
+    // Initialize tracing subscriber with env filter
+    // Use RUST_LOG if set, otherwise use the verbosity-based level
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new(log_level));
+
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_writer(std::io::stderr)
+                .without_time()
+                .with_target(false),
+        )
+        .with(filter)
+        .init();
 }
 
 fn main() {
     if let Err(e) = run() {
-        log::error!("{}", e);
+        tracing::error!("{}", e);
         match e {
             AppError::ConfigError(_) => std::process::exit(1),
             AppError::IoError(_) => std::process::exit(2),
